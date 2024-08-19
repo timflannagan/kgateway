@@ -1,0 +1,53 @@
+name: Run Conformance Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      # kube-version:
+      #   description: 'Kubernetes version to test'
+      #   required: true
+      #   type: choice
+      #   options:
+      #     - v1.26.0
+      #     - v1.25.0
+      #     - v1.24.0
+      image-variant:
+        description: 'Image variant to use'
+        required: true
+        type: choice
+        options:
+          - standard
+          - distroless
+      profile:
+        description: 'Conformance profile to run'
+        required: true
+        type: choice
+        options:
+          - standard
+          - experimental
+
+jobs:
+  run-conformance-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # kube-version:
+        #   - kind: ${{ inputs.kube-version }}
+        #     kubectl: ${{ inputs.kube-version }}
+        #     helm: v3.8.0
+        #     node: v16.13.0
+        kube-version:
+        - node: 'v1.29.2@sha256:51a1434a5397193442f0be2a297b488b6c919ce8a3931be0ce822606ea5ca245'
+          kubectl: 'v1.29.2'
+          kind: 'v0.20.0'
+          helm: 'v3.14.4'
+        image-variant:
+          - ${{ inputs.image-variant }}
+        profile:
+          - ${{ inputs.profile }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Run Conformance Tests
+        uses: ./.github/workflows/composite-actions/conformance-tests

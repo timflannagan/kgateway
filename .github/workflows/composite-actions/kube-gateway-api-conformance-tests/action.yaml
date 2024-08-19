@@ -32,8 +32,20 @@ runs:
         --set global.image.variant=${{ matrix.image-variant }}
   - name: Run kubernetes gateway api conformance tests
     shell: bash
-    run: make conformance
+    run: |
+      if [[ ${{ matrix.profile }} == "experimental" ]]; then
+        make conformance-experimental
+      else
+        make conformance
+      fi
   - name: print events
     if: ${{ failure() }}
     shell: bash
     run: kubectl -n gloo-system  get events --sort-by='{.lastTimestamp}'
+  - name: Upload report artifacts
+    if: "{{ success && matrix.profile == 'experimental' }}"
+    uses: actions/upload-artifact@v4
+    with:
+      name: _test/conformance/report.yaml
+      path: _test/conformance/report.yaml
+      if-no-files-found: ignore
