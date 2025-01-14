@@ -1,0 +1,141 @@
+name: Label PR by Kind
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  # TODO(tim): cache JQ.
+  install-jq:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+  release-note:
+    runs-on: ubuntu-latest
+    needs: install-jq
+    steps:
+      - name: Extract release note content
+        id: extract-release-note
+        shell: bash
+        run: |
+          # Extract PR description using jq
+          PR_DESCRIPTION=$(jq -r ".pull_request.body" "$GITHUB_EVENT_PATH")
+          echo "PR_DESCRIPTION: $PR_DESCRIPTION"
+
+          # Extract the content between the release-note fences
+          RELEASE_NOTE=$(echo "$PR_DESCRIPTION" | awk '/```release-note/{flag=1;next}/```/{flag=0}flag')
+          RELEASE_NOTE=$(echo "$RELEASE_NOTE" | tr -d '\r\n' | xargs)
+
+          if [[ $RELEASE_NOTE == "NONE" ]]; then
+            # no release note needed.
+            echo "::set-output name=release-note::false"
+          elif [[ $RELEASE_NOTE == "" ]]; then
+            # invalid, no release note found.
+            echo "::set-output name=release-note::invalid"
+          else
+            # else, release note found.
+            echo "::set-output name=release-note::true"
+          fi
+
+          echo "Extracted RELEASE_NOTE: '$RELEASE_NOTE'"
+          echo "::set-output name=release_note::$RELEASE_NOTE"
+
+      - name: Add release-note label when the release note is present
+        if: ${{ steps.extract-release-note.outputs.release-note == 'true' && !contains(github.event.pull_request.labels.*.name, 'release-note') }}
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: release-note
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add do-not-merge label when the release note is missing
+        if: ${{ steps.extract-release-note.outputs.release_note == 'invalid' && !contains(github.event.pull_request.labels.*.name, 'do-not-merge') }}
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: do-not-merge
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove stale do-not-merge label when release note is present or NONE
+        if: ${{ steps.extract-release-note.outputs.release-note != 'invalid' && contains(github.event.pull_request.labels.*.name, 'do-not-merge') }}
+        uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          labels: do-not-merge
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove stale release-note label when release note is missing or NONE
+        if: ${{ steps.extract-release-note.outputs.release-note != 'true' && contains(github.event.pull_request.labels.*.name, 'release-note') }}
+        uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          labels: release-note
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+  kind-label:
+    runs-on: ubuntu-latest
+    needs: install-jq
+    steps:
+      - name: Extract /kind from PR description
+        id: extract-kind
+        shell: bash
+        run: |
+          # Extract PR description using jq
+          PR_DESCRIPTION=$(jq -r ".pull_request.body" "$GITHUB_EVENT_PATH")
+          echo "Original PR_DESCRIPTION: $PR_DESCRIPTION"
+
+          # Remove HTML comment blocks to avoid false matches in commented sections
+          CLEAN_DESCRIPTION=$(echo "$PR_DESCRIPTION" | sed '/<!--/,/-->/d')
+          echo "Cleaned PR_DESCRIPTION: $CLEAN_DESCRIPTION"
+
+          # Use regex on the cleaned description to find "/kind <something>"
+          if [[ $CLEAN_DESCRIPTION =~ /kind[[:space:]]+([[:alnum:]-]+) ]]; then
+            KIND_LABEL=${BASH_REMATCH[1]}
+            echo "Detected kind: $KIND_LABEL"
+            # Set the output for use in later steps
+            echo "::set-output name=kind::${KIND_LABEL}"
+          else
+            echo "No /kind found."
+            echo "::set-output name=kind::"
+          fi
+
+      - name: Validate and prepare kind label removal
+        if: steps.extract-kind.outputs.kind != ''
+        shell: bash
+        run: |
+          KIND_LABEL=${{ steps.extract-kind.outputs.kind }}
+          SUPPORTED_KINDS=( "bug" "enhancement" "helm" "deprecation" "breaking-change" )
+
+          # Validate that the kind is supported
+          if [[ ! " ${SUPPORTED_KINDS[@]} " =~ " ${KIND_LABEL} " ]]; then
+            echo "Unsupported kind label: $KIND_LABEL"
+            echo "Supported kinds: ${SUPPORTED_KINDS[@]}"
+            # TODO(tim): we should add a label to the PR to indicate that the kind is invalid.
+            exit 1
+          fi
+
+          # Build a list of all kind labels except the current one
+          LABELS_TO_REMOVE=()
+          for kind in "${SUPPORTED_KINDS[@]}"; do
+            if [[ "$kind" != "$KIND_LABEL" ]]; then
+              LABELS_TO_REMOVE+=( "kind/$kind" )
+            fi
+          done
+
+          # Export the list of labels to remove as a space-separated string
+          echo "::set-output name=labels_to_remove::${LABELS_TO_REMOVE[*]}"
+
+      # TODO(tim): this is broken, we need to fix it.
+      - name: Remove existing kind labels to prevent stale labels
+        uses: actions-ecosystem/action-remove-labels@v1
+        if: steps.extract-kind.outputs.kind != ''
+        with:
+          labels: ${{ steps.validate_and_prepare_kind_label_removal.outputs.labels_to_remove }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add labels to PR
+        uses: actions-ecosystem/action-add-labels@v1
+        if: ${{ steps.extract-kind.outputs.kind != '' }}
+        with:
+          labels: |
+            kind/${{ steps.extract-kind.outputs.kind }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}

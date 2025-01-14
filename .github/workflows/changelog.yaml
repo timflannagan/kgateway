@@ -1,0 +1,33 @@
+name: Generate CHANGELOG
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  generate-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate CHANGELOG
+        id: build-changelog
+        uses: ./.github/workflows/composite-actions/changelog
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create changelog artifact
+        if: ${{ steps.build-changelog.outputs.file_created == 'true' }}
+        shell: bash
+        run: |
+          echo "${{ steps.build-changelog.outputs.changelog-content }}" > CHANGELOG.md
+          echo "CHANGELOG.md created"
+
+      - name: Upload changelog artifact
+        if: ${{ steps.build-changelog.outputs.file_created == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: CHANGELOG.md
+          path: CHANGELOG.md
