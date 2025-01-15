@@ -1,5 +1,7 @@
 package services
 
+// FIXME(tim): Compilation errors in this suite. Artifact of removing projects/discovery.
+
 import (
 	"context"
 	"fmt"
