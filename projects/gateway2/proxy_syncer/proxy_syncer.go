@@ -128,8 +128,8 @@ func toResources(gw ir.Gateway, xdsSnap irtranslator.TranslationResult, r report
 // The provided GatewayInputChannels are used to trigger syncs.
 func NewProxySyncer(
 	ctx context.Context,
-	initialSettings *glookubev1.Settings,
-	settings krt.Singleton[glookubev1.Settings],
+	_ *glookubev1.Settings,
+	_ krt.Singleton[glookubev1.Settings],
 	controllerName string,
 	mgr manager.Manager,
 	client kube.Client,

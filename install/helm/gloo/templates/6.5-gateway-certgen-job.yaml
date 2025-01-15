@@ -70,9 +70,11 @@ spec:
 {{- end }} {{/* if and gateway.enabled gateway.validation.enabled gateway.certGenJob.enabled */}}
 {{- end }} {{/* define "gloo.gatewayCertGenJobSpec" */}}
 
+{{- if and .Values.gateway.enabled .Values.gateway.validation.enabled .Values.gateway.certGenJob.enabled }}
 {{/* Render template with yaml overrides */}}
 {{- $kubeResourceOverride := dict -}}
 {{- if .Values.gateway.certGenJob -}}
 {{- $kubeResourceOverride = .Values.gateway.certGenJob.kubeResourceOverride -}}
 {{- end -}}
 {{- include "gloo.util.merge" (list . $kubeResourceOverride "gloo.gatewayCertGenJobSpec") -}}
+{{- end }}

@@ -1,4 +1,4 @@
-{{- if .Values.gateway.rolloutJob.enabled }}
+{{- if and .Values.gateway.enabled .Values.gateway.rolloutJob.enabled }}
 {{- $image := .Values.gateway.rolloutJob.image }}
 {{- if .Values.global }}
 {{- $image = merge .Values.gateway.rolloutJob.image .Values.global.image }}
@@ -132,4 +132,3 @@ spec:
               echo "no custom resources to check"
             fi
 {{- end }}{{/* if .Values.gateway.rolloutJob.enabled  */}}
-
