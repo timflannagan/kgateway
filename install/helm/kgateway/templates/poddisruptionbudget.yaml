@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kgateway-controller-pdb
+  namespace: kgateway-system
+  labels:
+    {{- include "kgateway.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: "kgateway-controller"

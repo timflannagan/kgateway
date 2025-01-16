@@ -1,0 +1,30 @@
+{{- if .Values.kubeGateway.enabled -}}
+apiVersion: gateway.gloo.solo.io/v1alpha1
+kind: GatewayParameters
+metadata:
+  labels:
+    {{- include "kgateway.labels" . | nindent 4 }}
+  name: gloo-gateway
+  namespace: {{ .Release.Namespace | default "kgateway-system" }}
+spec:
+  kube:
+    deployment:
+      replicas: {{ .Values.kubeGateway.gatewayParameters.glooGateway.proxyDeployment.replicas | default 1 }}
+    service:
+      type: {{ .Values.kubeGateway.gatewayParameters.glooGateway.service.type | default "LoadBalancer" }}
+    envoyContainer:
+      image:
+        registry: {{ .Values.global.image.registry }}
+        repository: {{ .Values.kubeGateway.gatewayParameters.glooGateway.envoyContainer.image.repository | default "gloo-envoy-wrapper" }}
+        tag: {{ .Values.kubeGateway.gatewayParameters.glooGateway.envoyContainer.image.tag | default "1.0.0" }}
+        pullPolicy: {{ .Values.global.image.pullPolicy }}
+      securityContext:
+{{ toYaml .Values.kubeGateway.gatewayParameters.glooGateway.envoyContainer.securityContext | indent 8 }}
+    sdsContainer:
+      image:
+        registry: {{ .Values.global.image.registry }}
+        repository: {{ .Values.kubeGateway.gatewayParameters.glooGateway.sdsContainer.image.repository | default "sds" }}
+        tag: {{ .Values.kubeGateway.gatewayParameters.glooGateway.sdsContainer.image.tag | default "1.0.0" }}
+        pullPolicy: {{ .Values.global.image.pullPolicy }}
+      logLevel: {{ .Values.kubeGateway.gatewayParameters.glooGateway.sdsContainer.logLevel | default "info" }}
+{{- end }}

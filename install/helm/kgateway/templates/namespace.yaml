@@ -1,0 +1,8 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kgateway-system
+  labels:
+    {{- include "kgateway.labels" . | nindent 4 }}
+{{- end }}
