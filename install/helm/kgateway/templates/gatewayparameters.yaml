@@ -1,0 +1,15 @@
+{{- if .Values.gatewayClass.parametersRef.enabled }}
+apiVersion: gateway.kgateway.io/v1alpha1
+kind: GatewayParameters
+metadata:
+  name: {{ .Values.gatewayClass.parametersRef.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "kgateway.labels" . | nindent 4 }}
+spec:
+  kube:
+    deployment:
+      replicas: {{ .Values.replicaCount }}
+    service:
+      type: {{ .Values.service.type }}
+{{- end }}

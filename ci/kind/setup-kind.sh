@@ -73,7 +73,7 @@ else
   VERSION=$VERSION CLUSTER_NAME=$CLUSTER_NAME IMAGE_VARIANT=$IMAGE_VARIANT make kind-build-and-load
 
   # 3. Build the test helm chart, ensuring we have a chart in the `_test` folder
-  VERSION=$VERSION make build-test-chart
+  VERSION=$VERSION make package-kgateway-chart
 fi
 
 # 4. Build the gloo command line tool, ensuring we have one in the `_output` folder
@@ -91,5 +91,32 @@ kubectl apply --kustomize "https://github.com/kubernetes-sigs/gateway-api/config
 if [[ $CONFORMANCE == "true" ]]; then
   echo "Running conformance test setup"
 
-  . $SCRIPT_DIR/setup-metalllb-on-kind.sh
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "Detected macOS. Installing cloud-provider-kind@v0.4.0."
+    go install sigs.k8s.io/cloud-provider-kind@v0.4.0
+
+    echo "Starting cloud-provider-kind in the background."
+    # We redirect stdout/stderr to a file to avoid cluttering logs, then
+    # store the process PID so we can terminate it if desired.
+    nohup sudo "$(go env GOPATH)/bin/cloud-provider-kind" &> cloud-provider-kind.log &
+    CLOUD_PROVIDER_KIND_PID=$!
+
+    cat <<EOF
+    ==================================
+    cloud-provider-kind is now installed and running in the background.
+    Background process PID: ${CLOUD_PROVIDER_KIND_PID}
+    Log file: cloud-provider-kind.log
+
+    Next steps:
+      1) If you need to debug, check the cloud-provider-kind.log file.
+      2) When this job finishes, you may optionally kill the background process with:
+          kill ${CLOUD_PROVIDER_KIND_PID}
+      3) Your control plane node is labeled to exclude LB traffic by default.
+        To allow the LB to function on macOS, remove the label with:
+          kubectl label node \${CLUSTER_NAME}-control-plane node.kubernetes.io/exclude-from-external-load-balancers-
+    ==================================
+EOF
+  elif [[ "$(uname -s)" == "Linux" ]]; then
+    . $SCRIPT_DIR/setup-metalllb-on-kind.sh
+  fi
 fi

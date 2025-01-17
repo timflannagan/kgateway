@@ -262,10 +262,16 @@ go-test-with-coverage: go-test
 .PHONY: validate-test-coverage
 validate-test-coverage:
 	go run github.com/vladopajic/go-test-coverage/v2@v2.8.1 --config=./test_coverage.yml
-
+# https://go.dev/blog/cover#heat-maps
 .PHONY: view-test-coverage
 view-test-coverage:
 	go tool cover -html $(OUTPUT_DIR)/cover.out
+
+.PHONY: package-kgateway-chart
+package-kgateway-chart: ## Package the new kgateway helm chart for testing
+	mkdir -p $(TEST_ASSET_DIR)
+	helm package --version $(VERSION) --destination $(TEST_ASSET_DIR) install/helm/kgateway
+	helm repo index $(TEST_ASSET_DIR)
 
 #----------------------------------------------------------------------------------
 # Clean
@@ -459,22 +465,22 @@ GLOO_SOURCES=$(call get_sources,$(GLOO_DIR))
 EDGE_GATEWAY_SOURCES=$(call get_sources,$(EDGE_GATEWAY_DIR))
 K8S_GATEWAY_SOURCES=$(call get_sources,$(K8S_GATEWAY_DIR))
 GLOO_OUTPUT_DIR=$(OUTPUT_DIR)/$(GLOO_DIR)
-export GLOO_IMAGE_REPO ?= gloo
+export GLOO_IMAGE_REPO ?= kgwd
 
 # We include the files in EDGE_GATEWAY_DIR and K8S_GATEWAY_DIR as dependencies to the gloo build
 # so changes in those directories cause the make target to rebuild
-$(GLOO_OUTPUT_DIR)/gloo-linux-$(GOARCH): $(GLOO_SOURCES) $(EDGE_GATEWAY_SOURCES) $(K8S_GATEWAY_SOURCES)
+$(GLOO_OUTPUT_DIR)/kgwd-linux-$(GOARCH):
 	$(GO_BUILD_FLAGS) GOOS=linux go build -ldflags='$(LDFLAGS)' -gcflags='$(GCFLAGS)' -o $@ $(GLOO_DIR)/cmd/main.go
 
-.PHONY: gloo
-gloo: $(GLOO_OUTPUT_DIR)/gloo-linux-$(GOARCH)
+.PHONY: kgwd
+kgwd: $(GLOO_OUTPUT_DIR)/kgwd-linux-$(GOARCH)
 
-$(GLOO_OUTPUT_DIR)/Dockerfile.gloo: $(GLOO_DIR)/cmd/Dockerfile
+$(GLOO_OUTPUT_DIR)/Dockerfile.kgwd: $(GLOO_DIR)/cmd/Dockerfile
 	cp $< $@
 
-.PHONY: gloo-docker
-gloo-docker: $(GLOO_OUTPUT_DIR)/gloo-linux-$(GOARCH) $(GLOO_OUTPUT_DIR)/Dockerfile.gloo
-	docker buildx build --load $(PLATFORM) $(GLOO_OUTPUT_DIR) -f $(GLOO_OUTPUT_DIR)/Dockerfile.gloo \
+.PHONY: kgwd-docker
+kgwd-docker: $(GLOO_OUTPUT_DIR)/kgwd-linux-$(GOARCH) $(GLOO_OUTPUT_DIR)/Dockerfile.kgwd
+	docker buildx build --load $(PLATFORM) $(GLOO_OUTPUT_DIR) -f $(GLOO_OUTPUT_DIR)/Dockerfile.kgwd \
 		--build-arg GOARCH=$(GOARCH) \
 		--build-arg ENVOY_IMAGE=$(ENVOY_GLOO_IMAGE) \
 		-t $(IMAGE_REGISTRY)/$(GLOO_IMAGE_REPO):$(VERSION) $(QUAY_EXPIRATION_LABEL)
@@ -484,7 +490,7 @@ $(GLOO_OUTPUT_DIR)/Dockerfile.gloo.distroless: $(GLOO_DIR)/cmd/Dockerfile.distro
 
 # Explicitly specify the base image is amd64 as we only build the amd64 flavour of gloo envoy
 .PHONY: gloo-distroless-docker
-gloo-distroless-docker: $(GLOO_OUTPUT_DIR)/gloo-linux-$(GOARCH) $(GLOO_OUTPUT_DIR)/Dockerfile.gloo.distroless distroless-with-utils-docker
+kgwd-distroless-docker: $(GLOO_OUTPUT_DIR)/gloo-linux-$(GOARCH) $(GLOO_OUTPUT_DIR)/Dockerfile.gloo.distroless distroless-with-utils-docker
 	docker buildx build --load $(PLATFORM) $(GLOO_OUTPUT_DIR) -f $(GLOO_OUTPUT_DIR)/Dockerfile.gloo.distroless \
 		--build-arg GOARCH=$(GOARCH) \
 		--build-arg ENVOY_IMAGE=$(ENVOY_GLOO_IMAGE) \
@@ -811,7 +817,7 @@ docker-push-%:
 
 .PHONY: docker-standard
 docker-standard: check-go-version ## Build docker images (standard only)
-docker-standard: gloo-docker
+docker-standard: kgwd-docker
 docker-standard: discovery-docker
 docker-standard: gloo-envoy-wrapper-docker
 docker-standard: sds-docker
@@ -959,7 +965,7 @@ kind-reload-gloo-envoy-wrapper:
 	kubectl rollout resume deployment gateway-proxy -n $(INSTALL_NAMESPACE)
 
 .PHONY: kind-build-and-load-standard
-kind-build-and-load-standard: kind-build-and-load-gloo
+kind-build-and-load-standard: kind-build-and-load-kgwd
 kind-build-and-load-standard: kind-build-and-load-discovery
 kind-build-and-load-standard: kind-build-and-load-gloo-envoy-wrapper
 kind-build-and-load-standard: kind-build-and-load-sds
@@ -988,7 +994,7 @@ kind-build-and-load: kind-build-and-load-sds
 
 # Load existing images. This can speed up development if the images have already been built / are unchanged
 .PHONY: kind-load-standard
-kind-load-standard: kind-load-gloo
+kind-load-standard: kind-load-kgwd
 kind-load-standard: kind-load-discovery
 kind-load-standard: kind-load-gloo-envoy-wrapper
 kind-load-standard: kind-load-sds
@@ -996,7 +1002,7 @@ kind-load-standard: kind-load-certgen
 kind-load-standard: kind-load-kubectl
 
 .PHONY: kind-build-and-load-distroless
-kind-load-distroless: kind-load-gloo-distroless
+kind-load-distroless: kind-load-kgwd-distroless
 kind-load-distroless: kind-load-discovery-distroless
 kind-load-distroless: kind-load-gloo-envoy-wrapper-distroless
 kind-load-distroless: kind-load-sds-distroless
@@ -1056,8 +1062,8 @@ $(TEST_ASSET_DIR)/conformance/conformance_test.go:
 
 CONFORMANCE_SUPPORTED_FEATURES ?= -supported-features=Gateway,ReferenceGrant,HTTPRoute,HTTPRouteQueryParamMatching,HTTPRouteMethodMatching,HTTPRouteResponseHeaderModification,HTTPRoutePortRedirect,HTTPRouteHostRewrite,HTTPRouteSchemeRedirect,HTTPRoutePathRedirect,HTTPRouteHostRewrite,HTTPRoutePathRewrite,HTTPRouteRequestMirror
 CONFORMANCE_SUPPORTED_PROFILES ?= -conformance-profiles=GATEWAY-HTTP
-CONFORMANCE_REPORT_ARGS ?= -report-output=$(TEST_ASSET_DIR)/conformance/$(VERSION)-report.yaml -organization=solo.io -project=gloo-gateway -version=$(VERSION) -url=github.com/solo-io/gloo -contact=github.com/solo-io/gloo/issues/new/choose
-CONFORMANCE_ARGS := -gateway-class=gloo-gateway $(CONFORMANCE_SUPPORTED_FEATURES) $(CONFORMANCE_SUPPORTED_PROFILES) $(CONFORMANCE_REPORT_ARGS)
+CONFORMANCE_REPORT_ARGS ?= -report-output=$(TEST_ASSET_DIR)/conformance/$(VERSION)-report.yaml -organization=kgateway-dev -project=kgateway -version=$(VERSION) -url=github.com/kgateway-dev/kgateway -contact=github.com/kgateway-dev/kgateway/issues/new/choose
+CONFORMANCE_ARGS := -gateway-class=kgateway $(CONFORMANCE_SUPPORTED_FEATURES) $(CONFORMANCE_SUPPORTED_PROFILES) $(CONFORMANCE_REPORT_ARGS)
 
 .PHONY: conformance ## Run the conformance test suite
 conformance: $(TEST_ASSET_DIR)/conformance/conformance_test.go
