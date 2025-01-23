@@ -100,3 +100,42 @@ jobs:
           VERSION: ${{ needs.setup.outputs.version }}
           IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
           GORELEASER_ARGS: ${{ needs.setup.outputs.goreleaser_args }}
+
+  validate-release:
+    name: Validate Release
+    needs: [setup, helm, goreleaser]
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Login to GitHub Container Registry
+        if: ${{ github.event_name != 'pull_request' }}
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.IMAGE_REGISTRY }} -u ${{ github.repository_owner }} --password-stdin
+
+      - name: Setup Kind Cluster
+        run: ./ci/kind/setup-kind.sh
+        env:
+          VERSION: ${{ needs.setup.outputs.version }} # Technically not needed, but good to have.
+          SKIP_DOCKER: "true" # We already have a docker image built.
+          CONFORMANCE: "true" # Need metallb to be installed.
+
+      - name: Install the released chart
+        run: |
+          helm install --create-namespace --namespace kgateway-system kgateway \
+            oci://${{ env.IMAGE_REGISTRY }}/kgateway-helm/kgateway \
+            --version ${{ needs.setup.outputs.version }} \
+            --set controller.image.registry=${{ env.IMAGE_REGISTRY }} \
+            --set controller.image.repository=${{ env.GLOO_IMAGE_REPO }} \
+            --set controller.image.tag=${{ needs.setup.outputs.version }} \
+            --wait --timeout 5m
+
+      - name: Run Conformance Tests
+        run: make conformance
+        env:
+          VERSION: ${{ needs.setup.outputs.version }} # Output report uses this version in generated file name.
