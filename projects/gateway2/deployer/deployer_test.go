@@ -1406,15 +1406,12 @@ var _ = Describe("Deployer", func() {
 				if sdsContainer.SecurityContext != nil {
 					Expect(sdsContainer.SecurityContext.RunAsUser).To(BeNil())
 				}
-
 				if gwContainer.SecurityContext != nil {
 					Expect(gwContainer.SecurityContext.RunAsUser).To(BeNil())
 				}
-
 				if istioProxyContainer.SecurityContext != nil {
 					Expect(istioProxyContainer.SecurityContext.RunAsUser).To(BeNil())
 				}
-
 				if aiContainer.SecurityContext != nil {
 					Expect(aiContainer.SecurityContext.RunAsUser).To(BeNil())
 				}
@@ -1557,7 +1554,7 @@ var _ = Describe("Deployer", func() {
 						APIVersion: "gateway.solo.io/v1beta1",
 					},
 					Spec: api.GatewaySpec{
-						GatewayClassName: "gloo-gateway",
+						GatewayClassName: wellknown.GatewayClassName,
 					},
 				},
 				defaultGwp: defaultGatewayParams(),
@@ -1591,7 +1588,7 @@ var _ = Describe("Deployer", func() {
 						APIVersion: "gateway.solo.io/v1beta1",
 					},
 					Spec: api.GatewaySpec{
-						GatewayClassName: "gloo-gateway",
+						GatewayClassName: wellknown.GatewayClassName,
 						Listeners: []api.Listener{
 							{
 								Name: "listener-1",
