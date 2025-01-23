@@ -9,6 +9,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -38,6 +40,9 @@ jobs:
           elif [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
             echo "goreleaser_args=--clean" >> $GITHUB_OUTPUT
+          elif [[ $GITHUB_REF == refs/heads/main ]]; then
+            VERSION="main"
+            echo "goreleaser_args=--clean --skip=validate" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF == refs/pull/* ]]; then
             VERSION="pr-$(echo "${GITHUB_REF}" | sed -E 's|refs/pull/([^/]+)/?.*|\1|')"
             echo "goreleaser_args=--snapshot --clean" >> $GITHUB_OUTPUT
