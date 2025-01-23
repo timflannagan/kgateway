@@ -49,7 +49,7 @@ docker_manifests:
       - *amd_image
       - *arm_image
 changelog:
-  disable: false
+  disable: true
 release:
   prerelease: "auto"
   mode: "replace"
