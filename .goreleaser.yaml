@@ -53,3 +53,39 @@ changelog:
 release:
   prerelease: "auto"
   mode: "replace"
+  footer: |
+    # Quickstart
+
+    First, create a [kind cluster](https://kind.sigs.k8s.io/docs/user/quick-start/#installation).
+
+    ```bash
+    kind create cluster
+    ```
+
+    Then, deploy the Kubernetes Gateway API CRDs.
+
+    ```bash
+    kubectl apply --kustomize "https://github.com/kubernetes-sigs/gateway-api/config/crd/experimental?ref=v1.2.1"
+    ```
+
+    Install the `kgateway` controller.
+
+    ```bash
+    helm install --create-namespace --namespace kgateway-system kgateway oci://{{ .Env.IMAGE_REGISTRY }}/kgateway-helm/kgateway --version {{ .Env.VERSION }}
+    ```
+
+    Verify the release was successful.
+
+    ```bash
+    kubectl get pods -n kgateway-system
+    ```
+
+    If the release was successful, you should see a `kgateway` pod running.
+
+    ## Helm Charts
+
+    The Helm chart is available at [{{ .Env.IMAGE_REGISTRY }}/kgateway-helm](https://github.com/{{ .Env.IMAGE_REGISTRY }}/pkgs/container/kgateway-helm/).
+
+    ## Docker Images
+
+    The Docker images are available at [{{ .Env.IMAGE_REGISTRY }}/{{ .Env.GLOO_IMAGE_REPO }}:{{ .Env.VERSION }}]({{ .Env.IMAGE_REGISTRY }}/{{ .Env.GLOO_IMAGE_REPO }}:{{ .Env.VERSION }}).
