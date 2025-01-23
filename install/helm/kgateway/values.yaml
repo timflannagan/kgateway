@@ -54,7 +54,8 @@ controller:
   replicaCount: 1
   logLevel: info
   image:
-    repository: ghcr.io/kgateway/gloo
+    registry: ghcr.io/kgateway
+    repository: kgateway
     pullPolicy: IfNotPresent
     tag: ""
   service:
