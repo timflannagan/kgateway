@@ -17,6 +17,7 @@ on:
 
 env:
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  GLOO_IMAGE_REPO: kgateway
 
 permissions:
   contents: write
@@ -104,6 +105,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.setup.outputs.version }}
           IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
+          GLOO_IMAGE_REPO: ${{ env.GLOO_IMAGE_REPO }}
           GORELEASER_ARGS: ${{ needs.setup.outputs.goreleaser_args }}
 
   validate-release:
