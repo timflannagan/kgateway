@@ -32,8 +32,9 @@ export IMAGE_REGISTRY ?= ghcr.io/kgateway
 # Kind of a hack to make sure _output exists
 z := $(shell mkdir -p $(OUTPUT_DIR))
 
-# a semver resembling 1.0.1-dev.  Most calling jobs customize this.  Ex:  v1.15.0-pr8278
+# a semver resembling 1.0.1-dev.  Most calling jobs customize this.
 VERSION ?= 1.0.1-dev
+export VERSION
 
 SOURCES := $(shell find . -name "*.go" | grep -v test.go)
 
@@ -382,7 +383,6 @@ generate-changelog: ## Generate a changelog entry
 generate-crd-reference-docs:
 	go run docs/content/crds/generate.go
 
-
 #----------------------------------------------------------------------------------
 # Gloo distroless base images
 #----------------------------------------------------------------------------------
@@ -525,165 +525,8 @@ gloo-envoy-wrapper-distroless-docker: $(ENVOYINIT_OUTPUT_DIR)/envoyinit-linux-$(
 		-t $(IMAGE_REGISTRY)/gloo-envoy-wrapper:$(VERSION)-distroless
 
 #----------------------------------------------------------------------------------
-# Certgen - Job for creating TLS Secrets in Kubernetes
-#----------------------------------------------------------------------------------
-
-CERTGEN_DIR=jobs/certgen/cmd
-CERTGEN_SOURCES=$(call get_sources,$(CERTGEN_DIR))
-CERTGEN_OUTPUT_DIR=$(OUTPUT_DIR)/$(CERTGEN_DIR)
-
-$(CERTGEN_OUTPUT_DIR)/certgen-linux-$(GOARCH): $(CERTGEN_SOURCES)
-	$(GO_BUILD_FLAGS) GOOS=linux go build -ldflags='$(LDFLAGS)' -gcflags='$(GCFLAGS)' -o $@ $(CERTGEN_DIR)/main.go
-
-.PHONY: certgen
-certgen: $(CERTGEN_OUTPUT_DIR)/certgen-linux-$(GOARCH)
-
-$(CERTGEN_OUTPUT_DIR)/Dockerfile.certgen: $(CERTGEN_DIR)/Dockerfile
-	cp $< $@
-
-.PHONY: certgen-docker
-certgen-docker: $(CERTGEN_OUTPUT_DIR)/certgen-linux-$(GOARCH) $(CERTGEN_OUTPUT_DIR)/Dockerfile.certgen
-	docker buildx build $(LOAD_OR_PUSH) $(PLATFORM_MULTIARCH) $(CERTGEN_OUTPUT_DIR) -f $(CERTGEN_OUTPUT_DIR)/Dockerfile.certgen \
-		--build-arg BASE_IMAGE=$(ALPINE_BASE_IMAGE) \
-		-t $(IMAGE_REGISTRY)/certgen:$(VERSION)
-
-$(CERTGEN_OUTPUT_DIR)/Dockerfile.certgen.distroless: $(CERTGEN_DIR)/Dockerfile.distroless
-	cp $< $@
-
-.PHONY: certgen-distroless-docker
-certgen-distroless-docker: $(CERTGEN_OUTPUT_DIR)/certgen-linux-$(GOARCH) $(CERTGEN_OUTPUT_DIR)/Dockerfile.certgen.distroless distroless-docker
-	docker buildx build $(LOAD_OR_PUSH) $(PLATFORM_MULTIARCH) $(CERTGEN_OUTPUT_DIR) -f $(CERTGEN_OUTPUT_DIR)/Dockerfile.certgen.distroless \
-		--build-arg BASE_IMAGE=$(GLOO_DISTROLESS_BASE_IMAGE) \
-		-t $(IMAGE_REGISTRY)/certgen:$(VERSION)-distroless
-
-#----------------------------------------------------------------------------------
-# Kubectl - Used in jobs during helm install/upgrade/uninstall
-#----------------------------------------------------------------------------------
-
-KUBECTL_DIR=jobs/kubectl
-KUBECTL_OUTPUT_DIR=$(OUTPUT_DIR)/$(KUBECTL_DIR)
-
-$(KUBECTL_OUTPUT_DIR)/Dockerfile.kubectl: $(KUBECTL_DIR)/Dockerfile
-	mkdir -p $(KUBECTL_OUTPUT_DIR)
-	cp $< $@
-
-.PHONY: kubectl-docker
-kubectl-docker: $(KUBECTL_OUTPUT_DIR)/Dockerfile.kubectl
-	docker buildx build $(LOAD_OR_PUSH) $(PLATFORM_MULTIARCH) $(KUBECTL_OUTPUT_DIR) -f $(KUBECTL_OUTPUT_DIR)/Dockerfile.kubectl \
-		--build-arg BASE_IMAGE=$(ALPINE_BASE_IMAGE) \
-		-t $(IMAGE_REGISTRY)/kubectl:$(VERSION)
-
-$(KUBECTL_OUTPUT_DIR)/Dockerfile.kubectl.distroless: $(KUBECTL_DIR)/Dockerfile.distroless
-	mkdir -p $(KUBECTL_OUTPUT_DIR)
-	cp $< $@
-
-.PHONY: kubectl-distroless-docker
-kubectl-distroless-docker: $(KUBECTL_OUTPUT_DIR)/Dockerfile.kubectl.distroless distroless-with-utils-docker
-	docker buildx build $(LOAD_OR_PUSH) $(PLATFORM_MULTIARCH) $(KUBECTL_OUTPUT_DIR) -f $(KUBECTL_OUTPUT_DIR)/Dockerfile.kubectl.distroless \
-		--build-arg BASE_IMAGE=$(GLOO_DISTROLESS_BASE_WITH_UTILS_IMAGE) \
-		-t $(IMAGE_REGISTRY)/kubectl:$(VERSION)-distroless
-
-#----------------------------------------------------------------------------------
-# Deployment Manifests / Helm
-#----------------------------------------------------------------------------------
-
-HELM_SYNC_DIR := $(OUTPUT_DIR)/helm
-HELM_DIR := install/helm/gloo
-
-.PHONY: generate-helm-files
-generate-helm-files: $(OUTPUT_DIR)/.helm-prepared ## Generates required helm files
-
-HELM_PREPARED_INPUT := $(HELM_DIR)/generate.go $(wildcard $(HELM_DIR)/generate/*.go)
-$(OUTPUT_DIR)/.helm-prepared: $(HELM_PREPARED_INPUT)
-	mkdir -p $(HELM_SYNC_DIR)/charts
-	IMAGE_REGISTRY=$(IMAGE_REGISTRY) go run $(HELM_DIR)/generate.go --version $(VERSION) --generate-helm-docs
-	touch $@
-
-.PHONY: package-chart
-package-chart: generate-helm-files
-	mkdir -p $(HELM_SYNC_DIR)/charts
-	helm package --destination $(HELM_SYNC_DIR)/charts $(HELM_DIR)
-	helm repo index $(HELM_SYNC_DIR)
-
-#----------------------------------------------------------------------------------
 # Release
 #----------------------------------------------------------------------------------
-# TODO: delete this logic block when we have a github actions-managed release
-
-# git_tag is evaluated when is used (recursively expanded variable)
-# https://ftp.gnu.org/old-gnu/Manuals/make-3.79.1/html_chapter/make_6.html#SEC59
-git_tag = $(shell git describe --abbrev=0 --tags)
-# Semantic versioning format https://semver.org/
-# Regex copied from: https://github.com/solo-io/go-utils/blob/16d4d94e4e5f182ca8c10c5823df303087879dea/versionutils/version.go#L338
-tag_regex := v[0-9]+[.][0-9]+[.][0-9]+(-[a-z]+)*(-[a-z]+[0-9]*)?$
-
-ifneq (,$(TEST_ASSET_ID))
-PUBLISH_CONTEXT := PULL_REQUEST
-ifeq ($(shell echo $(git_tag) | egrep "$(tag_regex)"),)
-# Forked repos don't have tags by default, so we create a standard tag for them
-# This only impacts the version of the assets used in CI for this PR, so it is ok that it is not a real tag
-VERSION = 1.0.0-$(TEST_ASSET_ID)
-else
-# example: 1.16.0-beta4-{TEST_ASSET_ID}
-VERSION = $(shell echo $(git_tag) | cut -c 2-)-$(TEST_ASSET_ID)
-endif
-LDFLAGS := "-X github.com/solo-io/gloo/pkg/version.Version=$(VERSION)"
-endif
-
-# TODO: delete this logic block when we have a github actions-managed release
-ifneq (,$(TAGGED_VERSION))
-PUBLISH_CONTEXT := RELEASE
-VERSION := $(shell echo $(TAGGED_VERSION) | cut -c 2-)
-LDFLAGS := "-X github.com/solo-io/gloo/pkg/version.Version=$(VERSION)"
-endif
-
-export VERSION
-
-# controller variable for the "Publish Artifacts" section.  Defines which targets exist.  Possible Values: NONE, RELEASE, PULL_REQUEST
-PUBLISH_CONTEXT ?= NONE
-# specify which bucket to upload helm chart to
-HELM_BUCKET ?= gs://solo-public-tagged-helm
-
-# define empty publish targets so calls won't fail
-.PHONY: publish-docker
-.PHONY: publish-docker-retag
-.PHONY: publish-glooctl
-.PHONY: publish-helm-chart
-
-# don't define Publish Artifacts Targets if we don't have a release context
-ifneq (,$(filter $(PUBLISH_CONTEXT),RELEASE PULL_REQUEST))
-
-ifeq (RELEASE, $(PUBLISH_CONTEXT))      # RELEASE contexts have additional make targets
-HELM_BUCKET           := gs://solo-public-helm
-# Re-tag docker images previously pushed to the ORIGINAL_IMAGE_REGISTRY,
-# and push them to a secondary repository, defined at IMAGE_REGISTRY
-publish-docker-retag: docker-retag docker-push
-
-# publish glooctl
-publish-glooctl: build-cli
-	VERSION=$(VERSION) GO111MODULE=on go run ci/upload_github_release_assets.go false
-else
-# dry run publish glooctl
-publish-glooctl: build-cli
-	VERSION=$(VERSION) GO111MODULE=on go run ci/upload_github_release_assets.go true
-endif # RELEASE exclusive make targets
-
-# Build and push docker images to the defined $(IMAGE_REGISTRY)
-publish-docker: docker docker-push
-
-# create a new helm chart and publish it to $(HELM_BUCKET)
-publish-helm-chart: generate-helm-files
-	@echo "Uploading helm chart to $(HELM_BUCKET) with name gloo-$(VERSION).tgz"
-	until $$(GENERATION=$$(gsutil ls -a $(HELM_BUCKET)/index.yaml | tail -1 | cut -f2 -d '#') && \
-					gsutil cp -v $(HELM_BUCKET)/index.yaml $(HELM_SYNC_DIR)/index.yaml && \
-					helm package --destination $(HELM_SYNC_DIR)/charts $(HELM_DIR) >> /dev/null && \
-					helm repo index $(HELM_SYNC_DIR) --merge $(HELM_SYNC_DIR)/index.yaml && \
-					gsutil -m rsync $(HELM_SYNC_DIR)/charts $(HELM_BUCKET)/charts && \
-					gsutil -h x-goog-if-generation-match:"$$GENERATION" cp $(HELM_SYNC_DIR)/index.yaml $(HELM_BUCKET)/index.yaml); do \
-		echo "Failed to upload new helm index (updated helm index since last download?). Trying again"; \
-		sleep 2; \
-	done
-endif # Publish Artifact Targets
 
 GORELEASER_ARGS ?= --snapshot --clean
 GORELEASER ?= go run github.com/goreleaser/goreleaser/v2@v2.5.1
@@ -710,7 +553,7 @@ docker-push-%:
 .PHONY: docker-standard
 docker-standard: check-go-version ## Build docker images (standard only)
 docker-standard: gloo-docker
-# docker-standard: gloo-envoy-wrapper-docker
+docker-standard: gloo-envoy-wrapper-docker
 docker-standard: sds-docker
 
 .PHONY: docker-distroless
@@ -734,29 +577,13 @@ endif # distroless images
 
 .PHONY: docker-standard-push
 docker-standard-push: docker-push-gloo
-docker-standard-push: docker-push-discovery
 docker-standard-push: docker-push-gloo-envoy-wrapper
 docker-standard-push: docker-push-sds
-ifeq ($(MULTIARCH), )
-docker-standard-push: docker-push-certgen
-endif
-docker-standard-push: docker-push-access-logger
-ifeq ($(MULTIARCH), )
-docker-standard-push: docker-push-kubectl
-endif
 
 .PHONY: docker-distroless-push
 docker-distroless-push: docker-push-gloo-distroless
-docker-distroless-push: docker-push-discovery-distroless
 docker-distroless-push: docker-push-gloo-envoy-wrapper-distroless
 docker-distroless-push: docker-push-sds-distroless
-ifeq ($(MULTIARCH), )
-docker-distroless-push: docker-push-certgen-distroless
-endif
-docker-distroless-push: docker-push-access-logger-distroless
-ifeq ($(MULTIARCH), )
-docker-distroless-push: docker-push-kubectl-distroless
-endif
 
 # Push docker images to the defined IMAGE_REGISTRY
 .PHONY: docker-push
@@ -771,19 +598,13 @@ endif # distroless images
 
 .PHONY: docker-standard-retag
 docker-standard-retag: docker-retag-gloo
-docker-standard-retag: docker-retag-discovery
 docker-standard-retag: docker-retag-gloo-envoy-wrapper
 docker-standard-retag: docker-retag-sds
-docker-standard-retag: docker-retag-certgen
-docker-standard-retag: docker-retag-kubectl
 
 .PHONY: docker-distroless-retag
 docker-distroless-retag: docker-retag-gloo-distroless
-docker-distroless-retag: docker-retag-discovery-distroless
 docker-distroless-retag: docker-retag-gloo-envoy-wrapper-distroless
 docker-distroless-retag: docker-retag-sds-distroless
-docker-distroless-retag: docker-retag-certgen-distroless
-docker-distroless-retag: docker-retag-kubectl-distroless
 
 # Re-tag docker images previously pushed to the ORIGINAL_IMAGE_REGISTRY,
 # and tag them with a secondary repository, defined at IMAGE_REGISTRY
@@ -851,13 +672,11 @@ kind-reload-gloo-envoy-wrapper:
 kind-build-and-load-standard: kind-build-and-load-gloo
 # kind-build-and-load-standard: kind-build-and-load-gloo-envoy-wrapper
 # kind-build-and-load-standard: kind-build-and-load-sds
-# kind-build-and-load-standard: kind-build-and-load-certgen
 
 .PHONY: kind-build-and-load-distroless
 kind-build-and-load-distroless: kind-build-and-load-gloo-distroless
 kind-build-and-load-distroless: kind-build-and-load-gloo-envoy-wrapper-distroless
 kind-build-and-load-distroless: kind-build-and-load-sds-distroless
-kind-build-and-load-distroless: kind-build-and-load-certgen-distroless
 
 .PHONY: kind-build-and-load ## Use to build all images and load them into kind
 kind-build-and-load: # Standard images
@@ -876,13 +695,11 @@ kind-build-and-load: kind-build-and-load-sds
 kind-load-standard: kind-load-gloo
 kind-load-standard: kind-load-gloo-envoy-wrapper
 kind-load-standard: kind-load-sds
-kind-load-standard: kind-load-certgen
 
 .PHONY: kind-build-and-load-distroless
 kind-load-distroless: kind-load-gloo-distroless
 kind-load-distroless: kind-load-gloo-envoy-wrapper-distroless
 kind-load-distroless: kind-load-sds-distroless
-kind-load-distroless: kind-load-certgen-distroless
 
 .PHONY: kind-load ## Use to build all images and load them into kind
 kind-load: # Standard images
@@ -980,11 +797,12 @@ scan-version: ## Scan all Gloo images with the tag matching {VERSION} env variab
 	PATH=$(DEPSGOBIN):$$PATH GO111MODULE=on go run github.com/solo-io/go-utils/securityscanutils/cli scan-version -v \
 		-r $(IMAGE_REGISTRY)\
 		-t $(VERSION)\
-		--images gloo,gloo-envoy-wrapper,discovery,sds,certgen,kubectl
+		--images gloo,gloo-envoy-wrapper,sds
 
 #----------------------------------------------------------------------------------
 # Third Party License Management
 #----------------------------------------------------------------------------------
+
 .PHONY: update-licenses
 update-licenses:
 	GO111MODULE=on go run hack/utils/oss_compliance/oss_compliance.go osagen -c "GNU General Public License v2.0,GNU General Public License v3.0,GNU Lesser General Public License v2.1,GNU Lesser General Public License v3.0,GNU Affero General Public License v3.0"
