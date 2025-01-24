@@ -1,12 +1,8 @@
-ARG BASE_IMAGE
+FROM scratch
 
-FROM $BASE_IMAGE
+ARG GOARCH
 
-ARG GOARCH=amd64
-
-RUN apk -U upgrade
-
-COPY sds-linux-$GOARCH /usr/local/bin/sds
+COPY sds-linux-${GOARCH} /usr/local/bin/sds
 
 USER 10101
 
