@@ -1,10 +1,6 @@
-ARG BASE_IMAGE
-
-FROM $BASE_IMAGE
+FROM gcr.io/distroless/static:nonroot
 
 ARG GOARCH=amd64
-
-RUN apk -U upgrade
 
 COPY sds-linux-$GOARCH /usr/local/bin/sds
 
