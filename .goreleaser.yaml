@@ -20,11 +20,26 @@ builds:
     goarch:
       - amd64
       - arm64
+  - id: sds
+    main: ./projects/sds/cmd/
+    binary: sds-linux-{{ .Arch }}
+    gcflags: "{{ .Env.GCFLAGS }}"
+    ldflags: "{{ .Env.LDFLAGS }}"
+    env:
+    - CGO_ENABLED=0
+    - GO111MODULE=on
+    - GOARCH={{ .Arch }}
+    - GOOS={{ .Os }}
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
 dockers:
   - image_templates:
-      - &arm_image "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.GLOO_IMAGE_REPO }}:{{ .Env.VERSION }}-arm64"
+      - &arm_controller_image "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.GLOO_IMAGE_REPO }}:{{ .Env.VERSION }}-arm64"
     use: buildx
-    dockerfile: &dockerfile projects/gateway2/cmd/Dockerfile
+    dockerfile: &controller_dockerfile projects/gateway2/cmd/Dockerfile
     goos: linux
     goarch: arm64
     build_flag_templates:
@@ -32,10 +47,11 @@ dockers:
       - "--platform=linux/arm64"
       - "--build-arg=GOARCH=arm64"
       - "--build-arg=ENVOY_IMAGE={{ .Env.ENVOY_GLOO_IMAGE }}"
+      - "--build-arg=TARGETARCH=arm64"
   - image_templates:
-      - &amd_image "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.GLOO_IMAGE_REPO }}:{{ .Env.VERSION }}-amd64"
+      - &amd_controller_image "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.GLOO_IMAGE_REPO }}:{{ .Env.VERSION }}-amd64"
     use: buildx
-    dockerfile: *dockerfile
+    dockerfile: *controller_dockerfile
     goos: linux
     goarch: amd64
     build_flag_templates:
@@ -43,11 +59,36 @@ dockers:
       - "--platform=linux/amd64"
       - "--build-arg=GOARCH=amd64"
       - "--build-arg=ENVOY_IMAGE={{ .Env.ENVOY_GLOO_IMAGE }}"
+      - "--build-arg=TARGETARCH=amd64"
+  - image_templates:
+      - &arm_sds_image "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}-arm64"
+    use: buildx
+    dockerfile: &sds_dockerfile projects/sds/cmd/Dockerfile
+    goos: linux
+    goarch: arm64
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - "--build-arg=GOARCH=arm64"
+  - image_templates:
+      - &amd_sds_image "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}-amd64"
+    use: buildx
+    dockerfile: *sds_dockerfile
+    goos: linux
+    goarch: amd64
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - "--build-arg=GOARCH=amd64"
 docker_manifests:
-  - name_template: "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.GLOO_IMAGE_REPO }}:{{ .Env.VERSION }}"
+  - name_template: "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}"
     image_templates:
-      - *amd_image
-      - *arm_image
+      - *amd_controller_image
+      - *arm_controller_image
+  - name_template: "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}"
+    image_templates:
+      - *amd_sds_image
+      - *arm_sds_image
 changelog:
   disable: true
 release:
