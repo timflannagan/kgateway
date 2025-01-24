@@ -6,6 +6,10 @@ on:
         type: string
         default: "v0.0.1"
         description: "The version to release"
+      validate:
+        type: boolean
+        default: true
+        description: "Whether to validate the release"
   push:
     tags:
       - 'v*'
@@ -37,13 +41,13 @@ jobs:
           # run the full release pipeline unless it's a pull request
           if [[ ${{ github.event_name }} == 'workflow_dispatch' ]]; then
             VERSION="${{ github.event.inputs.version }}"
-            echo "goreleaser_args=--clean --skip=validate" >> $GITHUB_OUTPUT
+            echo "goreleaser_args=--clean --skip=validate --release-notes CHANGELOG.md" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
-            echo "goreleaser_args=--clean" >> $GITHUB_OUTPUT
+            echo "goreleaser_args=--clean --release-notes CHANGELOG.md" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF == refs/heads/main ]]; then
             VERSION="main"
-            echo "goreleaser_args=--clean --skip=validate" >> $GITHUB_OUTPUT
+            echo "goreleaser_args=--clean --skip=validate --release-notes CHANGELOG.md" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF == refs/pull/* ]]; then
             VERSION="pr-$(echo "${GITHUB_REF}" | sed -E 's|refs/pull/([^/]+)/?.*|\1|')"
             echo "goreleaser_args=--snapshot --clean" >> $GITHUB_OUTPUT
@@ -52,6 +56,26 @@ jobs:
             echo "goreleaser_args=--snapshot --clean" >> $GITHUB_OUTPUT
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+  release-notes:
+    name: Generate release notes
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' }}
+    outputs:
+      changelog_needed: ${{ steps.changelog.outputs.file_created }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate CHANGELOG.md
+        id: changelog
+        uses: ./.github/actions/changelog
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload changelog artifact
+        if: ${{ steps.changelog.outputs.file_created == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: CHANGELOG.md
 
   helm:
     name: Package Helm Charts
@@ -79,7 +103,7 @@ jobs:
 
   goreleaser:
     name: GoReleaser
-    needs: [setup, helm]
+    needs: [setup, release-notes]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -99,6 +123,24 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Download changelog
+        if: ${{ needs.release-notes.outputs.changelog_needed == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
+
+      - name: Verify changelog exists
+        if: ${{ needs.release-notes.outputs.changelog_needed == 'true' }}
+        run: |
+          ls -la
+          if [ -f "CHANGELOG.md" ]; then
+            echo "CHANGELOG.md exists"
+            cat CHANGELOG.md
+          else
+            echo "CHANGELOG.md does not exist"
+            exit 1
+          fi
+
       - name: Run goreleaser
         run: make release
         env:
@@ -110,8 +152,8 @@ jobs:
 
   validate-release:
     name: Validate Release
-    needs: [setup, helm, goreleaser]
-    if: ${{ github.event_name != 'pull_request' }}
+    needs: [setup, helm, goreleaser, release-notes]
+    if: ${{ github.event_name != 'pull_request' && inputs.validate == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -90,12 +90,16 @@ docker_manifests:
       - *amd_sds_image
       - *arm_sds_image
 changelog:
-  disable: true
+  disable: false
 release:
   prerelease: "auto"
   mode: "replace"
+  header: |
+    # {{ .Env.VERSION }}
+
+    Welcome to the {{ .Env.VERSION }} release of the kgateway project.
   footer: |
-    # Quickstart
+    ## Quickstart
 
     First, create a [kind cluster](https://kind.sigs.k8s.io/docs/user/quick-start/#installation).
 
@@ -123,10 +127,10 @@ release:
 
     If the release was successful, you should see a `kgateway` pod running.
 
-    ## Helm Charts
+    ### Helm Charts
 
     The Helm chart is available at [{{ .Env.IMAGE_REGISTRY }}/kgateway-helm](https://github.com/{{ .Env.IMAGE_REGISTRY }}/pkgs/container/kgateway-helm/).
 
-    ## Docker Images
+    ### Docker Images
 
     The Docker images are available at [{{ .Env.IMAGE_REGISTRY }}/{{ .Env.GLOO_IMAGE_REPO }}:{{ .Env.VERSION }}]({{ .Env.IMAGE_REGISTRY }}/{{ .Env.GLOO_IMAGE_REPO }}:{{ .Env.VERSION }}).

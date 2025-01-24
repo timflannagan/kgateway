@@ -1,0 +1,134 @@
+name: "Generate CHANGELOG"
+description: "Generates a changelog from merged PRs"
+inputs:
+  repo-token:
+    description: "GitHub token to use"
+    required: true
+    default: "${{ github.token }}"
+outputs:
+  file_created:
+    description: "Indicates if a CHANGELOG was generated"
+    value: ${{ steps.build-changelog.outputs.file_created }}
+  changelog-content:
+    description: "Contents of the changelog"
+    value: ${{ steps.build-changelog.outputs.changelog-content }}
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up GitHub CLI and install jq
+      shell: bash
+      run: |
+        sudo apt-get update && sudo apt-get install -y gh jq
+        echo "${{ inputs.repo-token }}" | gh auth login --with-token
+
+    - name: Build CHANGELOG.md
+      id: build-changelog
+      shell: bash
+      run: |
+        set -o pipefail
+        set -o errexit
+        set -o nounset
+
+        set -x
+
+        LAST_TAG=$(git describe --tags --abbrev=0)
+        LAST_TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG")
+        echo "Last tag: $LAST_TAG"
+        echo "Last tag date: $LAST_TAG_DATE"
+
+        # TODO(tim): --search "merged:>$LAST_TAG_DATE" \
+        # TODO(tim): --state merged
+        PR_JSON=$(gh pr list \
+          --label release-note \
+          --repo ${{ github.repository }} \
+          --state closed \
+          --json number,title,labels,url,mergedAt,body \
+          --limit 100)
+
+        # If PR_JSON is empty or equals "[]", skip changelog generation
+        if [[ "$PR_JSON" == "[]" ]]; then
+          echo "No PRs found. Skipping changelog generation."
+          echo "::set-output name=file_created::false"
+          exit 0
+        fi
+
+        new_features=""
+        bug_fixes=""
+        deprecations=""
+        breaking_changes=""
+
+        # Determine number of PRs
+        PR_COUNT=$(echo "$PR_JSON" | jq 'length')
+        echo "Number of PRs: $PR_COUNT"
+
+        # Loop over each PR to categorize and extract release notes
+        for (( i=0; i<$PR_COUNT; i++ )); do
+          title=$(echo "$PR_JSON" | jq -r ".[$i].title")
+          url=$(echo "$PR_JSON" | jq -r ".[$i].url")
+          number=$(echo "$PR_JSON" | jq -r ".[$i].number")
+          labels=$(echo "$PR_JSON" | jq -r ".[$i].labels[].name")
+          body=$(echo "$PR_JSON" | jq -r ".[$i].body")
+
+          # Extract release note content from the PR body
+          note=$(echo "$body" | sed -n '/```release-note/,/```/p' | sed '1d;$d' | tr -d '\r' | xargs)
+
+          # Create the entry only if we have a note
+          if [[ -n "$note" ]]; then
+            entry="- $note ([#${number}](${url}))"$'\n'
+          else
+            entry="- ${title} ([#${number}](${url}))"$'\n'
+          fi
+
+          # Categorize the entry based on kind labels
+          for label in $labels; do
+            case "$label" in
+              "kind/new_feature"|"kind/enhancement")
+                new_features+="$entry"
+                ;;
+              "kind/bug")
+                bug_fixes+="$entry"
+                ;;
+              "kind/deprecation")
+                deprecations+="$entry"
+                ;;
+              "kind/breaking-change")
+                breaking_changes+="$entry"
+                ;;
+            esac
+          done
+        done
+
+        # Build the changelog content conditionally using proper newlines
+        changelog_content=""
+        changelog_content+="## Changelog"$'\n\n'
+        if [ -n "$new_features" ]; then
+          changelog_content+="### New Features"$'\n\n'"${new_features%$'\n'}"$'\n'
+        fi
+        if [ -n "$bug_fixes" ]; then
+          changelog_content+="### Bug Fixes"$'\n\n'"${bug_fixes%$'\n'}"$'\n'
+        fi
+        if [ -n "$deprecations" ]; then
+          changelog_content+="### Deprecations"$'\n\n'"${deprecations%$'\n'}"$'\n'
+        fi
+        if [ -n "$breaking_changes" ]; then
+          changelog_content+="### Breaking Changes"$'\n\n'"${breaking_changes%$'\n'}"$'\n'
+        fi
+
+        # Remove trailing newline from the entire content
+        changelog_content="${changelog_content%$'\n'}"
+
+        # Only create CHANGELOG.md if there's content beyond just the header
+        if [ -n "$new_features$bug_fixes$deprecations$breaking_changes" ]; then
+          echo "$changelog_content" > CHANGELOG.md
+          echo "Generated CHANGELOG.md:"
+          cat CHANGELOG.md
+          echo "file_created=true" >> $GITHUB_OUTPUT
+        else
+          echo "No content for CHANGELOG.md. Skipping file creation."
+          echo "file_created=false" >> $GITHUB_OUTPUT
+        fi
