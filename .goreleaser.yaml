@@ -60,8 +60,22 @@ dockers:
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
+      - "--annotation=org.opencontainers.image.source={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.description=Kgateway Envoy Init"
+      - "--annotation=org.opencontainers.image.license=Apache-2.0"
+      - "--annotation=org.opencontainers.image.created={{ .Date }}"
+      - "--annotation=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--annotation=org.opencontainers.image.version={{ .Env.VERSION }}"
       - "--build-arg=GOARCH=arm64"
       - "--build-arg=ENVOY_IMAGE={{ .Env.ENVOY_IMAGE }}"
+      - "--label=org.opencontainers.image.source={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Kgateway Controller"
+      - "--label=org.opencontainers.image.license=Apache-2.0"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.version={{ .Env.VERSION }}"
   - image_templates:
       - &controller_amd_image "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.CONTROLLER_IMAGE_REPO }}:{{ .Env.VERSION }}-amd64"
     use: buildx
@@ -70,9 +84,23 @@ dockers:
     goarch: amd64
     build_flag_templates:
       - "--pull"
+      - "--annotation=org.opencontainers.image.source={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.description=Kgateway Envoy Init"
+      - "--annotation=org.opencontainers.image.license=Apache-2.0"
+      - "--annotation=org.opencontainers.image.created={{ .Date }}"
+      - "--annotation=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--annotation=org.opencontainers.image.version={{ .Env.VERSION }}"
       - "--platform=linux/amd64"
       - "--build-arg=GOARCH=amd64"
       - "--build-arg=ENVOY_IMAGE={{ .Env.ENVOY_IMAGE }}"
+      - "--label=org.opencontainers.image.source={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Kgateway Controller"
+      - "--label=org.opencontainers.image.license=Apache-2.0"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.version={{ .Env.VERSION }}"
   - image_templates:
       - &sds_arm_image "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}-arm64"
     use: buildx
@@ -81,9 +109,23 @@ dockers:
     goarch: arm64
     build_flag_templates:
       - "--pull"
+      - "--annotation=org.opencontainers.image.source={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.description=Kgateway Envoy Init"
+      - "--annotation=org.opencontainers.image.license=Apache-2.0"
+      - "--annotation=org.opencontainers.image.created={{ .Date }}"
+      - "--annotation=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--annotation=org.opencontainers.image.version={{ .Env.VERSION }}"
       - "--platform=linux/arm64"
       - "--build-arg=GOARCH=arm64"
       - "--build-arg=BASE_IMAGE={{ .Env.ALPINE_BASE_IMAGE }}"
+      - "--label=org.opencontainers.image.source={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Kgateway SDS"
+      - "--label=org.opencontainers.image.license=Apache-2.0"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.version={{ .Env.VERSION }}"
   - image_templates:
       - &sds_amd_image "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}-amd64"
     use: buildx
@@ -93,6 +135,13 @@ dockers:
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
+      - "--annotation=org.opencontainers.image.source={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.description=Kgateway Envoy Init"
+      - "--annotation=org.opencontainers.image.license=Apache-2.0"
+      - "--annotation=org.opencontainers.image.created={{ .Date }}"
+      - "--annotation=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--annotation=org.opencontainers.image.version={{ .Env.VERSION }}"
       - "--build-arg=GOARCH=amd64"
       - "--build-arg=BASE_IMAGE={{ .Env.ALPINE_BASE_IMAGE }}"
   - image_templates:
@@ -104,6 +153,13 @@ dockers:
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
+      - "--annotation=org.opencontainers.image.source={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.description=Kgateway Envoy Init"
+      - "--annotation=org.opencontainers.image.license=Apache-2.0"
+      - "--annotation=org.opencontainers.image.created={{ .Date }}"
+      - "--annotation=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--annotation=org.opencontainers.image.version={{ .Env.VERSION }}"
       - "--build-arg=GOARCH=arm64"
       - "--build-arg=ENTRYPOINT_SCRIPT=/projects/envoyinit/cmd/docker-entrypoint.sh"
       - "--build-arg=ENVOY_IMAGE={{ .Env.ENVOY_IMAGE }}"
@@ -118,6 +174,13 @@ dockers:
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
+      - "--annotation=org.opencontainers.image.source={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.description=Kgateway Envoy Init"
+      - "--annotation=org.opencontainers.image.license=Apache-2.0"
+      - "--annotation=org.opencontainers.image.created={{ .Date }}"
+      - "--annotation=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--annotation=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--annotation=org.opencontainers.image.version={{ .Env.VERSION }}"
       - "--build-arg=GOARCH=amd64"
       - "--build-arg=ENTRYPOINT_SCRIPT=/projects/envoyinit/cmd/docker-entrypoint.sh"
       - "--build-arg=ENVOY_IMAGE={{ .Env.ENVOY_IMAGE }}"
@@ -128,16 +191,76 @@ docker_manifests:
     image_templates:
       - *controller_arm_image
       - *controller_amd_image
+    create_flags:
+      - "--amend"
   - name_template: "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}"
     image_templates:
       - *sds_arm_image
       - *sds_amd_image
+    create_flags:
+      - "--amend"
   - name_template: "{{ .Env.IMAGE_REGISTRY }}/{{ .Env.ENVOYINIT_IMAGE_REPO }}:{{ .Env.VERSION }}"
     image_templates:
       - *envoyinit_arm_image
       - *envoyinit_amd_image
+    create_flags:
+      - "--amend"
 changelog:
-  disable: false
+  disable: true
 release:
   prerelease: "auto"
   mode: "replace"
+  replace_existing_artifacts: true
+  header: |
+    {{ if eq .Env.VERSION "v0.0.0-main" }}
+    🚀 Nightly build of kgateway!
+    ---
+    It includes the latest changes but may be unstable. Use it for testing and providing feedback.
+    {{ else }}
+    🎉 Welcome to the {{ .Env.VERSION }} release of the kgateway project!
+    ---
+    {{ end }}
+  footer: |
+    ## Installation
+
+    The kgateway project is available as a Helm chart and docker images.
+
+    ### Helm Charts
+
+    The Helm chart is available at {{ .Env.IMAGE_REGISTRY }}/charts/kgateway.
+
+    ### Docker Images
+
+    The docker images are available at:
+
+    - {{ .Env.IMAGE_REGISTRY }}:{{ .Env.CONTROLLER_IMAGE_REPO }}:{{ .Env.VERSION }}
+    - {{ .Env.IMAGE_REGISTRY }}:{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}
+    - {{ .Env.IMAGE_REGISTRY }}:{{ .Env.ENVOYINIT_IMAGE_REPO }}:{{ .Env.VERSION }}
+
+    ## Quickstart
+
+    First, create a [kind cluster](https://kind.sigs.k8s.io/docs/user/quick-start/#installation).
+
+    ```bash
+    kind create cluster
+    ```
+
+    Then, deploy the Kubernetes Gateway API CRDs.
+
+    ```bash
+    kubectl apply --kustomize "https://github.com/kubernetes-sigs/gateway-api/config/crd/experimental?ref=v1.2.1"
+    ```
+
+    Install the `kgateway` controller.
+
+    ```bash
+    helm install --create-namespace --namespace kgateway-system --version {{ .Env.VERSION }} kgateway oci://{{ .Env.IMAGE_REGISTRY }}/charts/kgateway
+    ```
+
+    Verify the release was successful.
+
+    ```bash
+    kubectl get pods -n kgateway-system
+    ```
+
+    If the release was successful, you should see a `kgateway` pod running.
