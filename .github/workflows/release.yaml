@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -41,6 +43,9 @@ jobs:
           elif [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
             echo "goreleaser_args=--clean" >> $GITHUB_OUTPUT
+          elif [[ $GITHUB_REF == refs/heads/main ]]; then
+            VERSION="${GIT_TAG}-${GIT_SHA}"
+            echo "goreleaser_args=--clean --skip=validate -f .goreleaser-main.yaml" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF == refs/pull/* ]]; then
             PR_NUM=$(echo "${GITHUB_REF}" | sed -E 's|refs/pull/([^/]+)/?.*|\1|')
             VERSION="${GIT_TAG}-pr.${PR_NUM}-${GIT_SHA}"

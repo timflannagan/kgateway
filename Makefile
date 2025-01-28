@@ -261,10 +261,11 @@ view-test-coverage:
 	go tool cover -html $(OUTPUT_DIR)/cover.out
 
 .PHONY: package-kgateway-chart
+HELM_PACKAGE_ARGS ?= --version $(VERSION)
 package-kgateway-chart: ## Package the new kgateway helm chart for testing
-	mkdir -p $(TEST_ASSET_DIR)
-	helm package --version $(VERSION) --destination $(TEST_ASSET_DIR) install/helm/kgateway
-	helm repo index $(TEST_ASSET_DIR)
+	mkdir -p $(TEST_ASSET_DIR); \
+	helm package $(HELM_PACKAGE_ARGS) --destination $(TEST_ASSET_DIR) install/helm/kgateway; \
+	helm repo index $(TEST_ASSET_DIR);
 
 #----------------------------------------------------------------------------------
 # Clean
