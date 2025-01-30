@@ -136,12 +136,6 @@ jobs:
     if: ${{ startsWith(github.ref, 'refs/tags/') || inputs.validate }}
     runs-on: ubuntu-22.04
     steps:
-      - name: Print out validate inputs
-        run: |
-          set -x
-          echo "validate: ${{ inputs.validate }}"
-          echo "version: ${{ needs.setup.outputs.version }}"
-
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
