@@ -321,6 +321,16 @@ mod-tidy:
 	go mod tidy
 
 #----------------------------------------------------------------------------------
+# Install
+#----------------------------------------------------------------------------------
+
+INSTALL_OPTIONS ?= ""
+
+.PHONY: install
+install: ## Install an environment for kgateway development
+	$(INSTALL_OPTIONS) ./hack/kind/setup-kind.sh && helm upgrade -i -n kgateway-system kgateway _test/kgateway-$(VERSION).tgz --create-namespace
+
+#----------------------------------------------------------------------------------
 # Generate CRD Reference Documentation
 #
 # See docs/content/crds/README.md for more details.
