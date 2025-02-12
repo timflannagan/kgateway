@@ -179,7 +179,7 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 				Expect(routeStatus.Parents).To(HaveLen(1))
 				resolvedRefs := meta.FindStatusCondition(routeStatus.Parents[0].Conditions, string(gwv1.RouteConditionResolvedRefs))
 				Expect(resolvedRefs).NotTo(BeNil())
-				Expect(resolvedRefs.Message).To(Equal("unknown backend kind"))
+				Expect(resolvedRefs.Message).To(Equal("Unknown backend kind"))
 			},
 		}),
 	XEntry(
@@ -264,7 +264,7 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 				resolvedRefs := meta.FindStatusCondition(routeStatus.Parents[0].Conditions, string(gwv1.RouteConditionResolvedRefs))
 				Expect(resolvedRefs).NotTo(BeNil())
 				Expect(resolvedRefs.Status).To(Equal(metav1.ConditionFalse))
-				Expect(resolvedRefs.Message).To(Equal("unknown backend kind"))
+				Expect(resolvedRefs.Message).To(Equal("Unknown backend kind"))
 			},
 		}),
 	Entry(

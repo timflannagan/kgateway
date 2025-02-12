@@ -91,7 +91,7 @@ func convert(kctx krt.HandlerContext, f gwv1.HTTPRouteFilter, fromgk schema.Grou
 	}
 	return nil
 }
-func convertURLRewrite(kctx krt.HandlerContext, config *gwv1.HTTPURLRewriteFilter) func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
+func convertURLRewrite(_ krt.HandlerContext, config *gwv1.HTTPURLRewriteFilter) func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
 	if config == nil {
 		return func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
 			return errors.New("missing rewrite filter")
@@ -168,7 +168,7 @@ func convertURLRewrite(kctx krt.HandlerContext, config *gwv1.HTTPURLRewriteFilte
 
 }
 
-func convertRequestRedirect(kctx krt.HandlerContext, config *gwv1.HTTPRequestRedirectFilter) func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
+func convertRequestRedirect(_ krt.HandlerContext, config *gwv1.HTTPRequestRedirectFilter) func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
 	if config == nil {
 		return func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
 			return errors.New("missing redirect filter")
@@ -255,7 +255,7 @@ func translateStatusCode(i *int) envoy_config_route_v3.RedirectAction_RedirectRe
 	}
 }
 
-func convertHeaderModifier(kctx krt.HandlerContext, f *gwv1.HTTPHeaderFilter) func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
+func convertHeaderModifier(_ krt.HandlerContext, f *gwv1.HTTPHeaderFilter) func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
 	if f == nil {
 		return nil
 	}
@@ -288,7 +288,7 @@ func convertHeaderModifier(kctx krt.HandlerContext, f *gwv1.HTTPHeaderFilter) fu
 	}
 }
 
-func convertResponseHeaderModifier(kctx krt.HandlerContext, f *gwv1.HTTPHeaderFilter) func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
+func convertResponseHeaderModifier(_ krt.HandlerContext, f *gwv1.HTTPHeaderFilter) func(in ir.HttpRouteRuleMatchIR, outputRoute *envoy_config_route_v3.Route) error {
 	if f == nil {
 		return nil
 	}

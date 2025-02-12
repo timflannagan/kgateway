@@ -143,7 +143,7 @@ func TestFailWitWithRefGrantAndWrongFrom(t *testing.T) {
 			if backends[0].Err == nil {
 				t.Fatalf("expected backend error")
 			}
-			if !strings.Contains(backends[0].Err.Error(), "missing reference grant") {
+			if !strings.Contains(backends[0].Err.Error(), "Missing reference grant") {
 				t.Fatalf("expected not found error %v", backends[0].Err)
 			}
 		})
@@ -169,7 +169,7 @@ func TestFailWithNoRefGrant(t *testing.T) {
 			if backends[0].Err == nil {
 				t.Fatalf("expected backend error")
 			}
-			if !strings.Contains(backends[0].Err.Error(), "missing reference grant") {
+			if !strings.Contains(backends[0].Err.Error(), "Missing reference grant") {
 				t.Fatalf("expected not found error %v", backends[0].Err)
 			}
 		})
@@ -194,7 +194,7 @@ func TestFailWithWrongNs(t *testing.T) {
 			if backends[0].Err == nil {
 				t.Fatalf("expected backend error %v", backends[0])
 			}
-			if !strings.Contains(backends[0].Err.Error(), "missing reference grant") {
+			if !strings.Contains(backends[0].Err.Error(), "Missing reference grant") {
 				t.Fatalf("expected not found error %v", backends[0].Err)
 			}
 		})

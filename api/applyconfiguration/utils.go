@@ -21,6 +21,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &apiv1alpha1.AiExtensionApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("AiExtensionStats"):
 		return &apiv1alpha1.AiExtensionStatsApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AwsLambdaUpstream"):
+		return &apiv1alpha1.AwsLambdaUpstreamApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("AwsUpstream"):
 		return &apiv1alpha1.AwsUpstreamApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("CustomLabel"):

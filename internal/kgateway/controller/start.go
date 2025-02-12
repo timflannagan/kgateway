@@ -3,26 +3,20 @@ package controller
 import (
 	"context"
 
-	"k8s.io/client-go/rest"
-	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/config"
-
-	"github.com/solo-io/go-utils/contextutils"
-
-	glooschemes "github.com/kgateway-dev/kgateway/v2/pkg/schemes"
-
-	"k8s.io/apimachinery/pkg/util/sets"
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	czap "sigs.k8s.io/controller-runtime/pkg/log/zap"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-
 	envoycache "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	"github.com/solo-io/go-utils/contextutils"
 	uzap "go.uber.org/zap"
 	istiokube "istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/krt"
 	istiolog "istio.io/istio/pkg/log"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/rest"
+	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/config"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	czap "sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	apiv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/deployer"
@@ -37,6 +31,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils/krtutil"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
+	"github.com/kgateway-dev/kgateway/v2/pkg/schemes"
 )
 
 const (
@@ -73,9 +68,7 @@ type StartConfig struct {
 	KrtOptions krtutil.KrtOptions
 }
 
-// Start runs the controllers responsible for processing the K8s Gateway API objects
-// It is intended to be run in a goroutine as the function will block until the supplied
-// context is cancelled
+// ControllerBuilder is a helper struct that builds the controller manager and the proxy syncer.
 type ControllerBuilder struct {
 	proxySyncer *proxy_syncer.ProxySyncer
 	cfg         StartConfig
@@ -94,16 +87,15 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 		loggingOptions.SetDefaultOutputLevel(istiolog.OverrideScopeName, istiolog.DebugLevel)
 	}
 	ctrl.SetLogger(czap.New(opts...))
-	istiolog.Configure(loggingOptions)
+	istiolog.Configure(loggingOptions) // Why? Oh, for KRT?
 
 	scheme := DefaultScheme()
-
-	// Extend the scheme if the TCPRoute CRD exists.
-	if err := glooschemes.AddGatewayV1A2Scheme(cfg.RestConfig, scheme); err != nil {
+	if err := schemes.AddGatewayV1A2Scheme(cfg.RestConfig, scheme); err != nil {
+		// Extend the scheme if the TCPRoute CRD exists.
 		return nil, err
 	}
 
-	mgrOpts := ctrl.Options{
+	mgr, err := ctrl.NewManager(cfg.RestConfig, ctrl.Options{
 		BaseContext:      func() context.Context { return ctx },
 		Scheme:           scheme,
 		PprofBindAddress: "127.0.0.1:9099",
@@ -119,8 +111,7 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 			// the name validation here.
 			SkipNameValidation: ptr.To(true),
 		},
-	}
-	mgr, err := ctrl.NewManager(cfg.RestConfig, mgrOpts)
+	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		return nil, err
@@ -182,16 +173,19 @@ func pluginFactoryWithBuiltin(extraPlugins []extensionsplug.Plugin) extensions2.
 	}
 }
 
+// Start runs the controllers responsible for processing the K8s Gateway API objects
+// It is intended to be run in a goroutine as the function will block until the supplied
+// context is cancelled
 func (c *ControllerBuilder) Start(ctx context.Context) error {
 	logger := contextutils.LoggerFrom(ctx).Desugar()
 	logger.Info("starting gateway controller")
-	// GetXdsAddress waits for gloo-edge to populate the xds address of the server.
+
+	// wait for kgateway to populate the xds address of the server.
 	// in the future this logic may move here and be duplicated.
 	xdsHost, xdsPort := c.cfg.SetupOpts.XdsHost, c.cfg.SetupOpts.XdsPort
 	if xdsHost == "" {
 		return ctx.Err()
 	}
-
 	logger.Info("got xds address for deployer", uzap.String("xds_host", xdsHost), uzap.Int32("xds_port", xdsPort))
 
 	integrationEnabled := c.settings.EnableIstioIntegration
@@ -212,7 +206,7 @@ func (c *ControllerBuilder) Start(ctx context.Context) error {
 		}
 	}
 
-	gwCfg := GatewayConfig{
+	if err := NewBaseGatewayController(ctx, GatewayConfig{
 		Mgr:            c.mgr,
 		OurGateway:     c.isOurGw,
 		ControllerName: wellknown.GatewayControllerName,
@@ -224,9 +218,7 @@ func (c *ControllerBuilder) Start(ctx context.Context) error {
 		// TODO pass in the settings so that the deloyer can register to it for changes.
 		IstioIntegrationEnabled: integrationEnabled,
 		Aws:                     awsInfo,
-	}
-
-	if err := NewBaseGatewayController(ctx, gwCfg); err != nil {
+	}); err != nil {
 		setupLog.Error(err, "unable to create controller")
 		return err
 	}

@@ -18,6 +18,47 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugins/upstream"
 )
 
+func Plugins(ctx context.Context, commoncol *common.CommonCollections) []extensionsplug.Plugin {
+	return []extensionsplug.Plugin{
+		// Add plugins here
+		upstream.NewPlugin(ctx, commoncol),
+		routepolicy.NewPlugin(ctx, commoncol),
+		directresponse.NewPlugin(ctx, commoncol),
+		kubernetes.NewPlugin(ctx, commoncol),
+		istio.NewPlugin(ctx, commoncol),
+		destrule.NewPlugin(ctx, commoncol),
+		listenerpolicy.NewPlugin(ctx, commoncol),
+	}
+}
+
+func AllPlugins(ctx context.Context, commoncol *common.CommonCollections) extensionsplug.Plugin {
+	return MergePlugins(Plugins(ctx, commoncol)...)
+}
+
+func MergePlugins(plug ...extensionsplug.Plugin) extensionsplug.Plugin {
+	ret := extensionsplug.Plugin{
+		ContributesPolicies:  make(map[schema.GroupKind]extensionsplug.PolicyPlugin),
+		ContributesUpstreams: make(map[schema.GroupKind]extensionsplug.UpstreamPlugin),
+	}
+	var (
+		funcs     []extensionsplug.GwTranslatorFactory
+		hasSynced []func() bool
+	)
+	for _, p := range plug {
+		maps.Copy(ret.ContributesPolicies, p.ContributesPolicies)
+		maps.Copy(ret.ContributesUpstreams, p.ContributesUpstreams)
+		if p.ContributesGwTranslator != nil {
+			funcs = append(funcs, p.ContributesGwTranslator)
+		}
+		if p.ExtraHasSynced != nil {
+			hasSynced = append(hasSynced, p.ExtraHasSynced)
+		}
+	}
+	ret.ContributesGwTranslator = mergedGw(funcs)
+	ret.ExtraHasSynced = mergeSynced(hasSynced)
+	return ret
+}
+
 func mergedGw(funcs []extensionsplug.GwTranslatorFactory) extensionsplug.GwTranslatorFactory {
 	return func(gw *gwv1.Gateway) extensionsplug.KGwTranslator {
 		for _, f := range funcs {
@@ -39,43 +80,4 @@ func mergeSynced(funcs []func() bool) func() bool {
 		}
 		return true
 	}
-}
-
-func MergePlugins(plug ...extensionsplug.Plugin) extensionsplug.Plugin {
-	ret := extensionsplug.Plugin{
-		ContributesPolicies:  make(map[schema.GroupKind]extensionsplug.PolicyPlugin),
-		ContributesUpstreams: make(map[schema.GroupKind]extensionsplug.UpstreamPlugin),
-	}
-	var funcs []extensionsplug.GwTranslatorFactory
-	var hasSynced []func() bool
-	for _, p := range plug {
-		maps.Copy(ret.ContributesPolicies, p.ContributesPolicies)
-		maps.Copy(ret.ContributesUpstreams, p.ContributesUpstreams)
-		if p.ContributesGwTranslator != nil {
-			funcs = append(funcs, p.ContributesGwTranslator)
-		}
-		if p.ExtraHasSynced != nil {
-			hasSynced = append(hasSynced, p.ExtraHasSynced)
-		}
-	}
-	ret.ContributesGwTranslator = mergedGw(funcs)
-	ret.ExtraHasSynced = mergeSynced(hasSynced)
-	return ret
-}
-
-func Plugins(ctx context.Context, commoncol *common.CommonCollections) []extensionsplug.Plugin {
-	return []extensionsplug.Plugin{
-		// Add plugins here
-		upstream.NewPlugin(ctx, commoncol),
-		routepolicy.NewPlugin(ctx, commoncol),
-		directresponse.NewPlugin(ctx, commoncol),
-		kubernetes.NewPlugin(ctx, commoncol),
-		istio.NewPlugin(ctx, commoncol),
-		destrule.NewPlugin(ctx, commoncol),
-		listenerpolicy.NewPlugin(ctx, commoncol),
-	}
-}
-
-func AllPlugins(ctx context.Context, commoncol *common.CommonCollections) extensionsplug.Plugin {
-	return MergePlugins(Plugins(ctx, commoncol)...)
 }

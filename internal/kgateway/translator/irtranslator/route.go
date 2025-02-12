@@ -119,19 +119,15 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(ctx context.Context,
 	in ir.HttpRouteRuleMatchIR,
 	generatedName string,
 ) *envoy_config_route_v3.Route {
-
 	out := h.initRoutes(in, generatedName)
-
 	if len(in.Backends) > 0 {
 		out.Action = h.translateRouteAction(in, out)
 	}
 	// run plugins here that may set actoin
 	err := h.runRoutePlugins(ctx, routeReport, in, out)
-
 	if err == nil {
 		err = validateEnvoyRoute(out)
 	}
-
 	if err == nil && out.GetAction() == nil {
 		if in.HasChildren {
 			return nil
@@ -139,7 +135,6 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(ctx context.Context,
 			err = errors.New("no action specified")
 		}
 	}
-
 	if err != nil {
 		contextutils.LoggerFrom(ctx).Desugar().Debug("invalid route", zap.Error(err))
 		// TODO: we may want to aggregate all these errors per http route object and report one message?
@@ -159,7 +154,6 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(ctx context.Context,
 		// 	},
 		// }
 		out = nil
-
 	}
 
 	return out
@@ -244,16 +238,12 @@ func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Contex
 	for gk, pols := range in.AttachedPolicies.Policies {
 		pass := h.PluginPass[gk]
 		if pass == nil {
-			// TODO: should never happen, log error and report condition
-			continue
+			panic(fmt.Sprintf("internal error: no pass for %s", gk))
 		}
 		for _, pol := range pols {
-
-			err := pass.ApplyForRouteBackend(ctx, pol.PolicyIr, pCtx)
-			if err != nil {
+			if err := pass.ApplyForRouteBackend(ctx, pol.PolicyIr, pCtx); err != nil {
 				errs = append(errs, err)
 			}
-			// TODO: check return value, if error returned, log error and report condition
 		}
 	}
 	return errors.Join(errs...)
@@ -264,27 +254,25 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 	outRoute *envoy_config_route_v3.Route,
 ) *envoy_config_route_v3.Route_Route {
 	var clusters []*envoy_config_route_v3.WeightedCluster_ClusterWeight
-
 	for _, backend := range in.Backends {
 		clusterName := backend.Backend.ClusterName
-
 		// get backend for ref - we must do it to make sure we have permissions to access it.
 		// also we need the service so we can translate its name correctly.
 		cw := &envoy_config_route_v3.WeightedCluster_ClusterWeight{
 			Name:   clusterName,
 			Weight: wrapperspb.UInt32(backend.Backend.Weight),
 		}
-		pCtx := ir.RouteBackendContext{
-			FilterChainName:  h.fc.FilterChainName,
-			Upstream:         backend.Backend.Upstream,
-			TypedFiledConfig: &cw.TypedPerFilterConfig,
-		}
-
-		h.runBackendPolicies(
+		if err := h.runBackendPolicies(
 			context.TODO(),
 			backend,
-			&pCtx,
-		)
+			&ir.RouteBackendContext{
+				FilterChainName:  h.fc.FilterChainName,
+				Upstream:         backend.Backend.Upstream,
+				TypedFiledConfig: &cw.TypedPerFilterConfig,
+			},
+		); err != nil {
+			panic(fmt.Sprintf("internal error: failed to run backend policies: %v", err))
+		}
 		clusters = append(clusters, cw)
 	}
 

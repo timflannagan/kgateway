@@ -32,6 +32,7 @@ type DestinationRuleIndex struct {
 	Destrules  krt.Collection[DestinationRuleWrapper]
 	ByHostname krt.Index[NsWithHostname, DestinationRuleWrapper]
 }
+
 type DestinationRuleWrapper struct {
 	*networkingclient.DestinationRule
 }
@@ -79,7 +80,7 @@ func NewEmptyDestRuleIndex() DestinationRuleIndex {
 const exportAllNs = "*"
 
 func newDestruleIndex(destRuleCollection krt.Collection[DestinationRuleWrapper]) krt.Index[NsWithHostname, DestinationRuleWrapper] {
-	idx := krt.NewIndex(destRuleCollection, func(d DestinationRuleWrapper) []NsWithHostname {
+	return krt.NewIndex(destRuleCollection, func(d DestinationRuleWrapper) []NsWithHostname {
 		exportTo := d.Spec.GetExportTo()
 		if len(exportTo) == 0 {
 			return []NsWithHostname{{
@@ -100,7 +101,6 @@ func newDestruleIndex(destRuleCollection krt.Collection[DestinationRuleWrapper])
 
 		return keys
 	})
-	return idx
 }
 
 func (d *DestinationRuleIndex) FetchDestRulesFor(kctx krt.HandlerContext, proxyNs string, hostname string, podLabels map[string]string) *DestinationRuleWrapper {
@@ -148,7 +148,6 @@ func getTrafficPolicy(destrule *DestinationRuleWrapper, port uint32) *v1alpha3.T
 	if trafficPolicy == nil {
 		return nil
 	}
-
 	for _, portlevel := range trafficPolicy.GetPortLevelSettings() {
 		if portlevel.GetPort() != nil {
 			if portlevel.GetPort().GetNumber() == port {

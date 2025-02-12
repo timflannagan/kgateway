@@ -27,7 +27,8 @@ func (a AttachmentPoints) Has(p AttachmentPoints) bool {
 	return a&p != 0
 }
 
-type EndpointPlugin func(kctx krt.HandlerContext, ctx context.Context, ucc ir.UniqlyConnectedClient, in ir.EndpointsForUpstream) (*envoy_config_endpoint_v3.ClusterLoadAssignment, uint64)
+type EndpointPlugin func(ctx context.Context, kctx krt.HandlerContext, ucc ir.UniqlyConnectedClient, in ir.EndpointsForUpstream) (*envoy_config_endpoint_v3.ClusterLoadAssignment, uint64)
+
 type GetBackendForRefPlugin func(kctx krt.HandlerContext, key ir.ObjectSource, port int32) *ir.Upstream
 
 type PolicyPlugin struct {
@@ -40,7 +41,7 @@ type PolicyPlugin struct {
 	// PerClientProcessUpstream  func(kctx krt.HandlerContext, ctx context.Context, ucc ir.UniqlyConnectedClient, in ir.Upstream)
 	// so that it only attaches the policy to the upstream, and doesn't modify the upstream (except for attached policies) or the cluster itself.
 	// leaving as is for now as this requires better understanding of how krt would handle this.
-	PerClientProcessUpstream  func(kctx krt.HandlerContext, ctx context.Context, ucc ir.UniqlyConnectedClient, in ir.Upstream, out *envoy_config_cluster_v3.Cluster)
+	PerClientProcessUpstream  func(ctx context.Context, kctx krt.HandlerContext, ucc ir.UniqlyConnectedClient, in ir.Upstream, out *envoy_config_cluster_v3.Cluster)
 	PerClientProcessEndpoints EndpointPlugin
 
 	Policies       krt.Collection[ir.PolicyWrapper]
@@ -61,11 +62,14 @@ type KGwTranslator interface {
 	Translate(kctx krt.HandlerContext,
 		ctx context.Context,
 		gateway *ir.Gateway,
-		reporter reports.Reporter) *ir.GatewayIR
+		reporter reports.Reporter,
+	) *ir.GatewayIR
 }
+
 type GwTranslatorFactory func(gw *gwv1.Gateway) KGwTranslator
 type ContributesPolicies map[schema.GroupKind]PolicyPlugin
 
+// Why isn't this an interface?
 type Plugin struct {
 	ContributesPolicies
 	ContributesUpstreams    map[schema.GroupKind]UpstreamPlugin

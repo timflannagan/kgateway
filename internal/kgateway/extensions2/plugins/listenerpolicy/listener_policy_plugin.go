@@ -97,11 +97,9 @@ func (p *listenerOptsPluginGwPass) ApplyListenerPlugin(ctx context.Context, pCtx
 		// todo: allow returning error
 		return
 	}
-
 	if policy.spec.PerConnectionBufferLimitBytes > 0 {
 		out.PerConnectionBufferLimitBytes = wrapperspb.UInt32(policy.spec.PerConnectionBufferLimitBytes)
 	}
-
 	return
 }
 

@@ -7,8 +7,8 @@ import (
 type Settings struct {
 	EnableIstioIntegration bool
 	EnableAutoMTLS         bool
-	StsClusterName         string
-	StsUri                 string
+	StsClusterName         string // TODO: Is this still relevant?
+	StsUri                 string // TODO: Is this still relevant?
 }
 
 // BuildSettings returns a zero-valued Settings obj if error is encountered when parsing env

@@ -85,6 +85,7 @@ func convert(targetRef v1alpha1.LocalPolicyTargetReference) []ir.PolicyTargetRef
 func NewGatewayTranslationPass(ctx context.Context, tctx ir.GwTranslationCtx) ir.ProxyTranslationPass {
 	return &routeOptsPluginGwPass{}
 }
+
 func (p *routeOptsPlugin) Name() string {
 	return "routepolicies"
 }
@@ -102,11 +103,9 @@ func (p *routeOptsPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.Rout
 	if !ok {
 		return nil
 	}
-
 	if policy.spec.Timeout > 0 && outputRoute.GetRoute() != nil {
 		outputRoute.GetRoute().Timeout = durationpb.New(time.Second * time.Duration(policy.spec.Timeout))
 	}
-
 	return nil
 }
 

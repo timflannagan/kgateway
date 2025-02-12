@@ -20,8 +20,8 @@ import (
 )
 
 var (
-	ErrMissingReferenceGrant = errors.New("missing reference grant")
-	ErrUnknownBackendKind    = errors.New("unknown backend kind")
+	ErrMissingReferenceGrant = errors.New("Missing reference grant")
+	ErrUnknownBackendKind    = errors.New("Unknown backend kind")
 )
 
 type NotFoundError struct {
@@ -109,12 +109,12 @@ func AddUpstream[T metav1.Object](ui *UpstreamIndex, gk schema.GroupKind, col kr
 }
 
 // if we want to make this function public, make it do ref grants
-func (i *UpstreamIndex) getUpstream(kctx krt.HandlerContext, gk schema.GroupKind, n types.NamespacedName, gwport *gwv1.PortNumber) (*ir.Upstream, error) {
+func (i *UpstreamIndex) getUpstream(kctx krt.HandlerContext, gk schema.GroupKind, nn types.NamespacedName, gwport *gwv1.PortNumber) (*ir.Upstream, error) {
 	key := ir.ObjectSource{
 		Group:     emptyIfCore(gk.Group),
 		Kind:      gk.Kind,
-		Namespace: n.Namespace,
-		Name:      n.Name,
+		Namespace: nn.Namespace,
+		Name:      nn.Name,
 	}
 
 	var port int32
@@ -130,7 +130,7 @@ func (i *UpstreamIndex) getUpstream(kctx krt.HandlerContext, gk schema.GroupKind
 
 	col := i.availableUpstreams[gk]
 	if col == nil {
-		return nil, ErrUnknownBackendKind
+		return nil, fmt.Errorf("%w: %s", ErrUnknownBackendKind, key.Kind)
 	}
 
 	up := krt.FetchOne(kctx, col, krt.FilterKey(ir.UpstreamResourceName(key, port)))

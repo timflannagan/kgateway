@@ -57,6 +57,7 @@ type VirtualHost struct {
 type FilterChainMatch struct {
 	SniDomains []string
 }
+
 type TlsBundle struct {
 	CA            []byte
 	PrivateKey    []byte
@@ -69,7 +70,9 @@ type FilterChainCommon struct {
 	FilterChainName      string
 	CustomNetworkFilters []CustomEnvoyFilter
 	TLS                  *TlsBundle
+	// UpstreamContext?
 }
+
 type CustomEnvoyFilter struct {
 	// Determines filter ordering.
 	FilterStage plugins.FilterStage[plugins.WellKnownFilterStage]

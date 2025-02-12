@@ -10,4 +10,4 @@ spec:
     name: http
     allowedRoutes:
       namespaces:
-        from: Same
+        from: All

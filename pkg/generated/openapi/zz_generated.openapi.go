@@ -18,6 +18,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	return map[string]common.OpenAPIDefinition{
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AiExtension":                schema_kgateway_v2_api_v1alpha1_AiExtension(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AiExtensionStats":           schema_kgateway_v2_api_v1alpha1_AiExtensionStats(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsLambdaUpstream":          schema_kgateway_v2_api_v1alpha1_AwsLambdaUpstream(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsUpstream":                schema_kgateway_v2_api_v1alpha1_AwsUpstream(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CustomLabel":                schema_kgateway_v2_api_v1alpha1_CustomLabel(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DirectResponse":             schema_kgateway_v2_api_v1alpha1_DirectResponse(ref),
@@ -513,6 +514,34 @@ func schema_kgateway_v2_api_v1alpha1_AiExtensionStats(ref common.ReferenceCallba
 	}
 }
 
+func schema_kgateway_v2_api_v1alpha1_AwsLambdaUpstream(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"functionName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The name of the Lambda function",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"qualifier": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Optional qualifier (version or alias)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"functionName"},
+			},
+		},
+	}
+}
+
 func schema_kgateway_v2_api_v1alpha1_AwsUpstream(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -525,17 +554,28 @@ func schema_kgateway_v2_api_v1alpha1_AwsUpstream(ref common.ReferenceCallback) c
 							Format: "",
 						},
 					},
+					"accountId": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/api/core/v1.LocalObjectReference"),
 						},
 					},
+					"lambda": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsLambdaUpstream"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.LocalObjectReference"},
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsLambdaUpstream", "k8s.io/api/core/v1.LocalObjectReference"},
 	}
 }
 
@@ -2187,17 +2227,28 @@ func schema_kgateway_v2_api_v1alpha1_UpstreamSpec(ref common.ReferenceCallback) 
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type controls the type of upstream.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"aws": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsUpstream"),
+							Description: "AWS upstream configuration. Allows for referencing AWS Lambda functions.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsUpstream"),
 						},
 					},
 					"static": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StaticUpstream"),
+							Description: "Static upstream configuration. Allows for referencing a list of hosts.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StaticUpstream"),
 						},
 					},
 				},
+				Required: []string{"type"},
 			},
 		},
 		Dependencies: []string{

@@ -14,12 +14,18 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/plugins"
 )
 
+var (
+	ErrNotAttachable = fmt.Errorf("policy is not attachable to this object")
+)
+
 type ListenerContext struct {
 	Policy PolicyIR
 }
+
 type VirtualHostContext struct {
 	Policy PolicyIR
 }
+
 type RouteBackendContext struct {
 	FilterChainName string
 	Upstream        *Upstream
@@ -57,7 +63,8 @@ type ProxyTranslationPass interface {
 	ApplyForRoute(
 		ctx context.Context,
 		pCtx *RouteContext,
-		out *envoy_config_route_v3.Route) error
+		out *envoy_config_route_v3.Route,
+	) error
 	ApplyForRouteBackend(
 		ctx context.Context,
 		policy PolicyIR,
@@ -121,13 +128,8 @@ func (c PolicyWrapper) Equals(in PolicyWrapper) bool {
 	if c.ObjectSource != in.ObjectSource {
 		return false
 	}
-
 	return versionEquals(c.Policy, in.Policy)
 }
-
-var (
-	ErrNotAttachable = fmt.Errorf("policy is not attachable to this object")
-)
 
 type PolicyRun interface {
 	NewGatewayTranslationPass(ctx context.Context, tctx GwTranslationCtx) ProxyTranslationPass

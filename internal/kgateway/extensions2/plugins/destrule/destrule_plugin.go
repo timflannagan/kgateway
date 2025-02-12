@@ -31,7 +31,6 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 		// don't add support for destination rules if istio integration is not enabled
 		return extensionsplug.Plugin{}
 	}
-
 	gk := schema.GroupKind{
 		Group: gvr.DestinationRule.Group,
 		Kind:  "DestinationRule",
@@ -42,9 +41,9 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 	return extensionsplug.Plugin{
 		ContributesPolicies: map[schema.GroupKind]extensionsplug.PolicyPlugin{
 			gk: {
-				Name:                      "destrule",
+				Name:                      ExtensionName,
 				PerClientProcessUpstream:  d.processUpstream,
-				PerClientProcessEndpoints: d.processEnddpoints,
+				PerClientProcessEndpoints: d.processEndpoints,
 			},
 		},
 	}
@@ -54,7 +53,7 @@ type destrulePlugin struct {
 	destinationRulesIndex DestinationRuleIndex
 }
 
-func (d *destrulePlugin) processEnddpoints(kctx krt.HandlerContext, ctx context.Context, ucc ir.UniqlyConnectedClient, in ir.EndpointsForUpstream) (*envoy_config_endpoint_v3.ClusterLoadAssignment, uint64) {
+func (d *destrulePlugin) processEndpoints(ctx context.Context, kctx krt.HandlerContext, ucc ir.UniqlyConnectedClient, in ir.EndpointsForUpstream) (*envoy_config_endpoint_v3.ClusterLoadAssignment, uint64) {
 	destrule := d.destinationRulesIndex.FetchDestRulesFor(kctx, ucc.Namespace, in.Hostname, ucc.Labels)
 	if destrule == nil {
 		return nil, 0
@@ -63,8 +62,10 @@ func (d *destrulePlugin) processEnddpoints(kctx krt.HandlerContext, ctx context.
 	logger := contextutils.LoggerFrom(ctx).Desugar()
 	trafficPolicy := getTrafficPolicy(destrule, in.Port)
 	localityLb := getLocalityLbSetting(trafficPolicy)
-	var priorityInfo *endpoints.PriorityInfo
-	var additionalHash uint64
+	var (
+		priorityInfo   *endpoints.PriorityInfo
+		additionalHash uint64
+	)
 	if localityLb != nil {
 		priorityInfo = getPriorityInfoFromDestrule(localityLb)
 		hasher := fnv.New64()
@@ -75,59 +76,65 @@ func (d *destrulePlugin) processEnddpoints(kctx krt.HandlerContext, ctx context.
 	return endpoints.PrioritizeEndpoints(logger, priorityInfo, in, ucc), additionalHash
 }
 
-func (d *destrulePlugin) processUpstream(kctx krt.HandlerContext, ctx context.Context, ucc ir.UniqlyConnectedClient, in ir.Upstream, outCluster *envoy_config_cluster_v3.Cluster) {
+func (d *destrulePlugin) processUpstream(ctx context.Context, kctx krt.HandlerContext, ucc ir.UniqlyConnectedClient, in ir.Upstream, outCluster *envoy_config_cluster_v3.Cluster) {
 	destrule := d.destinationRulesIndex.FetchDestRulesFor(kctx, ucc.Namespace, in.CanonicalHostname, ucc.Labels)
-
-	if destrule != nil {
-		trafficPolicy := getTrafficPolicy(destrule, uint32(in.Port))
-		if outlier := trafficPolicy.GetOutlierDetection(); outlier != nil {
-
-			if getLocalityLbSetting(trafficPolicy) != nil {
-				if outCluster.GetCommonLbConfig() == nil {
-					outCluster.CommonLbConfig = &envoy_config_cluster_v3.Cluster_CommonLbConfig{}
-				}
-				outCluster.GetCommonLbConfig().LocalityConfigSpecifier = &envoy_config_cluster_v3.Cluster_CommonLbConfig_LocalityWeightedLbConfig_{
-					LocalityWeightedLbConfig: &envoy_config_cluster_v3.Cluster_CommonLbConfig_LocalityWeightedLbConfig{},
-				}
-			}
-			out := &envoy_config_cluster_v3.OutlierDetection{
-				Consecutive_5Xx:  outlier.GetConsecutive_5XxErrors(),
-				Interval:         outlier.GetInterval(),
-				BaseEjectionTime: outlier.GetBaseEjectionTime(),
-			}
-			if e := outlier.GetConsecutiveGatewayErrors(); e != nil {
-				v := e.GetValue()
-				out.ConsecutiveGatewayFailure = &wrapperspb.UInt32Value{Value: v}
-				if v > 0 {
-					v = 100
-				}
-				out.EnforcingConsecutiveGatewayFailure = &wrapperspb.UInt32Value{Value: v}
-			}
-			if outlier.GetMaxEjectionPercent() > 0 {
-				out.MaxEjectionPercent = &wrapperspb.UInt32Value{Value: uint32(outlier.GetMaxEjectionPercent())}
-			}
-			if outlier.GetSplitExternalLocalOriginErrors() {
-				out.SplitExternalLocalOriginErrors = true
-				if outlier.GetConsecutiveLocalOriginFailures().GetValue() > 0 {
-					out.ConsecutiveLocalOriginFailure = &wrapperspb.UInt32Value{Value: outlier.GetConsecutiveLocalOriginFailures().Value}
-					out.EnforcingConsecutiveLocalOriginFailure = &wrapperspb.UInt32Value{Value: 100}
-				}
-				// SuccessRate based outlier detection should be disabled.
-				out.EnforcingLocalOriginSuccessRate = &wrapperspb.UInt32Value{Value: 0}
-			}
-			minHealthPercent := outlier.GetMinHealthPercent()
-			if minHealthPercent >= 0 {
-				if outCluster.GetCommonLbConfig() == nil {
-					outCluster.CommonLbConfig = &envoy_config_cluster_v3.Cluster_CommonLbConfig{}
-				}
-				outCluster.GetCommonLbConfig().HealthyPanicThreshold = &envoy_type_v3.Percent{Value: float64(minHealthPercent)}
-			}
-
-			outCluster.OutlierDetection = out
-
-		}
+	if destrule == nil {
+		// nothing to do.
+		return
 	}
 
+	trafficPolicy := getTrafficPolicy(destrule, uint32(in.Port))
+	outlier := trafficPolicy.GetOutlierDetection()
+	if outlier == nil {
+		// nothing to do.
+		return
+	}
+	localityLb := getLocalityLbSetting(trafficPolicy)
+	if localityLb == nil {
+		// nothing to do.
+		return
+	}
+
+	if outCluster.GetCommonLbConfig() == nil {
+		outCluster.CommonLbConfig = &envoy_config_cluster_v3.Cluster_CommonLbConfig{}
+	}
+	outCluster.GetCommonLbConfig().LocalityConfigSpecifier = &envoy_config_cluster_v3.Cluster_CommonLbConfig_LocalityWeightedLbConfig_{
+		LocalityWeightedLbConfig: &envoy_config_cluster_v3.Cluster_CommonLbConfig_LocalityWeightedLbConfig{},
+	}
+
+	out := &envoy_config_cluster_v3.OutlierDetection{
+		Consecutive_5Xx:  outlier.GetConsecutive_5XxErrors(),
+		Interval:         outlier.GetInterval(),
+		BaseEjectionTime: outlier.GetBaseEjectionTime(),
+	}
+	if e := outlier.GetConsecutiveGatewayErrors(); e != nil {
+		v := e.GetValue()
+		out.ConsecutiveGatewayFailure = &wrapperspb.UInt32Value{Value: v}
+		if v > 0 {
+			v = 100
+		}
+		out.EnforcingConsecutiveGatewayFailure = &wrapperspb.UInt32Value{Value: v}
+	}
+	if outlier.GetMaxEjectionPercent() > 0 {
+		out.MaxEjectionPercent = &wrapperspb.UInt32Value{Value: uint32(outlier.GetMaxEjectionPercent())}
+	}
+	if outlier.GetSplitExternalLocalOriginErrors() {
+		out.SplitExternalLocalOriginErrors = true
+		if outlier.GetConsecutiveLocalOriginFailures().GetValue() > 0 {
+			out.ConsecutiveLocalOriginFailure = &wrapperspb.UInt32Value{Value: outlier.GetConsecutiveLocalOriginFailures().Value}
+			out.EnforcingConsecutiveLocalOriginFailure = &wrapperspb.UInt32Value{Value: 100}
+		}
+		// SuccessRate based outlier detection should be disabled.
+		out.EnforcingLocalOriginSuccessRate = &wrapperspb.UInt32Value{Value: 0}
+	}
+	minHealthPercent := outlier.GetMinHealthPercent()
+	if minHealthPercent >= 0 {
+		if outCluster.GetCommonLbConfig() == nil {
+			outCluster.CommonLbConfig = &envoy_config_cluster_v3.Cluster_CommonLbConfig{}
+		}
+		outCluster.GetCommonLbConfig().HealthyPanicThreshold = &envoy_type_v3.Percent{Value: float64(minHealthPercent)}
+	}
+	outCluster.OutlierDetection = out
 }
 
 func getPriorityInfoFromDestrule(localityLb *v1alpha3.LocalityLoadBalancerSetting) *endpoints.PriorityInfo {

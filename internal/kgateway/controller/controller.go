@@ -63,6 +63,7 @@ func NewBaseGatewayController(ctx context.Context, cfg GatewayConfig) error {
 }
 
 func run(ctx context.Context, funcs ...func(ctx context.Context) error) error {
+	// TODO: aggregate errors?
 	for _, f := range funcs {
 		if err := f(ctx); err != nil {
 			return err
@@ -97,8 +98,12 @@ func gatewayToParams(obj client.Object) []string {
 func (c *controllerBuilder) watchGw(ctx context.Context) error {
 	// setup a deployer
 	log := log.FromContext(ctx)
+	log.Info("creating deployer",
+		"ctrlname", c.cfg.ControllerName,
+		"server", c.cfg.ControlPlane.XdsHost,
+		"port", c.cfg.ControlPlane.XdsPort,
+	)
 
-	log.Info("creating deployer", "ctrlname", c.cfg.ControllerName, "server", c.cfg.ControlPlane.XdsHost, "port", c.cfg.ControlPlane.XdsPort)
 	d, err := deployer.NewDeployer(c.cfg.Mgr.GetClient(), &deployer.Inputs{
 		ControllerName:          c.cfg.ControllerName,
 		Dev:                     c.cfg.Dev,
@@ -138,7 +143,9 @@ func (c *controllerBuilder) watchGw(ctx context.Context) error {
 			gwpNamespace := obj.GetNamespace()
 			// look up the Gateways that are using this GatewayParameters object
 			var gwList apiv1.GatewayList
-			err := cli.List(ctx, &gwList, client.InNamespace(gwpNamespace), client.MatchingFieldsSelector{Selector: fields.OneTermEqualSelector(GatewayParamsField, gwpName)})
+			err := cli.List(ctx, &gwList, client.InNamespace(gwpNamespace), client.MatchingFieldsSelector{
+				Selector: fields.OneTermEqualSelector(GatewayParamsField, gwpName),
+			})
 			if err != nil {
 				log.Error(err, "could not list Gateways using GatewayParameters", "gwpNamespace", gwpNamespace, "gwpName", gwpName)
 				return []reconcile.Request{}
@@ -149,8 +156,10 @@ func (c *controllerBuilder) watchGw(ctx context.Context) error {
 				reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKey{Namespace: gw.Namespace, Name: gw.Name}})
 			}
 			return reqs
-		}))
+		}),
+	)
 
+	// dynamically watch all the resources that the deployer wants to reconcile.
 	for _, gvk := range gvks {
 		obj, err := c.cfg.Mgr.GetScheme().New(gvk)
 		if err != nil {
@@ -168,17 +177,13 @@ func (c *controllerBuilder) watchGw(ctx context.Context) error {
 		}
 		buildr.Owns(clientObj, opts...)
 	}
-	gwReconciler := &gatewayReconciler{
+
+	return buildr.Complete(&gatewayReconciler{
 		cli:           c.cfg.Mgr.GetClient(),
 		scheme:        c.cfg.Mgr.GetScheme(),
 		autoProvision: c.cfg.AutoProvision,
 		deployer:      d,
-	}
-	err = buildr.Complete(gwReconciler)
-	if err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func shouldIgnoreStatusChild(gvk schema.GroupVersionKind) bool {
@@ -208,17 +213,12 @@ type controllerReconciler struct {
 
 func (r *controllerReconciler) ReconcileGatewayClasses(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("gwclass", req.NamespacedName)
+	log.Info("reconciling gateway class")
 
 	gwclass := &apiv1.GatewayClass{}
 	if err := r.cli.Get(ctx, req.NamespacedName, gwclass); err != nil {
-		// NOTE: if this reconciliation is a result of a DELETE event, this err will be a NotFound,
-		// therefore we will return a nil error here and thus skip any additional reconciliation below.
-		// At the time of writing this comment, the retrieved GWClass object is only used to update the status,
-		// so it should be fine to return here, because there's no status update needed on a deleted resource.
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
-	log.Info("reconciling gateway class")
 
 	// mark it as accepted:
 	acceptedCondition := metav1.Condition{

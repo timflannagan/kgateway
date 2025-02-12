@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -16,6 +14,7 @@ import (
 	"istio.io/istio/pkg/kube/krt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
@@ -24,6 +23,10 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/plugins"
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
+)
+
+const (
+	ExtensionName = "DirectResponse"
 )
 
 type directResponse struct {
@@ -61,7 +64,6 @@ func registerTypes(ourCli versioned.Interface) {
 }
 
 func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensionplug.Plugin {
-
 	registerTypes(commoncol.OurClient)
 
 	col := krt.WrapClient(kclient.New[*v1alpha1.DirectResponse](commoncol.Client), commoncol.KrtOpts.ToOptions("DirectResponse")...)
@@ -85,10 +87,8 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 	return extensionplug.Plugin{
 		ContributesPolicies: map[schema.GroupKind]extensionplug.PolicyPlugin{
 			v1alpha1.DirectResponseGVK.GroupKind(): {
-				Name: "directresponse",
-				//	AttachmentPoints: []ir.AttachmentPoints{ir.HttpAttachmentPoint},
-				Policies: policyCol,
-				//				AttachmentPoints:          []ir.AttachmentPoints{ir.HttpAttachmentPoint},
+				Name:                      ExtensionName,
+				Policies:                  policyCol,
 				NewGatewayTranslationPass: NewGatewayTranslationPass,
 			},
 		},
@@ -118,13 +118,12 @@ func (p *directResponseGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.Route
 		// so we'll return an error. note: the direct response plugin runs after other route plugins
 		// that modify the output route (e.g. the redirect plugin), so this should be a rare case.
 		errMsg := fmt.Sprintf("DirectResponse cannot be applied to route with existing action: %T", outputRoute.GetAction())
-
 		outputRoute.Action = &envoy_config_route_v3.Route_DirectResponse{
 			DirectResponse: &envoy_config_route_v3.DirectResponseAction{
 				Status: http.StatusInternalServerError,
 			},
 		}
-		return fmt.Errorf(errMsg)
+		return fmt.Errorf("failed to apply direct response: %s", errMsg)
 	}
 
 	outputRoute.Action = &envoy_config_route_v3.Route_DirectResponse{

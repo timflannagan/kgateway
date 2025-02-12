@@ -9,17 +9,16 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	routerv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
 	codecv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/upstream_codec/v3"
+	envoy_tls_inspector "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
 	envoyhttp "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoytcp "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
 	envoyauth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
-	"go.uber.org/zap"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
-	envoy_tls_inspector "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
 	"github.com/solo-io/go-utils/contextutils"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -81,18 +80,16 @@ func tlsInspectorFilter() *envoy_config_listener_v3.ListenerFilter {
 	}
 }
 
-func (h *filterChainTranslator) initFilterChain(ctx context.Context, fcc ir.FilterChainCommon, reporter reports.ListenerReporter) *envoy_config_listener_v3.FilterChain {
+func (h *filterChainTranslator) initFilterChain(_ context.Context, fcc ir.FilterChainCommon, _ reports.ListenerReporter) *envoy_config_listener_v3.FilterChain {
 	info := &FilterChainInfo{
 		Match: fcc.Matcher,
 		TLS:   fcc.TLS,
 	}
-
 	fc := &envoy_config_listener_v3.FilterChain{
 		Name:             fcc.FilterChainName,
 		FilterChainMatch: info.toMatch(),
 		TransportSocket:  info.toTransportSocket(),
 	}
-
 	return fc
 }
 func (h *filterChainTranslator) computeHttpFilters(ctx context.Context, l ir.HttpFilterChainIR, reporter reports.ListenerReporter) []*envoy_config_listener_v3.Filter {
@@ -126,6 +123,7 @@ func (n *filterChainTranslator) computeNetworkFiltersForHttp(ctx context.Context
 	networkFilters = append(networkFilters, networkFilter)
 	return networkFilters, nil
 }
+
 func (n *filterChainTranslator) computePreHCMFilters(ctx context.Context, l ir.HttpFilterChainIR, reporter reports.ListenerReporter) []plugins.StagedNetworkFilter {
 	var networkFilters []plugins.StagedNetworkFilter
 	// Process the network filters.
@@ -140,7 +138,6 @@ func (n *filterChainTranslator) computePreHCMFilters(ctx context.Context, l ir.H
 			})
 			// TODO: return error?
 		}
-
 		for _, nf := range stagedFilters {
 			if nf.Filter == nil {
 				continue
@@ -153,7 +150,7 @@ func (n *filterChainTranslator) computePreHCMFilters(ctx context.Context, l ir.H
 }
 
 func convertCustomNetworkFilters(customNetworkFilters []ir.CustomEnvoyFilter) []plugins.StagedNetworkFilter {
-
+	// TODO(tim): prealloc.
 	var out []plugins.StagedNetworkFilter
 	for _, customFilter := range customNetworkFilters {
 		out = append(out, plugins.StagedNetworkFilter{
@@ -170,6 +167,7 @@ func convertCustomNetworkFilters(customNetworkFilters []ir.CustomEnvoyFilter) []
 }
 func sortNetworkFilters(filters plugins.StagedNetworkFilterList) []*envoy_config_listener_v3.Filter {
 	sort.Sort(filters)
+	// TODO(tim): prealloc.
 	var sortedFilters []*envoy_config_listener_v3.Filter
 	for _, filter := range filters {
 		sortedFilters = append(sortedFilters, filter.Filter)
@@ -314,7 +312,7 @@ func (h *hcmNetworkFilterTranslator) computeHttpFilters(ctx context.Context, l i
 	return envoyHttpFilters
 }
 
-func (h *hcmNetworkFilterTranslator) computeUpstreamHTTPFilters(ctx context.Context, l ir.HttpFilterChainIR, routerV3 *routerv3.Router) {
+func (h *hcmNetworkFilterTranslator) computeUpstreamHTTPFilters(ctx context.Context, _ ir.HttpFilterChainIR, routerV3 *routerv3.Router) {
 	upstreamHttpFilters := plugins.StagedUpstreamHttpFilterList{}
 	log := contextutils.LoggerFrom(ctx).Desugar()
 	for _, plug := range h.PluginPass {
@@ -379,7 +377,7 @@ func sortHttpFilters(filters plugins.StagedHttpFilterList) []*envoyhttp.HttpFilt
 	return sortedFilters
 }
 
-func (h *filterChainTranslator) computeTcpFilters(ctx context.Context, l ir.TcpIR, reporter reports.ListenerReporter) []*envoy_config_listener_v3.Filter {
+func (h *filterChainTranslator) computeTcpFilters(_ context.Context, l ir.TcpIR, _ reports.ListenerReporter) []*envoy_config_listener_v3.Filter {
 	networkFilters := sortNetworkFilters(h.computeNetworkFiltersForTcp(l))
 
 	cfg := &envoytcp.TcpProxy{

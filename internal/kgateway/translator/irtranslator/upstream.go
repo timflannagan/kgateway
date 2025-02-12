@@ -48,11 +48,11 @@ func (t *UpstreamTranslator) TranslateUpstream(
 	process.InitUpstream(context.TODO(), u, out)
 
 	// now process upstream policies:
-	t.runPlugins(kctx, context.TODO(), ucc, u, out)
+	t.runPlugins(context.TODO(), kctx, ucc, u, out)
 	return out, nil
 }
 
-func (t *UpstreamTranslator) runPlugins(kctx krt.HandlerContext, ctx context.Context, ucc ir.UniqlyConnectedClient, u ir.Upstream, out *envoy_config_cluster_v3.Cluster) {
+func (t *UpstreamTranslator) runPlugins(ctx context.Context, kctx krt.HandlerContext, ucc ir.UniqlyConnectedClient, u ir.Upstream, out *envoy_config_cluster_v3.Cluster) {
 	for gk, polImpl := range t.ContributedPolicies {
 		// TODO: in theory it would be nice to do `ProcessUpstream` once, and only do
 		// the the per-client processing for each client.
@@ -60,9 +60,8 @@ func (t *UpstreamTranslator) runPlugins(kctx krt.HandlerContext, ctx context.Con
 		// now, until we have more upstream plugin examples to properly understand what it should look
 		// like.
 		if polImpl.PerClientProcessUpstream != nil {
-			polImpl.PerClientProcessUpstream(kctx, ctx, ucc, u, out)
+			polImpl.PerClientProcessUpstream(ctx, kctx, ucc, u, out)
 		}
-
 		if polImpl.ProcessUpstream == nil {
 			continue
 		}
@@ -73,7 +72,6 @@ func (t *UpstreamTranslator) runPlugins(kctx krt.HandlerContext, ctx context.Con
 }
 
 func initializeCluster(u ir.Upstream) *envoy_config_cluster_v3.Cluster {
-
 	// circuitBreakers := t.settings.GetGloo().GetCircuitBreakers()
 	out := &envoy_config_cluster_v3.Cluster{
 		Name:     u.ClusterName(),

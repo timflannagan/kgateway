@@ -23,9 +23,6 @@ import (
 )
 
 func xTestRun(t *testing.T) {
-
-	ctx := context.Background()
-	ctx = ctx
 	if true {
 		skubeclient.Register[*gwv1.HTTPRoute](
 			gvr.HTTPRoute_v1,

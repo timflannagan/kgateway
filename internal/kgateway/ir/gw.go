@@ -87,7 +87,6 @@ type Backend struct {
 	// TODO: remove cluster name from here, it's redundant.
 	ClusterName string
 	Weight      uint32
-
 	// upstream could be nil if not found or no ref grant
 	Upstream *Upstream
 	// if nil, error might say why

@@ -189,7 +189,7 @@ func TestScenarios(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		ggv2setup.StartGGv2WithConfig(ctx, setupOpts, cfg, builder, nil, nil)
+		ggv2setup.StartControllerWithConfig(ctx, setupOpts, cfg, builder, nil, nil)
 	}()
 	// give ggv2 time to initialize so we don't get
 	// "ggv2 not initialized" error

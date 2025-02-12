@@ -35,6 +35,17 @@ spec:
             properties:
               aws:
                 properties:
+                  accountId:
+                    type: string
+                  lambda:
+                    properties:
+                      functionName:
+                        type: string
+                      qualifier:
+                        type: string
+                    required:
+                    - functionName
+                    type: object
                   region:
                     type: string
                   secretRef:
@@ -65,10 +76,19 @@ spec:
                       type: object
                     type: array
                 type: object
+              type:
+                enum:
+                - aws
+                - static
+                type: string
+            required:
+            - type
             type: object
             x-kubernetes-validations:
-            - message: There must one and only one upstream type set
-              rule: 1 == (self.aws != null?1:0) + (self.static != null?1:0)
+            - message: 'Type field must match the upstream configuration: aws requires
+                Aws field, static requires Static field'
+              rule: (self.type == 'aws' && has(self.aws) && !has(self.static)) ||
+                (self.type == 'static' && has(self.static) && !has(self.aws))
           status:
             properties:
               conditions:

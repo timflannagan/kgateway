@@ -31,11 +31,11 @@ import (
 )
 
 const (
-	glooComponentName = "gloo"
+	componentName = "controller"
 )
 
 func Main(customCtx context.Context) error {
-	SetupLogging(customCtx, glooComponentName)
+	SetupLogging(customCtx, componentName)
 	return startSetupLoop(customCtx)
 }
 
@@ -56,7 +56,6 @@ func createKubeClient(restConfig *rest.Config) (istiokube.Client, error) {
 func StartGGv2(ctx context.Context,
 	extraPlugins []extensionsplug.Plugin,
 	extraGwClasses []string, // TODO: we can remove this and replace with something that watches all GW classes with our controller name
-
 ) error {
 	restConfig := ctrl.GetConfigOrDie()
 
@@ -74,7 +73,14 @@ func StartGGv2(ctx context.Context,
 		XdsPort:             9977,
 	}
 
-	return StartGGv2WithConfig(ctx, setupOpts, restConfig, uccBuilder, extraPlugins, nil)
+	return StartControllerWithConfig(
+		ctx,
+		setupOpts,
+		restConfig,
+		uccBuilder,
+		extraPlugins,
+		extraGwClasses,
+	)
 }
 
 // GetControlPlaneXdsHost gets the xDS address from the gloo Service.
@@ -87,20 +93,21 @@ func GetControlPlaneXdsHost() string {
 
 func startControlPlane(ctx context.Context,
 	callbacks xdsserver.Callbacks) (envoycache.SnapshotCache, error) {
-
 	return NewControlPlane(ctx, &net.TCPAddr{IP: net.IPv4zero, Port: 9977}, callbacks)
 }
 
-func StartGGv2WithConfig(ctx context.Context, setupOpts *controller.SetupOpts,
+// StartControllerWithConfig starts the controller with the given config.
+// Exported for testing purposes.
+func StartControllerWithConfig(ctx context.Context, setupOpts *controller.SetupOpts,
 	restConfig *rest.Config,
 	uccBuilder krtcollections.UniquelyConnectedClientsBulider,
 	extraPlugins []extensionsplug.Plugin,
 	extraGwClasses []string, // TODO: we can remove this and replace with something that watches all GW classes with our controller name
 ) error {
+	// why "k8s" as the name for the logger?
 	ctx = contextutils.WithLogger(ctx, "k8s")
-
 	logger := contextutils.LoggerFrom(ctx)
-	logger.Info("starting gloo gateway")
+	logger.Infof("starting the %s", componentName)
 
 	kubeClient, err := createKubeClient(restConfig)
 	if err != nil {

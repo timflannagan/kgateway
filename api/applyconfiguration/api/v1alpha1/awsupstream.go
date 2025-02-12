@@ -9,8 +9,10 @@ import (
 // AwsUpstreamApplyConfiguration represents a declarative configuration of the AwsUpstream type for use
 // with apply.
 type AwsUpstreamApplyConfiguration struct {
-	Region    *string                  `json:"region,omitempty"`
-	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`
+	Region    *string                              `json:"region,omitempty"`
+	AccountId *string                              `json:"accountId,omitempty"`
+	SecretRef *v1.LocalObjectReference             `json:"secretRef,omitempty"`
+	Lambda    *AwsLambdaUpstreamApplyConfiguration `json:"lambda,omitempty"`
 }
 
 // AwsUpstreamApplyConfiguration constructs a declarative configuration of the AwsUpstream type for use with
@@ -27,10 +29,26 @@ func (b *AwsUpstreamApplyConfiguration) WithRegion(value string) *AwsUpstreamApp
 	return b
 }
 
+// WithAccountId sets the AccountId field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the AccountId field is set to the value of the last call.
+func (b *AwsUpstreamApplyConfiguration) WithAccountId(value string) *AwsUpstreamApplyConfiguration {
+	b.AccountId = &value
+	return b
+}
+
 // WithSecretRef sets the SecretRef field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the SecretRef field is set to the value of the last call.
 func (b *AwsUpstreamApplyConfiguration) WithSecretRef(value v1.LocalObjectReference) *AwsUpstreamApplyConfiguration {
 	b.SecretRef = &value
+	return b
+}
+
+// WithLambda sets the Lambda field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Lambda field is set to the value of the last call.
+func (b *AwsUpstreamApplyConfiguration) WithLambda(value *AwsLambdaUpstreamApplyConfiguration) *AwsUpstreamApplyConfiguration {
+	b.Lambda = value
 	return b
 }

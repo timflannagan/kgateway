@@ -455,7 +455,7 @@ var _ = Describe("Translator TCPRoute Listener", func() {
 		tcpIr := tcpToIr(tcpRoute)
 		// simulate missing reference grant
 		tcpIr.Backends[0].Upstream = nil
-		tcpIr.Backends[0].Err = errors.New("missing reference grant")
+		tcpIr.Backends[0].Err = errors.New("Missing reference grant")
 
 		By("Creating the RouteInfo")
 		routes := []*query.RouteInfo{

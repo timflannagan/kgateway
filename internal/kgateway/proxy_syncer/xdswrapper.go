@@ -7,17 +7,15 @@ import (
 	udpaannontations "github.com/cncf/xds/go/udpa/annotations"
 	envoycachetypes "github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	envoycache "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/xds"
-	"github.com/kgateway-dev/kgateway/v2/pkg/utils/envutils"
-
-	"istio.io/istio/pkg/kube/krt"
-
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/anypb"
+	"istio.io/istio/pkg/kube/krt"
+
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/xds"
+	"github.com/kgateway-dev/kgateway/v2/pkg/utils/envutils"
 )
 
 var (
@@ -30,12 +28,12 @@ type XdsSnapWrapper struct {
 	proxyKey        string
 }
 
+var _ krt.ResourceNamer = XdsSnapWrapper{}
+
 func (p XdsSnapWrapper) WithSnapshot(snap *envoycache.Snapshot) XdsSnapWrapper {
 	p.snap = snap
 	return p
 }
-
-var _ krt.ResourceNamer = XdsSnapWrapper{}
 
 func (p XdsSnapWrapper) Equals(in XdsSnapWrapper) bool {
 	// check that all the versions are the equal
@@ -91,7 +89,6 @@ func (p XdsSnapWrapper) MarshalJSON() (out []byte, err error) {
 }
 
 func addToSnap(snapJson map[string]map[string]any, k string, resources map[string]envoycachetypes.ResourceWithTTL) {
-
 	for rname, r := range resources {
 		rJson, _ := protojson.Marshal(r.Resource)
 		var rAny any

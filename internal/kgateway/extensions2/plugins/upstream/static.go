@@ -12,8 +12,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 )
 
-func processStatic(ctx context.Context, in *v1alpha1.StaticUpstream, out *envoy_config_cluster_v3.Cluster) {
-
+func processStatic(_ context.Context, in *v1alpha1.StaticUpstream, out *envoy_config_cluster_v3.Cluster) {
 	var hostname string
 	out.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{
 		Type: envoy_config_cluster_v3.Cluster_STATIC,
@@ -85,6 +84,6 @@ func processStatic(ctx context.Context, in *v1alpha1.StaticUpstream, out *envoy_
 
 }
 
-func processEndpointsStatic(in *v1alpha1.StaticUpstream) *ir.EndpointsForUpstream {
+func processEndpointsStatic(_ *v1alpha1.StaticUpstream) *ir.EndpointsForUpstream {
 	return nil
 }

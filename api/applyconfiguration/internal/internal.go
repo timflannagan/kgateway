@@ -62,9 +62,25 @@ var schemaYAML = typed.YAMLObject(`types:
           elementType:
             namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.CustomLabel
           elementRelationship: atomic
+- name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.AwsLambdaUpstream
+  map:
+    fields:
+    - name: functionName
+      type:
+        scalar: string
+      default: ""
+    - name: qualifier
+      type:
+        scalar: string
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.AwsUpstream
   map:
     fields:
+    - name: accountId
+      type:
+        scalar: string
+    - name: lambda
+      type:
+        namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.AwsLambdaUpstream
     - name: region
       type:
         scalar: string
@@ -624,6 +640,10 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: static
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.StaticUpstream
+    - name: type
+      type:
+        scalar: string
+      default: ""
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.UpstreamStatus
   map:
     fields:

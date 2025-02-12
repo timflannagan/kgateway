@@ -119,7 +119,7 @@ func (s *CombinedTranslator) buildProxy(kctx krt.HandlerContext, ctx context.Con
 			gatewayTranslator = maybeGatewayTranslator
 		}
 	} else {
-
+		panic("implement me: no gateway translator found")
 	}
 	proxy := gatewayTranslator.Translate(kctx, ctx, &gw, r)
 	if proxy == nil {
@@ -163,7 +163,7 @@ func (s *CombinedTranslator) TranslateGateway(kctx krt.HandlerContext, ctx conte
 
 func (s *CombinedTranslator) TranslateEndpoints(kctx krt.HandlerContext, ucc ir.UniqlyConnectedClient, ep ir.EndpointsForUpstream) (*envoy_config_endpoint_v3.ClusterLoadAssignment, uint64) {
 	// check if we have a plugin to do it
-	cla, additionalHash := proccessWithPlugins(s.endpointPlugins, kctx, context.TODO(), ucc, ep)
+	cla, additionalHash := proccessWithPlugins(context.TODO(), s.endpointPlugins, kctx, ucc, ep)
 	if cla != nil {
 		return cla, additionalHash
 
@@ -171,9 +171,9 @@ func (s *CombinedTranslator) TranslateEndpoints(kctx krt.HandlerContext, ucc ir.
 	return endpoints.PrioritizeEndpoints(s.logger, nil, ep, ucc), 0
 }
 
-func proccessWithPlugins(plugins []extensionsplug.EndpointPlugin, kctx krt.HandlerContext, ctx context.Context, ucc ir.UniqlyConnectedClient, in ir.EndpointsForUpstream) (*envoy_config_endpoint_v3.ClusterLoadAssignment, uint64) {
-	for _, processEnddpoints := range plugins {
-		cla, additionalHash := processEnddpoints(kctx, context.TODO(), ucc, in)
+func proccessWithPlugins(ctx context.Context, plugins []extensionsplug.EndpointPlugin, kctx krt.HandlerContext, ucc ir.UniqlyConnectedClient, in ir.EndpointsForUpstream) (*envoy_config_endpoint_v3.ClusterLoadAssignment, uint64) {
+	for _, processEndpoints := range plugins {
+		cla, additionalHash := processEndpoints(ctx, kctx, ucc, in)
 		if cla != nil {
 			return cla, additionalHash
 		}

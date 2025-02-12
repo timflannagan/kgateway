@@ -33,7 +33,7 @@ const (
 	AuthZStage                                 // Authorization stage
 	RateLimitStage                             // Rate limiting stage
 	AcceptedStage                              // Request passed all the checks and will be forwarded upstream
-	OutAuthStage                               // Add auth for the upstream (i.e. aws λ)
+	OutAuthStage                               // Add auth for the upstream (i.e. aws lambda)
 	RouteStage                                 // Request is going to upstream // Last Filter Stage
 )
 
@@ -65,12 +65,15 @@ func FilterStageComparison[WellKnown ~int](a, b FilterStage[WellKnown]) int {
 func BeforeStage[WellKnown ~int](wellKnown WellKnown) FilterStage[WellKnown] {
 	return RelativeToStage(wellKnown, -1)
 }
+
 func DuringStage[WellKnown ~int](wellKnown WellKnown) FilterStage[WellKnown] {
 	return RelativeToStage(wellKnown, 0)
 }
+
 func AfterStage[WellKnown ~int](wellKnown WellKnown) FilterStage[WellKnown] {
 	return RelativeToStage(wellKnown, 1)
 }
+
 func RelativeToStage[WellKnown ~int](wellKnown WellKnown, weight int) FilterStage[WellKnown] {
 	return FilterStage[WellKnown]{
 		RelativeTo: wellKnown,
@@ -154,6 +157,10 @@ func MustNewStagedFilter(name string, config proto.Message, stage FilterStage[We
 // Errors if the config is nil or we cannot determine the type of the config.
 // Config type determination may fail if the config is both  unknown and has no fields.
 func NewStagedFilter(name string, config proto.Message, stage FilterStage[WellKnownFilterStage]) (StagedHttpFilter, error) {
+	// defensive check.
+	if config == nil {
+		return StagedHttpFilter{}, fmt.Errorf("filters must have a config specified to derive its type filtername:%s", name)
+	}
 
 	s := StagedHttpFilter{
 		Filter: &envoyhttp.HttpFilter{
@@ -161,22 +168,15 @@ func NewStagedFilter(name string, config proto.Message, stage FilterStage[WellKn
 		},
 		Stage: stage,
 	}
-
-	if config == nil {
-		return s, fmt.Errorf("filters must have a config specified to derive its type filtername:%s", name)
-	}
-
 	marshalledConf, err := utils.MessageToAny(config)
 	if err != nil {
 		// all config types should already be known
 		// therefore this should never happen
 		return StagedHttpFilter{}, err
 	}
-
 	s.Filter.ConfigType = &envoyhttp.HttpFilter_TypedConfig{
 		TypedConfig: marshalledConf,
 	}
-
 	return s, nil
 }
 
@@ -188,7 +188,6 @@ func StagedFilterListContainsName(filters StagedHttpFilterList, filterName strin
 			return true
 		}
 	}
-
 	return false
 }
 

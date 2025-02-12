@@ -54,7 +54,6 @@ func TestRedacted(t *testing.T) {
 
 	x := XdsSnapWrapper{}.WithSnapshot(snap)
 	data, err := x.MarshalJSON()
-
 	if err != nil {
 		t.Fatal(err)
 	}

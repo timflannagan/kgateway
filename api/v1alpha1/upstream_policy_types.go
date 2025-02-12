@@ -29,15 +29,42 @@ type UpstreamList struct {
 	Items           []Upstream `json:"items"`
 }
 
-// +kubebuilder:validation:XValidation:message="There must one and only one upstream type set",rule="1 == (self.aws != null?1:0) + (self.static != null?1:0)"
+const (
+	UpstreamTypeAws    = "aws"
+	UpstreamTypeStatic = "static"
+)
+
+// +kubebuilder:validation:XValidation:message="Type field must match the upstream configuration: aws requires Aws field, static requires Static field",rule="(self.type == 'aws' && has(self.aws) && !has(self.static)) || (self.type == 'static' && has(self.static) && !has(self.aws))"
 type UpstreamSpec struct {
-	Aws    *AwsUpstream    `json:"aws,omitempty"`
+	// Type controls the type of upstream.
+	// +unionDiscriminator
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=aws;static
+	Type string `json:"type"`
+	// AWS upstream configuration. Allows for referencing AWS Lambda functions.
+	// +optional
+	Aws *AwsUpstream `json:"aws,omitempty"`
+	// Static upstream configuration. Allows for referencing a list of hosts.
+	// +optional
 	Static *StaticUpstream `json:"static,omitempty"`
 }
+
 type AwsUpstream struct {
 	Region    string                      `json:"region,omitempty"`
+	AccountId string                      `json:"accountId,omitempty"`
 	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	Lambda    *AwsLambdaUpstream          `json:"lambda,omitempty"`
 }
+
+type AwsLambdaUpstream struct {
+	// The name of the Lambda function
+	// +kubebuilder:validation:Required
+	FunctionName string `json:"functionName"`
+	// Optional qualifier (version or alias)
+	// +optional
+	Qualifier string `json:"qualifier,omitempty"`
+}
+
 type StaticUpstream struct {
 	Hosts []Host `json:"hosts,omitempty"`
 }

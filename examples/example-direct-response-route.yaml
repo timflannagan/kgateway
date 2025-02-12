@@ -3,7 +3,7 @@ kind: Gateway
 apiVersion: gateway.networking.k8s.io/v1
 metadata:
   name: http
-  namespace: gloo-system
+  namespace: kgateway-system
 spec:
   gatewayClassName: kgateway
   listeners:
