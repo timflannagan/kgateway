@@ -34,46 +34,60 @@ const (
 	componentName = "kgateway"
 )
 
-func Main(customCtx context.Context) error {
-	SetupLogging(customCtx, componentName)
-	return startSetupLoop(customCtx)
+type Option func(*Controller)
+
+type Controller struct {
+	leaderElection bool
+	extraGwClasses []string
+	extraPlugins   []extensionsplug.Plugin
 }
 
-func startSetupLoop(ctx context.Context) error {
-	return StartGGv2(ctx, nil, nil)
-}
-
-func createKubeClient(restConfig *rest.Config) (istiokube.Client, error) {
-	restCfg := istiokube.NewClientConfigForRestConfig(restConfig)
-	client, err := istiokube.NewClient(restCfg, "")
-	if err != nil {
-		return nil, err
+func New(opts ...Option) *Controller {
+	c := &Controller{}
+	for _, opt := range opts {
+		opt(c)
 	}
-	istiokube.EnableCrdWatcher(client)
-	return client, nil
+	return c
 }
 
-func StartGGv2(ctx context.Context,
-	extraPlugins []extensionsplug.Plugin,
-	extraGwClasses []string, // TODO: we can remove this and replace with something that watches all GW classes with our controller name
-) error {
-	restConfig := ctrl.GetConfigOrDie()
+func WithLeaderElection() Option {
+	return func(c *Controller) {
+		c.leaderElection = true
+	}
+}
 
+func WithExtraGwClasses(extraGwClasses []string) Option {
+	return func(c *Controller) {
+		c.extraGwClasses = extraGwClasses
+	}
+}
+
+func WithExtraPlugins(extraPlugins []extensionsplug.Plugin) Option {
+	return func(c *Controller) {
+		c.extraPlugins = extraPlugins
+	}
+}
+
+func (c *Controller) Start(ctx context.Context) error {
+	setupLogging(ctx, componentName)
+	restConfig, err := ctrl.GetConfig()
+	if err != nil {
+		return err
+	}
 	uniqueClientCallbacks, uccBuilder := krtcollections.NewUniquelyConnectedClients()
 	cache, err := startControlPlane(ctx, uniqueClientCallbacks)
 	if err != nil {
 		return err
 	}
-
 	setupOpts := &controller.SetupOpts{
 		Cache:               cache,
 		KrtDebugger:         new(krt.DebugHandler),
-		ExtraGatewayClasses: extraGwClasses,
+		ExtraGatewayClasses: c.extraGwClasses,
 		XdsHost:             GetControlPlaneXdsHost(),
 		XdsPort:             9977,
+		LeaderElection:      c.leaderElection,
 	}
-
-	return StartGGv2WithConfig(ctx, setupOpts, restConfig, uccBuilder, extraPlugins, nil)
+	return StartGGv2WithConfig(ctx, setupOpts, restConfig, uccBuilder, c.extraPlugins, c.extraGwClasses)
 }
 
 // GetControlPlaneXdsHost gets the xDS address from the gloo Service.
@@ -90,18 +104,30 @@ func startControlPlane(ctx context.Context,
 	return NewControlPlane(ctx, &net.TCPAddr{IP: net.IPv4zero, Port: 9977}, callbacks)
 }
 
-func StartGGv2WithConfig(ctx context.Context, setupOpts *controller.SetupOpts,
+func createIstioClient(restConfig *rest.Config) (istiokube.Client, error) {
+	restCfg := istiokube.NewClientConfigForRestConfig(restConfig)
+	client, err := istiokube.NewClient(restCfg, "")
+	if err != nil {
+		return nil, err
+	}
+	istiokube.EnableCrdWatcher(client)
+	return client, nil
+}
+
+// TODO: Rename this function.
+func StartGGv2WithConfig(
+	ctx context.Context,
+	setupOpts *controller.SetupOpts,
 	restConfig *rest.Config,
 	uccBuilder krtcollections.UniquelyConnectedClientsBulider,
 	extraPlugins []extensionsplug.Plugin,
 	extraGwClasses []string, // TODO: we can remove this and replace with something that watches all GW classes with our controller name
 ) error {
 	ctx = contextutils.WithLogger(ctx, "k8s")
-
 	logger := contextutils.LoggerFrom(ctx)
-	logger.Info("starting gloo gateway")
+	logger.Infof("starting %s", componentName)
 
-	kubeClient, err := createKubeClient(restConfig)
+	kubeClient, err := createIstioClient(restConfig)
 	if err != nil {
 		return err
 	}
@@ -125,7 +151,6 @@ func StartGGv2WithConfig(ctx context.Context, setupOpts *controller.SetupOpts,
 		Client:        kubeClient,
 		AugmentedPods: augmentedPods,
 		UniqueClients: ucc,
-
 		// Dev flag may be useful for development purposes; not currently tied to any user-facing API
 		Dev:        os.Getenv("LOG_LEVEL") == "debug",
 		KrtOptions: krtOpts,
@@ -146,8 +171,8 @@ func StartGGv2WithConfig(ctx context.Context, setupOpts *controller.SetupOpts,
 	return c.Start(ctx)
 }
 
-// SetupLogging sets up controller-runtime logging
-func SetupLogging(ctx context.Context, loggerName string) {
+// setupLogging sets up controller-runtime logging
+func setupLogging(ctx context.Context, loggerName string) {
 	level := zapcore.InfoLevel
 	// if log level is set in env, use that
 	if envLogLevel := os.Getenv(contextutils.LogLevelEnvName); envLogLevel != "" {

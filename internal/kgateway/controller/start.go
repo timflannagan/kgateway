@@ -49,6 +49,8 @@ type SetupOpts struct {
 	Cache               envoycache.SnapshotCache
 	ExtraGatewayClasses []string
 
+	LeaderElection bool
+
 	KrtDebugger *krt.DebugHandler
 
 	XdsHost string
@@ -103,7 +105,7 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 		return nil, err
 	}
 
-	mgrOpts := ctrl.Options{
+	mgr, err := ctrl.NewManager(cfg.RestConfig, ctrl.Options{
 		BaseContext:      func() context.Context { return ctx },
 		Scheme:           scheme,
 		PprofBindAddress: "127.0.0.1:9099",
@@ -119,8 +121,10 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 			// the name validation here.
 			SkipNameValidation: ptr.To(true),
 		},
-	}
-	mgr, err := ctrl.NewManager(cfg.RestConfig, mgrOpts)
+		LeaderElection:                cfg.SetupOpts.LeaderElection,
+		LeaderElectionID:              "kgateway-controller-lock",
+		LeaderElectionReleaseOnCancel: true,
+	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		return nil, err

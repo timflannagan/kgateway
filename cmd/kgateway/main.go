@@ -13,7 +13,10 @@ import (
 )
 
 func main() {
-	var kgatewayVersion bool
+	var (
+		kgatewayVersion bool
+		leaderElection  bool
+	)
 	cmd := &cobra.Command{
 		Use:   "kgateway",
 		Short: "Runs the kgateway controller",
@@ -24,13 +27,21 @@ func main() {
 			}
 			ctx := context.Background()
 			probes.StartLivenessProbeServer(ctx)
-			if err := setup.Main(ctx); err != nil {
+
+			opts := []setup.Option{}
+			if leaderElection {
+				opts = append(opts, setup.WithLeaderElection())
+			}
+
+			controller := setup.New(opts...)
+			if err := controller.Start(ctx); err != nil {
 				return fmt.Errorf("err in main: %w", err)
 			}
 			return nil
 		},
 	}
 	cmd.Flags().BoolVarP(&kgatewayVersion, "version", "v", false, "Print the version of kgateway")
+	cmd.Flags().BoolVarP(&leaderElection, "leader-election", "l", false, "Enable leader election")
 
 	if err := cmd.Execute(); err != nil {
 		log.Fatal(err)
