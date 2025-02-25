@@ -146,52 +146,40 @@ release:
     {{ if eq .Env.VERSION "v2.0.0-main" }}
     🚀 Nightly build of kgateway!
     ---
-    It includes the latest changes but may be unstable. Use it for testing and providing feedback.
+
+    This build includes the latest changes but may be unstable. We encourage users to test it and provide feedback.
+
     {{ else }}
-    🎉 Welcome to the {{ .Env.VERSION }} release of the kgateway project!
+    🎉 kgateway {{ .Env.VERSION }} is now available!
+
     ---
+
+    This release includes new features, improvements, and bug fixes. See the details below.
+
     {{ end }}
   footer: |
-    ## Installation
+    ## 📖 Documentation
 
-    The kgateway project is available as a Helm chart and docker images.
+    Explore the full documentation at **[kgateway.dev/docs](https://kgateway.dev/docs/)**.
 
-    ### Helm Charts
+    Looking for installation steps? Check out our **[Quickstart Guide](https://kgateway.dev/docs/quickstart/)**.
 
-    The Helm chart is available at {{ .Env.IMAGE_REGISTRY }}/charts/kgateway.
+    ## 📦 Published Artifacts
 
-    ### Docker Images
+    ### Helm Chart
 
-    The docker images are available at:
+    The official Helm chart is available at {{ .Env.IMAGE_REGISTRY }}/charts/kgateway.
 
-    - {{ .Env.IMAGE_REGISTRY }}:{{ .Env.CONTROLLER_IMAGE_REPO }}:{{ .Env.VERSION }}
-    - {{ .Env.IMAGE_REGISTRY }}:{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}
-    - {{ .Env.IMAGE_REGISTRY }}:{{ .Env.ENVOYINIT_IMAGE_REPO }}:{{ .Env.VERSION }}
+    ### Container Images
 
-    ## Quickstart
+    This release includes the following images:
 
-    First, create a [kind cluster](https://kind.sigs.k8s.io/docs/user/quick-start/#installation).
+    | Component  | Image |
+    |------------|----------------------------------------------------------------|
+    | Controller | `{{ .Env.IMAGE_REGISTRY }}/{{ .Env.CONTROLLER_IMAGE_REPO }}:{{ .Env.VERSION }}` |
+    | SDS        | `{{ .Env.IMAGE_REGISTRY }}/{{ .Env.SDS_IMAGE_REPO }}:{{ .Env.VERSION }}` |
+    | Envoy Init | `{{ .Env.IMAGE_REGISTRY }}/{{ .Env.ENVOYINIT_IMAGE_REPO }}:{{ .Env.VERSION }}` |
 
-    ```bash
-    kind create cluster
-    ```
+    ---
 
-    Then, deploy the Kubernetes Gateway API CRDs.
-
-    ```bash
-    kubectl apply --kustomize "https://github.com/kubernetes-sigs/gateway-api/config/crd/experimental?ref=v1.2.1"
-    ```
-
-    Install the `kgateway` controller.
-
-    ```bash
-    helm install --create-namespace --namespace kgateway-system --version {{ .Env.VERSION }} kgateway oci://{{ .Env.IMAGE_REGISTRY }}/charts/kgateway
-    ```
-
-    Verify the release was successful.
-
-    ```bash
-    kubectl get pods -n kgateway-system
-    ```
-
-    If the release was successful, you should see a `kgateway` pod running.
+    Thank you for using kgateway!
