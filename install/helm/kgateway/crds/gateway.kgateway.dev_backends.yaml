@@ -484,8 +484,17 @@ spec:
                       - host
                       - port
                       type: object
+                    minItems: 1
                     type: array
                 type: object
+              type:
+                enum:
+                - ai
+                - aws
+                - static
+                type: string
+            required:
+            - type
             type: object
             x-kubernetes-validations:
             - message: There must one and only one backend type set

@@ -239,6 +239,10 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: static
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.StaticBackend
+    - name: type
+      type:
+        scalar: string
+      default: ""
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.BackendStatus
   map:
     fields:
