@@ -11,7 +11,7 @@ import (
 
 // +genclient
 // +kubebuilder:object:root=true
-// +kubebuilder:metadata:labels={app=gateway,app.kubernetes.io/name=gateway}
+// +kubebuilder:metadata:labels={app=kgateway,app.kubernetes.io/name=kgateway}
 // +kubebuilder:resource:categories=kgateway,shortName=up
 // +kubebuilder:subresource:status
 type Upstream struct {
@@ -29,10 +29,13 @@ type UpstreamList struct {
 	Items           []Upstream `json:"items"`
 }
 
-// +kubebuilder:validation:XValidation:message="There must one and only one upstream type set",rule="1 == (self.aws != null?1:0) + (self.static != null?1:0)"
+// +kubebuilder:validation:XValidation:message="There must one and only one upstream type set",rule="(has(self.aws) && !has(self.static) && !has(self.ai)) || (!has(self.aws) && has(self.static) && !has(self.ai)) || (!has(self.aws) && !has(self.static) && has(self.ai))"
+// +kubebuilder:validation:MaxProperties=1
+// +kubebuilder:validation:MinProperties=1
 type UpstreamSpec struct {
 	Aws    *AwsUpstream    `json:"aws,omitempty"`
 	Static *StaticUpstream `json:"static,omitempty"`
+	AI     *AIUpstream     `json:"ai,omitempty"`
 }
 type AwsUpstream struct {
 	Region    string                      `json:"region,omitempty"`

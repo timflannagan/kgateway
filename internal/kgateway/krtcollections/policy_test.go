@@ -342,7 +342,7 @@ func preRouteIndex(t *testing.T, inputs []any) *RoutesIndex {
 	httproutes := krttest.GetMockCollection[*gwv1.HTTPRoute](mock)
 	tcpproutes := krttest.GetMockCollection[*gwv1a2.TCPRoute](mock)
 	rtidx := NewRoutesIndex(krtutil.KrtOptions{}, httproutes, tcpproutes, policies, upstreams, refgrants)
-	services.Synced().WaitUntilSynced(nil)
+	services.WaitUntilSynced(nil)
 	for !rtidx.HasSynced() || !refgrants.HasSynced() {
 		time.Sleep(time.Second / 10)
 	}
@@ -382,9 +382,4 @@ func translateRoute(t *testing.T, inputs []any) ir.Route {
 		return nil
 	}
 	return h
-}
-
-func translate(t *testing.T, inputs []any) *ir.HttpRouteIR {
-	rtidx := preRouteIndex(t, inputs)
-	return rtidx.FetchHttp(krt.TestingDummyContext{}, "default", "httproute")
 }

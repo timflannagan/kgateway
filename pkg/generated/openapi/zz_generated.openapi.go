@@ -16,14 +16,21 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptEnrichment":         schema_kgateway_v2_api_v1alpha1_AIPromptEnrichment(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptGuard":              schema_kgateway_v2_api_v1alpha1_AIPromptGuard(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIRoutePolicy":              schema_kgateway_v2_api_v1alpha1_AIRoutePolicy(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIUpstream":                 schema_kgateway_v2_api_v1alpha1_AIUpstream(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AccessLog":                  schema_kgateway_v2_api_v1alpha1_AccessLog(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AccessLogFilter":            schema_kgateway_v2_api_v1alpha1_AccessLogFilter(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AiExtension":                schema_kgateway_v2_api_v1alpha1_AiExtension(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AiExtensionStats":           schema_kgateway_v2_api_v1alpha1_AiExtensionStats(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AnthropicConfig":            schema_kgateway_v2_api_v1alpha1_AnthropicConfig(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsUpstream":                schema_kgateway_v2_api_v1alpha1_AwsUpstream(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AzureOpenAIConfig":          schema_kgateway_v2_api_v1alpha1_AzureOpenAIConfig(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CELFilter":                  schema_kgateway_v2_api_v1alpha1_CELFilter(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ComparisonFilter":           schema_kgateway_v2_api_v1alpha1_ComparisonFilter(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CustomLabel":                schema_kgateway_v2_api_v1alpha1_CustomLabel(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CustomResponse":             schema_kgateway_v2_api_v1alpha1_CustomResponse(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DirectResponse":             schema_kgateway_v2_api_v1alpha1_DirectResponse(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DirectResponseList":         schema_kgateway_v2_api_v1alpha1_DirectResponseList(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DirectResponseSpec":         schema_kgateway_v2_api_v1alpha1_DirectResponseSpec(ref),
@@ -31,12 +38,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DurationFilter":             schema_kgateway_v2_api_v1alpha1_DurationFilter(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.EnvoyBootstrap":             schema_kgateway_v2_api_v1alpha1_EnvoyBootstrap(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.EnvoyContainer":             schema_kgateway_v2_api_v1alpha1_EnvoyContainer(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.FieldDefault":               schema_kgateway_v2_api_v1alpha1_FieldDefault(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.FileSink":                   schema_kgateway_v2_api_v1alpha1_FileSink(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.FilterType":                 schema_kgateway_v2_api_v1alpha1_FilterType(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GatewayParameters":          schema_kgateway_v2_api_v1alpha1_GatewayParameters(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GatewayParametersList":      schema_kgateway_v2_api_v1alpha1_GatewayParametersList(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GatewayParametersSpec":      schema_kgateway_v2_api_v1alpha1_GatewayParametersSpec(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GatewayParametersStatus":    schema_kgateway_v2_api_v1alpha1_GatewayParametersStatus(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GeminiConfig":               schema_kgateway_v2_api_v1alpha1_GeminiConfig(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GracefulShutdownSpec":       schema_kgateway_v2_api_v1alpha1_GracefulShutdownSpec(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GrpcService":                schema_kgateway_v2_api_v1alpha1_GrpcService(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GrpcStatusFilter":           schema_kgateway_v2_api_v1alpha1_GrpcStatusFilter(ref),
@@ -49,14 +58,24 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.IstioContainer":             schema_kgateway_v2_api_v1alpha1_IstioContainer(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.IstioIntegration":           schema_kgateway_v2_api_v1alpha1_IstioIntegration(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.KubernetesProxyConfig":      schema_kgateway_v2_api_v1alpha1_KubernetesProxyConfig(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.LLMProvider":                schema_kgateway_v2_api_v1alpha1_LLMProvider(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ListenerPolicy":             schema_kgateway_v2_api_v1alpha1_ListenerPolicy(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ListenerPolicyList":         schema_kgateway_v2_api_v1alpha1_ListenerPolicyList(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ListenerPolicySpec":         schema_kgateway_v2_api_v1alpha1_ListenerPolicySpec(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.LocalPolicyTargetReference": schema_kgateway_v2_api_v1alpha1_LocalPolicyTargetReference(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Message":                    schema_kgateway_v2_api_v1alpha1_Message(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Moderation":                 schema_kgateway_v2_api_v1alpha1_Moderation(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.MultiPoolConfig":            schema_kgateway_v2_api_v1alpha1_MultiPoolConfig(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.OpenAIConfig":               schema_kgateway_v2_api_v1alpha1_OpenAIConfig(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Pod":                        schema_kgateway_v2_api_v1alpha1_Pod(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PolicyAncestorStatus":       schema_kgateway_v2_api_v1alpha1_PolicyAncestorStatus(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PolicyStatus":               schema_kgateway_v2_api_v1alpha1_PolicyStatus(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Priority":                   schema_kgateway_v2_api_v1alpha1_Priority(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PromptguardRequest":         schema_kgateway_v2_api_v1alpha1_PromptguardRequest(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PromptguardResponse":        schema_kgateway_v2_api_v1alpha1_PromptguardResponse(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ProxyDeployment":            schema_kgateway_v2_api_v1alpha1_ProxyDeployment(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Regex":                      schema_kgateway_v2_api_v1alpha1_Regex(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.RegexMatch":                 schema_kgateway_v2_api_v1alpha1_RegexMatch(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ResponseFlagFilter":         schema_kgateway_v2_api_v1alpha1_ResponseFlagFilter(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.RoutePolicy":                schema_kgateway_v2_api_v1alpha1_RoutePolicy(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.RoutePolicyList":            schema_kgateway_v2_api_v1alpha1_RoutePolicyList(ref),
@@ -66,13 +85,17 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SelfManagedGateway":         schema_kgateway_v2_api_v1alpha1_SelfManagedGateway(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Service":                    schema_kgateway_v2_api_v1alpha1_Service(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ServiceAccount":             schema_kgateway_v2_api_v1alpha1_ServiceAccount(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken":            schema_kgateway_v2_api_v1alpha1_SingleAuthToken(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StaticUpstream":             schema_kgateway_v2_api_v1alpha1_StaticUpstream(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StatsConfig":                schema_kgateway_v2_api_v1alpha1_StatsConfig(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StatusCodeFilter":           schema_kgateway_v2_api_v1alpha1_StatusCodeFilter(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SupportedLLMProvider":       schema_kgateway_v2_api_v1alpha1_SupportedLLMProvider(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Upstream":                   schema_kgateway_v2_api_v1alpha1_Upstream(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.UpstreamList":               schema_kgateway_v2_api_v1alpha1_UpstreamList(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.UpstreamSpec":               schema_kgateway_v2_api_v1alpha1_UpstreamSpec(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.UpstreamStatus":             schema_kgateway_v2_api_v1alpha1_UpstreamStatus(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.VertexAIConfig":             schema_kgateway_v2_api_v1alpha1_VertexAIConfig(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Webhook":                    schema_kgateway_v2_api_v1alpha1_Webhook(ref),
 		"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource":                         schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
 		"k8s.io/api/core/v1.Affinity":                                                 schema_k8sio_api_core_v1_Affinity(ref),
 		"k8s.io/api/core/v1.AppArmorProfile":                                          schema_k8sio_api_core_v1_AppArmorProfile(ref),
@@ -421,6 +444,151 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"sigs.k8s.io/gateway-api/apis/v1.SecretObjectReference":                       schema_sigsk8sio_gateway_api_apis_v1_SecretObjectReference(ref),
 		"sigs.k8s.io/gateway-api/apis/v1.SessionPersistence":                          schema_sigsk8sio_gateway_api_apis_v1_SessionPersistence(ref),
 		"sigs.k8s.io/gateway-api/apis/v1.SupportedFeature":                            schema_sigsk8sio_gateway_api_apis_v1_SupportedFeature(ref),
+		"sigs.k8s.io/gateway-api/apis/v1.supportedFeatureInternal":                    schema_sigsk8sio_gateway_api_apis_v1_supportedFeatureInternal(ref),
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_AIPromptEnrichment(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AIPromptEnrichment defines the config to enrich requests sent to the LLM provider by appending and prepending system prompts. This can be configured only for LLM providers that use the `CHAT` or `CHAT_STREAMING` API type.\n\nPrompt enrichment allows you to add additional context to the prompt before sending it to the model. Unlike RAG or other dynamic context methods, prompt enrichment is static and is applied to every request.\n\n**Note**: Some providers, including Anthropic, do not support SYSTEM role messages, and instead have a dedicated system field in the input JSON. In this case, use the [`defaults` setting](#fielddefault) to set the system field.\n\nThe following example prepends a system prompt of `Answer all questions in French.` and appends `Describe the painting as if you were a famous art critic from the 17th century.` to each request that is sent to the `openai` HTTPRoute. ```yaml\n\n\tname: openai-opt\n\tnamespace: kgateway-system\n\nspec:\n\n\ttargetRefs:\n\t- group: gateway.networking.k8s.io\n\t  kind: HTTPRoute\n\t  name: openai\n\taiRoutePolicy:\n\t    promptEnrichment:\n\t      prepend:\n\t      - role: SYSTEM\n\t        content: \"Answer all questions in French.\"\n\t      append:\n\t      - role: USER\n\t        content: \"Describe the painting as if you were a famous art critic from the 17th century.\"\n\n```",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"prepend": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A list of messages to be prepended to the prompt sent by the client.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Message"),
+									},
+								},
+							},
+						},
+					},
+					"append": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A list of messages to be appended to the prompt sent by the client.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Message"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Message"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_AIPromptGuard(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AIPromptGuard configures a prompt guards to block unwanted requests to the LLM provider and mask sensitive data. Prompt guards can be used to reject requests based on the content of the prompt, as well as mask responses based on the content of the response.\n\nThis example rejects any request prompts that contain the string \"credit card\", and masks any credit card numbers in the response. ```yaml promptGuard:\n\n\trequest:\n\t  customResponse:\n\t    message: \"Rejected due to inappropriate content\"\n\t  regex:\n\t    action: REJECT\n\t    matches:\n\t    - pattern: \"credit card\"\n\t      name: \"CC\"\n\tresponse:\n\t  regex:\n\t    builtins:\n\t    - CREDIT_CARD\n\t    action: MASK\n\n```",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"request": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Prompt guards to apply to requests sent by the client.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PromptguardRequest"),
+						},
+					},
+					"response": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Prompt guards to apply to responses returned by the LLM provider.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PromptguardResponse"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PromptguardRequest", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PromptguardResponse"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_AIRoutePolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AIRoutePolicy config is used to configure the behavior of the LLM provider on the level of individual routes. These route settings, such as prompt enrichment, retrieval augmented generation (RAG), and semantic caching, are applicable only for routes that send requests to an LLM provider backend.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"promptEnrichment": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enrich requests sent to the LLM provider by appending and prepending system prompts. This can be configured only for LLM providers that use the `CHAT` or `CHAT_STREAMING` API route type.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptEnrichment"),
+						},
+					},
+					"promptGuard": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Set up prompt guards to block unwanted requests to the LLM provider and mask sensitive data. Prompt guards can be used to reject requests based on the content of the prompt, as well as mask responses based on the content of the response.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptGuard"),
+						},
+					},
+					"defaults": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provide defaults to merge with user input fields. Defaults do _not_ override the user input fields, unless you explicitly set `override` to `true`.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.FieldDefault"),
+									},
+								},
+							},
+						},
+					},
+					"routeType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The type of route to the LLM provider API. Currently, `CHAT` and `CHAT_STREAMING` are supported.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptEnrichment", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptGuard", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.FieldDefault"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_AIUpstream(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"llm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The LLM configures the AI gateway to use a single LLM provider backend.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.LLMProvider"),
+						},
+					},
+					"multipool": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The MultiPool configures the backends for multiple hosts or models from the same provider in one Upstream resource.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.MultiPoolConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.LLMProvider", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.MultiPoolConfig"},
 	}
 }
 
@@ -592,7 +760,7 @@ func schema_kgateway_v2_api_v1alpha1_AiExtension(ref common.ReferenceCallback) c
 					},
 					"ports": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The extensions's container ports.",
+							Description: "The extension's container ports.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -645,6 +813,43 @@ func schema_kgateway_v2_api_v1alpha1_AiExtensionStats(ref common.ReferenceCallba
 	}
 }
 
+func schema_kgateway_v2_api_v1alpha1_AnthropicConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AnthropicConfig settings for the [Anthropic](https://docs.anthropic.com/en/release-notes/api) LLM provider.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"authToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The authorization token that the AI gateway uses to access the Anthropic API. This token is automatically sent in the `x-api-key` header of the request.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"),
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Optional: A version header to pass to the Anthropic API. For more information, see the [Anthropic API versioning docs](https://docs.anthropic.com/en/api/versioning).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"model": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Optional: Override the model name. If unset, the model name is taken from the request. This setting can be useful when testing model failover scenarios.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"authToken"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"},
+	}
+}
+
 func schema_kgateway_v2_api_v1alpha1_AwsUpstream(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -668,6 +873,53 @@ func schema_kgateway_v2_api_v1alpha1_AwsUpstream(ref common.ReferenceCallback) c
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.LocalObjectReference"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_AzureOpenAIConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AzureOpenAIConfig settings for the [Azure OpenAI](https://learn.microsoft.com/en-us/azure/ai-services/openai/) LLM provider.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"authToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The authorization token that the AI gateway uses to access the Azure OpenAI API. This token is automatically sent in the `api-key` header of the request.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"),
+						},
+					},
+					"endpoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The endpoint for the Azure OpenAI API to use, such as `my-endpoint.openai.azure.com`. If the scheme is included, it is stripped.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"deploymentName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The name of the Azure OpenAI model deployment to use. For more information, see the [Azure OpenAI model docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models).",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The version of the Azure OpenAI API to use. For more information, see the [Azure OpenAI API version reference](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#api-specs).",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"authToken", "endpoint", "deploymentName", "apiVersion"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"},
 	}
 }
 
@@ -757,6 +1009,33 @@ func schema_kgateway_v2_api_v1alpha1_CustomLabel(ref common.ReferenceCallback) c
 					},
 				},
 				Required: []string{"name", "metadataKey"},
+			},
+		},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_CustomResponse(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomResponse configures a response to return to the client if request content is matched against a regex pattern and the action is `REJECT`.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A custom response message to return to the client. If not specified, defaults to \"The request was rejected due to inappropriate content\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"statusCode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The status code to return to the client. Defaults to 403.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -998,6 +1277,43 @@ func schema_kgateway_v2_api_v1alpha1_EnvoyContainer(ref common.ReferenceCallback
 	}
 }
 
+func schema_kgateway_v2_api_v1alpha1_FieldDefault(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FieldDefault provides default values for specific fields in the JSON request body sent to the LLM provider. These defaults are merged with the user-provided request to ensure missing fields are populated.\n\nUser input fields here refer to the fields in the JSON request body that a client sends when making a request to the LLM provider. Defaults set here do _not_ override those user-provided values unless you explicitly set `override` to `true`.\n\nExample: Setting a default system field for Anthropic, which does not support system role messages: ```yaml defaults:\n  - field: \"system\"\n    value: \"answer all questions in French\"\n\n```\n\nExample: Setting a default temperature and overriding `max_tokens`: ```yaml defaults:\n  - field: \"temperature\"\n    value: \"0.5\"\n  - field: \"max_tokens\"\n    value: \"100\"\n    override: true\n\n```\n\nExample: Overriding a custom list field: ```yaml defaults:\n  - field: \"custom_list\"\n    value: \"[a,b,c]\"\n\n```\n\nNote: The `field` values correspond to keys in the JSON request body, not fields in this CRD.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"field": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The name of the field.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The field default value, which can be any JSON Data Type.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"override": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether to override the field's value if it already exists. Defaults to false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"field", "value"},
+			},
+		},
+	}
+}
+
 func schema_kgateway_v2_api_v1alpha1_FileSink(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1098,7 +1414,7 @@ func schema_kgateway_v2_api_v1alpha1_GatewayParameters(ref common.ReferenceCallb
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "A GatewayParameters contains configuration that is used to dynamically provision Gloo Gateway's data plane (Envoy proxy instance), based on a Kubernetes Gateway.",
+				Description: "A GatewayParameters contains configuration that is used to dynamically provision kgateway's data plane (Envoy proxy instance), based on a Kubernetes Gateway.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1224,6 +1540,45 @@ func schema_kgateway_v2_api_v1alpha1_GatewayParametersStatus(ref common.Referenc
 				Type:        []string{"object"},
 			},
 		},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_GeminiConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GeminiConfig settings for the [Gemini](https://ai.google.dev/gemini-api/docs) LLM provider.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"authToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The authorization token that the AI gateway uses to access the Gemini API. This token is automatically sent in the `key` query parameter of the request.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"),
+						},
+					},
+					"model": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The Gemini model to use. For more information, see the [Gemini models docs](https://ai.google.dev/gemini-api/docs/models/gemini).",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The version of the Gemini API to use. For more information, see the [Gemini API version docs](https://ai.google.dev/gemini-api/docs/api-versions).",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"authToken", "model", "apiVersion"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"},
 	}
 }
 
@@ -1765,6 +2120,34 @@ func schema_kgateway_v2_api_v1alpha1_KubernetesProxyConfig(ref common.ReferenceC
 	}
 }
 
+func schema_kgateway_v2_api_v1alpha1_LLMProvider(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"provider": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The LLM provider type to configure.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SupportedLLMProvider"),
+						},
+					},
+					"hostOverride": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Send requests to a custom host and port, such as to proxy the request, or to use a different backend that is API-compliant with the upstream version.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Host"),
+						},
+					},
+				},
+				Required: []string{"provider"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Host", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SupportedLLMProvider"},
+	}
+}
+
 func schema_kgateway_v2_api_v1alpha1_ListenerPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1920,6 +2303,116 @@ func schema_kgateway_v2_api_v1alpha1_LocalPolicyTargetReference(ref common.Refer
 				Required: []string{"group", "kind", "name"},
 			},
 		},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_Message(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "An entry for a message to prepend or append to each prompt.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"role": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Role of the message. The available roles depend on the backend LLM provider model, such as `SYSTEM` or `USER` in the OpenAI API.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"content": {
+						SchemaProps: spec.SchemaProps{
+							Description: "String content of the message.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"role", "content"},
+			},
+		},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_Moderation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Moderation configures an external moderation model endpoint. This endpoint evaluates request prompt data against predefined content rules to determine if the content adheres to those rules.\n\nAny requests routed through the AI Gateway are processed by the specified moderation model. If the model identifies the content as harmful based on its rules, the request is automatically rejected.\n\nYou can configure a moderation endpoint either as a standalone prompt guard setting or alongside other request and response guard settings.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"openAIModeration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Pass prompt data through an external moderation model endpoint, which compares the request prompt input to predefined content rules. Configure an OpenAI moderation endpoint.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.OpenAIConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.OpenAIConfig"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_MultiPoolConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MultiPoolConfig configures the backends for multiple hosts or models from the same provider in one Upstream resource. This method can be useful for creating one logical endpoint that is backed by multiple hosts or models.\n\nIn the `priorities` section, the order of `pool` entries defines the priority of the backend endpoints. The `pool` entries can either define a list of backends or a single backend. Note: Only two levels of nesting are permitted. Any nested entries after the second level are ignored.\n\n```yaml multi:\n\n\tpriorities:\n\t- pool:\n\t  - azureOpenai:\n\t      deploymentName: gpt-4o-mini\n\t      apiVersion: 2024-02-15-preview\n\t      endpoint: ai-gateway.openai.azure.com\n\t      authToken:\n\t        secretRef:\n\t          name: azure-secret\n\t          namespace: kgateway-system\n\t- pool:\n\t  - azureOpenai:\n\t      deploymentName: gpt-4o-mini-2\n\t      apiVersion: 2024-02-15-preview\n\t      endpoint: ai-gateway-2.openai.azure.com\n\t      authToken:\n\t        secretRef:\n\t          name: azure-secret-2\n\t          namespace: kgateway-system\n\n```",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"priorities": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The priority list of backend pools. Each entry represents a set of LLM provider backends. The order defines the priority of the backend endpoints.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Priority"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Priority"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_OpenAIConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OpenAIConfig settings for the [OpenAI](https://platform.openai.com/docs/api-reference/streaming) LLM provider.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"authToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The authorization token that the AI gateway uses to access the OpenAI API. This token is automatically sent in the `Authorization` header of the request and prefixed with `Bearer`.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"),
+						},
+					},
+					"model": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Optional: Override the model name, such as `gpt-4o-mini`. If unset, the model name is taken from the request. This setting can be useful when setting up model failover within the same LLM provider.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"authToken"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"},
 	}
 }
 
@@ -2152,6 +2645,101 @@ func schema_kgateway_v2_api_v1alpha1_PolicyStatus(ref common.ReferenceCallback) 
 	}
 }
 
+func schema_kgateway_v2_api_v1alpha1_Priority(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Priority configures the priority of the backend endpoints.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"pool": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A list of LLM provider backends within a single endpoint pool entry.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.LLMProvider"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.LLMProvider"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_PromptguardRequest(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PromptguardRequest defines the prompt guards to apply to requests sent by the client. Multiple prompt guard configurations can be set, and they will be executed in the following order: webhook → regex → moderation for requests, where each step can reject the request and stop further processing.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"customResponse": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A custom response message to return to the client. If not specified, defaults to \"The request was rejected due to inappropriate content\".",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CustomResponse"),
+						},
+					},
+					"regex": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Regular expression (regex) matching for prompt guards and data masking.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Regex"),
+						},
+					},
+					"webhook": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure a webhook to forward requests to for prompt guarding.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Webhook"),
+						},
+					},
+					"moderation": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Pass prompt data through an external moderation model endpoint, which compares the request prompt input to predefined content rules.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Moderation"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CustomResponse", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Moderation", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Regex", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Webhook"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_PromptguardResponse(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PromptguardResponse configures the response that the prompt guard applies to responses returned by the LLM provider. Both webhook and regex can be set, they will be executed in the following order: webhook → regex, where each step can reject the request and stop further processing.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"regex": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Regular expression (regex) matching for prompt guards and data masking.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Regex"),
+						},
+					},
+					"webhook": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure a webhook to forward responses to for prompt guarding.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Webhook"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Regex", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Webhook"},
+	}
+}
+
 func schema_kgateway_v2_api_v1alpha1_ProxyDeployment(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2164,6 +2752,84 @@ func schema_kgateway_v2_api_v1alpha1_ProxyDeployment(ref common.ReferenceCallbac
 							Description: "The number of desired pods. Defaults to 1.",
 							Type:        []string{"integer"},
 							Format:      "int64",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_Regex(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Regex configures the regular expression (regex) matching for prompt guards and data masking.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"matches": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A list of regex patterns to match against the request or response. Matches and built-ins are additive.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.RegexMatch"),
+									},
+								},
+							},
+						},
+					},
+					"builtins": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A list of built-in regex patterns to match against the request or response. Matches and built-ins are additive.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"action": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The action to take if a regex pattern is matched in a request or response. This setting applies only to request matches. PromptguardResponse matches are always masked by default. Defaults to `MASK`.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.RegexMatch"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_RegexMatch(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RegexMatch configures the regular expression (regex) matching for prompt guards and data masking.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"pattern": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The regex pattern to match against the request or response.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "An optional name for this match, which can be used for debugging purposes.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -2312,11 +2978,16 @@ func schema_kgateway_v2_api_v1alpha1_RoutePolicySpec(ref common.ReferenceCallbac
 							Format: "int32",
 						},
 					},
+					"ai": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIRoutePolicy"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.LocalPolicyTargetReference"},
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIRoutePolicy", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.LocalPolicyTargetReference"},
 	}
 }
 
@@ -2493,6 +3164,43 @@ func schema_kgateway_v2_api_v1alpha1_ServiceAccount(ref common.ReferenceCallback
 	}
 }
 
+func schema_kgateway_v2_api_v1alpha1_SingleAuthToken(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SingleAuthToken configures the authorization token that the AI gateway uses to access the LLM provider API. This token is automatically sent in a request header, depending on the LLM provider.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind specifies which type of authorization token is being used. Must be one of: \"Inline\", \"SecretRef\", \"Passthrough\".",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"inline": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provide the token directly in the configuration for the Upstream. This option is the least secure. Only use this option for quick tests such as trying out AI Gateway.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Store the API key in a Kubernetes secret in the same namespace as the Upstream. Then, refer to the secret in the Upstream configuration. This option is more secure than an inline token, because the API key is encoded and you can restrict access to secrets through RBAC rules. You might use this option in proofs of concept, controlled development and staging environments, or well-controlled prod environments that use secrets.",
+							Ref:         ref("k8s.io/api/core/v1.LocalObjectReference"),
+						},
+					},
+				},
+				Required: []string{"kind"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.LocalObjectReference"},
+	}
+}
+
 func schema_kgateway_v2_api_v1alpha1_StaticUpstream(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2584,6 +3292,46 @@ func schema_kgateway_v2_api_v1alpha1_StatusCodeFilter(ref common.ReferenceCallba
 				},
 			},
 		},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_SupportedLLMProvider(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SupportedLLMProvider configures the AI gateway to use a single LLM provider backend.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"openai": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.OpenAIConfig"),
+						},
+					},
+					"azureopenai": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AzureOpenAIConfig"),
+						},
+					},
+					"anthropic": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AnthropicConfig"),
+						},
+					},
+					"gemini": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GeminiConfig"),
+						},
+					},
+					"vertexai": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.VertexAIConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AnthropicConfig", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AzureOpenAIConfig", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GeminiConfig", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.OpenAIConfig", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.VertexAIConfig"},
 	}
 }
 
@@ -2697,11 +3445,16 @@ func schema_kgateway_v2_api_v1alpha1_UpstreamSpec(ref common.ReferenceCallback) 
 							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StaticUpstream"),
 						},
 					},
+					"ai": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIUpstream"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsUpstream", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StaticUpstream"},
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIUpstream", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsUpstream", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StaticUpstream"},
 	}
 }
 
@@ -2737,6 +3490,113 @@ func schema_kgateway_v2_api_v1alpha1_UpstreamStatus(ref common.ReferenceCallback
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_VertexAIConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "VertexAIConfig settings for the [Vertex AI](https://cloud.google.com/vertex-ai/docs) LLM provider. To find the values for the project ID, project location, and publisher, you can check the fields of an API request, such as `https://{LOCATION}-aiplatform.googleapis.com/{VERSION}/projects/{PROJECT_ID}/locations/{LOCATION}/publishers/{PROVIDER}/<model-path>`.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"authToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The authorization token that the AI gateway uses to access the Vertex AI API. This token is automatically sent in the `key` header of the request.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"),
+						},
+					},
+					"model": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The Vertex AI model to use. For more information, see the [Vertex AI model docs](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models).",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The version of the Vertex AI API to use. For more information, see the [Vertex AI API reference](https://cloud.google.com/vertex-ai/docs/reference#versions).",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"projectId": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The ID of the Google Cloud Project that you use for the Vertex AI.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"location": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The location of the Google Cloud Project that you use for the Vertex AI.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"modelPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Optional: The model path to route to. Defaults to the Gemini model path, `generateContent`.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"publisher": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The type of publisher model to use. Currently, only Google is supported.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"authToken", "model", "apiVersion", "projectId", "location", "publisher"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_Webhook(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Webhook configures a webhook to forward requests or responses to for prompt guarding.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"host": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Host to send the traffic to.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Host"),
+						},
+					},
+					"forwardHeaders": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForwardHeaders define headers to forward with the request to the webhook.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("sigs.k8s.io/gateway-api/apis/v1.HTTPHeaderMatch"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"host"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Host", "sigs.k8s.io/gateway-api/apis/v1.HTTPHeaderMatch"},
 	}
 }
 
@@ -3071,7 +3931,7 @@ func schema_k8sio_api_core_v1_Binding(ref common.ReferenceCallback) common.OpenA
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Binding ties one object to another; for example, a pod is bound to a node by a scheduler. Deprecated in 1.7, please use the bindings subresource of pods instead.",
+				Description: "Binding ties one object to another; for example, a pod is bound to a node by a scheduler.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -3115,7 +3975,7 @@ func schema_k8sio_api_core_v1_CSIPersistentVolumeSource(ref common.ReferenceCall
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Represents storage that is managed by an external CSI volume driver (Beta feature)",
+				Description: "Represents storage that is managed by an external CSI volume driver",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"driver": {
@@ -6592,7 +7452,8 @@ func schema_k8sio_api_core_v1_GRPCAction(ref common.ReferenceCallback) common.Op
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "GRPCAction specifies an action involving a GRPC service.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"port": {
 						SchemaProps: spec.SchemaProps{
@@ -7240,25 +8101,25 @@ func schema_k8sio_api_core_v1_LifecycleHandler(ref common.ReferenceCallback) com
 				Properties: map[string]spec.Schema{
 					"exec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Exec specifies the action to take.",
+							Description: "Exec specifies a command to execute in the container.",
 							Ref:         ref("k8s.io/api/core/v1.ExecAction"),
 						},
 					},
 					"httpGet": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HTTPGet specifies the http request to perform.",
+							Description: "HTTPGet specifies an HTTP GET request to perform.",
 							Ref:         ref("k8s.io/api/core/v1.HTTPGetAction"),
 						},
 					},
 					"tcpSocket": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept for the backward compatibility. There are no validation of this field and lifecycle hooks will fail in runtime when tcp handler is specified.",
+							Description: "Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept for backward compatibility. There is no validation of this field and lifecycle hooks will fail at runtime when it is specified.",
 							Ref:         ref("k8s.io/api/core/v1.TCPSocketAction"),
 						},
 					},
 					"sleep": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Sleep represents the duration that the container should sleep before being terminated.",
+							Description: "Sleep represents a duration that the container should sleep.",
 							Ref:         ref("k8s.io/api/core/v1.SleepAction"),
 						},
 					},
@@ -7712,7 +8573,7 @@ func schema_k8sio_api_core_v1_LocalVolumeSource(ref common.ReferenceCallback) co
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Local represents directly-attached storage with node affinity (Beta feature)",
+				Description: "Local represents directly-attached storage with node affinity",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"path": {
@@ -7879,19 +8740,22 @@ func schema_k8sio_api_core_v1_NamespaceCondition(ref common.ReferenceCallback) c
 					},
 					"lastTransitionTime": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+							Description: "Last time the condition transitioned from one status to another.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"reason": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Unique, one-word, CamelCase reason for the condition's last transition.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Human-readable message indicating details about last transition.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -8749,7 +9613,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Conditions is an array of current observed node conditions. More info: https://kubernetes.io/docs/concepts/nodes/node/#condition",
+							Description: "Conditions is an array of current observed node conditions. More info: https://kubernetes.io/docs/reference/node/node-status/#condition",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -8773,7 +9637,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "List of addresses reachable to the node. Queried from cloud provider, if available. More info: https://kubernetes.io/docs/concepts/nodes/node/#addresses Note: This field is declared as mergeable, but the merge key is not sufficiently unique, which can cause data corruption when it is merged. Callers should instead use a full-replacement patch. See https://pr.k8s.io/79391 for an example. Consumers should assume that addresses can change during the lifetime of a Node. However, there are some exceptions where this may not be possible, such as Pods that inherit a Node's address in its own status or consumers of the downward API (status.hostIP).",
+							Description: "List of addresses reachable to the node. Queried from cloud provider, if available. More info: https://kubernetes.io/docs/reference/node/node-status/#addresses Note: This field is declared as mergeable, but the merge key is not sufficiently unique, which can cause data corruption when it is merged. Callers should instead use a full-replacement patch. See https://pr.k8s.io/79391 for an example. Consumers should assume that addresses can change during the lifetime of a Node. However, there are some exceptions where this may not be possible, such as Pods that inherit a Node's address in its own status or consumers of the downward API (status.hostIP).",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -8794,7 +9658,7 @@ func schema_k8sio_api_core_v1_NodeStatus(ref common.ReferenceCallback) common.Op
 					},
 					"nodeInfo": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Set of ids/uuids to uniquely identify the node. More info: https://kubernetes.io/docs/concepts/nodes/node/#info",
+							Description: "Set of ids/uuids to uniquely identify the node. More info: https://kubernetes.io/docs/reference/node/node-status/#info",
 							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/api/core/v1.NodeSystemInfo"),
 						},
@@ -9200,16 +10064,18 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimCondition(ref common.Referenc
 				Properties: map[string]spec.Schema{
 					"type": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Type is the type of the condition. More info: https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/#:~:text=set%20to%20%27ResizeStarted%27.-,PersistentVolumeClaimCondition,-contains%20details%20about",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Status is the status of the condition. Can be True, False, Unknown. More info: https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/#:~:text=state%20of%20pvc-,conditions.status,-(string)%2C%20required",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"lastProbeTime": {
@@ -9638,13 +10504,13 @@ func schema_k8sio_api_core_v1_PersistentVolumeSource(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"gcePersistentDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Provisioned by an admin. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
+							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Provisioned by an admin. Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
 							Ref:         ref("k8s.io/api/core/v1.GCEPersistentDiskVolumeSource"),
 						},
 					},
 					"awsElasticBlockStore": {
 						SchemaProps: spec.SchemaProps{
-							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
+							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
 							Ref:         ref("k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource"),
 						},
 					},
@@ -9656,7 +10522,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeSource(ref common.ReferenceCallbac
 					},
 					"glusterfs": {
 						SchemaProps: spec.SchemaProps{
-							Description: "glusterfs represents a Glusterfs volume that is attached to a host and exposed to the pod. Provisioned by an admin. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
+							Description: "glusterfs represents a Glusterfs volume that is attached to a host and exposed to the pod. Provisioned by an admin. Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
 							Ref:         ref("k8s.io/api/core/v1.GlusterfsPersistentVolumeSource"),
 						},
 					},
@@ -9668,7 +10534,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeSource(ref common.ReferenceCallbac
 					},
 					"rbd": {
 						SchemaProps: spec.SchemaProps{
-							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/rbd/README.md",
+							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported. More info: https://examples.k8s.io/volumes/rbd/README.md",
 							Ref:         ref("k8s.io/api/core/v1.RBDPersistentVolumeSource"),
 						},
 					},
@@ -9680,13 +10546,13 @@ func schema_k8sio_api_core_v1_PersistentVolumeSource(ref common.ReferenceCallbac
 					},
 					"cinder": {
 						SchemaProps: spec.SchemaProps{
-							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
+							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. Deprecated: Cinder is deprecated. All operations for the in-tree cinder type are redirected to the cinder.csi.openstack.org CSI driver. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
 							Ref:         ref("k8s.io/api/core/v1.CinderPersistentVolumeSource"),
 						},
 					},
 					"cephfs": {
 						SchemaProps: spec.SchemaProps{
-							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime",
+							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime. Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.CephFSPersistentVolumeSource"),
 						},
 					},
@@ -9698,55 +10564,55 @@ func schema_k8sio_api_core_v1_PersistentVolumeSource(ref common.ReferenceCallbac
 					},
 					"flocker": {
 						SchemaProps: spec.SchemaProps{
-							Description: "flocker represents a Flocker volume attached to a kubelet's host machine and exposed to the pod for its usage. This depends on the Flocker control service being running",
+							Description: "flocker represents a Flocker volume attached to a kubelet's host machine and exposed to the pod for its usage. This depends on the Flocker control service being running. Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.FlockerVolumeSource"),
 						},
 					},
 					"flexVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin.",
+							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin. Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.",
 							Ref:         ref("k8s.io/api/core/v1.FlexPersistentVolumeSource"),
 						},
 					},
 					"azureFile": {
 						SchemaProps: spec.SchemaProps{
-							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod.",
+							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod. Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type are redirected to the file.csi.azure.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.AzureFilePersistentVolumeSource"),
 						},
 					},
 					"vsphereVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine",
+							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine. Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type are redirected to the csi.vsphere.vmware.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource"),
 						},
 					},
 					"quobyte": {
 						SchemaProps: spec.SchemaProps{
-							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime",
+							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime. Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.QuobyteVolumeSource"),
 						},
 					},
 					"azureDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.",
+							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod. Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type are redirected to the disk.csi.azure.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.AzureDiskVolumeSource"),
 						},
 					},
 					"photonPersistentDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine",
+							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine. Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource"),
 						},
 					},
 					"portworxVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine",
+							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
 							Ref:         ref("k8s.io/api/core/v1.PortworxVolumeSource"),
 						},
 					},
 					"scaleIO": {
 						SchemaProps: spec.SchemaProps{
-							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.",
+							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes. Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.ScaleIOPersistentVolumeSource"),
 						},
 					},
@@ -9758,13 +10624,13 @@ func schema_k8sio_api_core_v1_PersistentVolumeSource(ref common.ReferenceCallbac
 					},
 					"storageos": {
 						SchemaProps: spec.SchemaProps{
-							Description: "storageOS represents a StorageOS volume that is attached to the kubelet's host machine and mounted into the pod More info: https://examples.k8s.io/volumes/storageos/README.md",
+							Description: "storageOS represents a StorageOS volume that is attached to the kubelet's host machine and mounted into the pod. Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported. More info: https://examples.k8s.io/volumes/storageos/README.md",
 							Ref:         ref("k8s.io/api/core/v1.StorageOSPersistentVolumeSource"),
 						},
 					},
 					"csi": {
 						SchemaProps: spec.SchemaProps{
-							Description: "csi represents storage that is handled by an external CSI driver (Beta feature).",
+							Description: "csi represents storage that is handled by an external CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.CSIPersistentVolumeSource"),
 						},
 					},
@@ -9799,13 +10665,13 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 					},
 					"gcePersistentDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Provisioned by an admin. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
+							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Provisioned by an admin. Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
 							Ref:         ref("k8s.io/api/core/v1.GCEPersistentDiskVolumeSource"),
 						},
 					},
 					"awsElasticBlockStore": {
 						SchemaProps: spec.SchemaProps{
-							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
+							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
 							Ref:         ref("k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource"),
 						},
 					},
@@ -9817,7 +10683,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 					},
 					"glusterfs": {
 						SchemaProps: spec.SchemaProps{
-							Description: "glusterfs represents a Glusterfs volume that is attached to a host and exposed to the pod. Provisioned by an admin. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
+							Description: "glusterfs represents a Glusterfs volume that is attached to a host and exposed to the pod. Provisioned by an admin. Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
 							Ref:         ref("k8s.io/api/core/v1.GlusterfsPersistentVolumeSource"),
 						},
 					},
@@ -9829,7 +10695,7 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 					},
 					"rbd": {
 						SchemaProps: spec.SchemaProps{
-							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/rbd/README.md",
+							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported. More info: https://examples.k8s.io/volumes/rbd/README.md",
 							Ref:         ref("k8s.io/api/core/v1.RBDPersistentVolumeSource"),
 						},
 					},
@@ -9841,13 +10707,13 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 					},
 					"cinder": {
 						SchemaProps: spec.SchemaProps{
-							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
+							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. Deprecated: Cinder is deprecated. All operations for the in-tree cinder type are redirected to the cinder.csi.openstack.org CSI driver. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
 							Ref:         ref("k8s.io/api/core/v1.CinderPersistentVolumeSource"),
 						},
 					},
 					"cephfs": {
 						SchemaProps: spec.SchemaProps{
-							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime",
+							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime. Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.CephFSPersistentVolumeSource"),
 						},
 					},
@@ -9859,55 +10725,55 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 					},
 					"flocker": {
 						SchemaProps: spec.SchemaProps{
-							Description: "flocker represents a Flocker volume attached to a kubelet's host machine and exposed to the pod for its usage. This depends on the Flocker control service being running",
+							Description: "flocker represents a Flocker volume attached to a kubelet's host machine and exposed to the pod for its usage. This depends on the Flocker control service being running. Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.FlockerVolumeSource"),
 						},
 					},
 					"flexVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin.",
+							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin. Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.",
 							Ref:         ref("k8s.io/api/core/v1.FlexPersistentVolumeSource"),
 						},
 					},
 					"azureFile": {
 						SchemaProps: spec.SchemaProps{
-							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod.",
+							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod. Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type are redirected to the file.csi.azure.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.AzureFilePersistentVolumeSource"),
 						},
 					},
 					"vsphereVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine",
+							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine. Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type are redirected to the csi.vsphere.vmware.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource"),
 						},
 					},
 					"quobyte": {
 						SchemaProps: spec.SchemaProps{
-							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime",
+							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime. Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.QuobyteVolumeSource"),
 						},
 					},
 					"azureDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.",
+							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod. Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type are redirected to the disk.csi.azure.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.AzureDiskVolumeSource"),
 						},
 					},
 					"photonPersistentDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine",
+							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine. Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource"),
 						},
 					},
 					"portworxVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine",
+							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
 							Ref:         ref("k8s.io/api/core/v1.PortworxVolumeSource"),
 						},
 					},
 					"scaleIO": {
 						SchemaProps: spec.SchemaProps{
-							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.",
+							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes. Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.ScaleIOPersistentVolumeSource"),
 						},
 					},
@@ -9919,13 +10785,13 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 					},
 					"storageos": {
 						SchemaProps: spec.SchemaProps{
-							Description: "storageOS represents a StorageOS volume that is attached to the kubelet's host machine and mounted into the pod More info: https://examples.k8s.io/volumes/storageos/README.md",
+							Description: "storageOS represents a StorageOS volume that is attached to the kubelet's host machine and mounted into the pod. Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported. More info: https://examples.k8s.io/volumes/storageos/README.md",
 							Ref:         ref("k8s.io/api/core/v1.StorageOSPersistentVolumeSource"),
 						},
 					},
 					"csi": {
 						SchemaProps: spec.SchemaProps{
-							Description: "csi represents storage that is handled by an external CSI driver (Beta feature).",
+							Description: "csi represents storage that is handled by an external CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.CSIPersistentVolumeSource"),
 						},
 					},
@@ -10552,15 +11418,16 @@ func schema_k8sio_api_core_v1_PodDNSConfigOption(ref common.ReferenceCallback) c
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Required.",
+							Description: "Name is this DNS resolver option's name. Required.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"value": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Value is this DNS resolver option's value.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -10789,7 +11656,7 @@ func schema_k8sio_api_core_v1_PodLogOptions(ref common.ReferenceCallback) common
 					},
 					"tailLines": {
 						SchemaProps: spec.SchemaProps{
-							Description: "If set, the number of lines from the end of the logs to show. If not specified, logs are shown from the creation of the container or sinceSeconds or sinceTime",
+							Description: "If set, the number of lines from the end of the logs to show. If not specified, logs are shown from the creation of the container or sinceSeconds or sinceTime. Note that when \"TailLines\" is specified, \"Stream\" can only be set to nil or \"All\".",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
@@ -10805,6 +11672,13 @@ func schema_k8sio_api_core_v1_PodLogOptions(ref common.ReferenceCallback) common
 						SchemaProps: spec.SchemaProps{
 							Description: "insecureSkipTLSVerifyBackend indicates that the apiserver should not confirm the validity of the serving certificate of the backend it is connecting to.  This will make the HTTPS connection between the apiserver and the backend insecure. This means the apiserver cannot verify the log data it is receiving came from the real kubelet.  If the kubelet is configured to verify the apiserver's TLS credentials, it does not mean the connection to the real kubelet is vulnerable to a man in the middle attack (e.g. an attacker could not intercept the actual log data coming from the real kubelet).",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"stream": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify which container log stream to return to the client. Acceptable values are \"All\", \"Stdout\" and \"Stderr\". If not specified, \"All\" is used, and both stdout and stderr are returned interleaved. Note that when \"TailLines\" is specified, \"Stream\" can only be set to nil or \"All\".",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
@@ -11140,6 +12014,13 @@ func schema_k8sio_api_core_v1_PodSecurityContext(ref common.ReferenceCallback) c
 						SchemaProps: spec.SchemaProps{
 							Description: "appArmorProfile is the AppArmor options to use by the containers in this pod. Note that this field cannot be set when spec.os.name is windows.",
 							Ref:         ref("k8s.io/api/core/v1.AppArmorProfile"),
+						},
+					},
+					"seLinuxChangePolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod. It has no effect on nodes that do not support SELinux or to volumes does not support SELinux. Valid values are \"MountOption\" and \"Recursive\".\n\n\"Recursive\" means relabeling of all files on all Pod volumes by the container runtime. This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.\n\n\"MountOption\" mounts all eligible Pod volumes with `-o context` mount option. This requires all Pods that share the same volume to use the same SELinux label. It is not possible to share the same volume among privileged and unprivileged Pods. Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their CSIDriver instance. Other volumes are always re-labelled recursively. \"MountOption\" value is allowed only when SELinuxMount feature gate is enabled.\n\nIf not specified and SELinuxMount feature gate is enabled, \"MountOption\" is used. If not specified and SELinuxMount feature gate is disabled, \"MountOption\" is used for ReadWriteOncePod volumes and \"Recursive\" for all other volumes.\n\nThis field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.\n\nAll Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state. Note that this field cannot be set when spec.os.name is windows.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -11649,12 +12530,18 @@ func schema_k8sio_api_core_v1_PodSpec(ref common.ReferenceCallback) common.OpenA
 							},
 						},
 					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is the total amount of CPU and Memory resources required by all containers in the pod. It supports specifying Requests and Limits for \"cpu\" and \"memory\" resource names only. ResourceClaims are not supported.\n\nThis field enables fine-grained control over resource allocation for the entire pod, allowing resource sharing among containers in a pod.\n\nThis is an alpha field and requires enabling the PodLevelResources feature gate.",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
 				},
 				Required: []string{"containers"},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EphemeralContainer", "k8s.io/api/core/v1.HostAlias", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PodDNSConfig", "k8s.io/api/core/v1.PodOS", "k8s.io/api/core/v1.PodReadinessGate", "k8s.io/api/core/v1.PodResourceClaim", "k8s.io/api/core/v1.PodSchedulingGate", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
+			"k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EphemeralContainer", "k8s.io/api/core/v1.HostAlias", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PodDNSConfig", "k8s.io/api/core/v1.PodOS", "k8s.io/api/core/v1.PodReadinessGate", "k8s.io/api/core/v1.PodResourceClaim", "k8s.io/api/core/v1.PodSchedulingGate", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
 	}
 }
 
@@ -11790,7 +12677,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The list has one entry per init container in the manifest. The most recent successful init container will have ready = true, the most recently started container will have startTime set. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-and-container-status",
+							Description: "Statuses of init containers in this pod. The most recent successful non-restartable init container will have ready = true, the most recently started container will have startTime set. Each init container in the pod should have at most one status in this list, and all statuses should be for containers in the pod. However this is not enforced. If a status for a non-existent container is present in the list, or the list has duplicate names, the behavior of various Kubernetes components is not defined and those statuses might be ignored. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-and-container-status",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -11809,7 +12696,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The list has one entry per container in the manifest. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-and-container-status",
+							Description: "Statuses of containers in this pod. Each container in the pod should have at most one status in this list, and all statuses should be for containers in the pod. However this is not enforced. If a status for a non-existent container is present in the list, or the list has duplicate names, the behavior of various Kubernetes components is not defined and those statuses might be ignored. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-and-container-status",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -11836,7 +12723,7 @@ func schema_k8sio_api_core_v1_PodStatus(ref common.ReferenceCallback) common.Ope
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Status for any ephemeral containers that have run in this pod.",
+							Description: "Statuses for any ephemeral containers that have run in this pod. Each ephemeral container in the pod should have at most one status in this list, and all statuses should be for containers in the pod. However this is not enforced. If a status for a non-existent container is present in the list, or the list has duplicate names, the behavior of various Kubernetes components is not defined and those statuses might be ignored. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-and-container-status",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -12057,7 +12944,8 @@ func schema_k8sio_api_core_v1_PortStatus(ref common.ReferenceCallback) common.Op
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "PortStatus represents the error condition of a service port",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"port": {
 						SchemaProps: spec.SchemaProps{
@@ -12209,25 +13097,25 @@ func schema_k8sio_api_core_v1_Probe(ref common.ReferenceCallback) common.OpenAPI
 				Properties: map[string]spec.Schema{
 					"exec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Exec specifies the action to take.",
+							Description: "Exec specifies a command to execute in the container.",
 							Ref:         ref("k8s.io/api/core/v1.ExecAction"),
 						},
 					},
 					"httpGet": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HTTPGet specifies the http request to perform.",
+							Description: "HTTPGet specifies an HTTP GET request to perform.",
 							Ref:         ref("k8s.io/api/core/v1.HTTPGetAction"),
 						},
 					},
 					"tcpSocket": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TCPSocket specifies an action involving a TCP port.",
+							Description: "TCPSocket specifies a connection to a TCP port.",
 							Ref:         ref("k8s.io/api/core/v1.TCPSocketAction"),
 						},
 					},
 					"grpc": {
 						SchemaProps: spec.SchemaProps{
-							Description: "GRPC specifies an action involving a GRPC port.",
+							Description: "GRPC specifies a GRPC HealthCheckRequest.",
 							Ref:         ref("k8s.io/api/core/v1.GRPCAction"),
 						},
 					},
@@ -12290,25 +13178,25 @@ func schema_k8sio_api_core_v1_ProbeHandler(ref common.ReferenceCallback) common.
 				Properties: map[string]spec.Schema{
 					"exec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Exec specifies the action to take.",
+							Description: "Exec specifies a command to execute in the container.",
 							Ref:         ref("k8s.io/api/core/v1.ExecAction"),
 						},
 					},
 					"httpGet": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HTTPGet specifies the http request to perform.",
+							Description: "HTTPGet specifies an HTTP GET request to perform.",
 							Ref:         ref("k8s.io/api/core/v1.HTTPGetAction"),
 						},
 					},
 					"tcpSocket": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TCPSocket specifies an action involving a TCP port.",
+							Description: "TCPSocket specifies a connection to a TCP port.",
 							Ref:         ref("k8s.io/api/core/v1.TCPSocketAction"),
 						},
 					},
 					"grpc": {
 						SchemaProps: spec.SchemaProps{
-							Description: "GRPC specifies an action involving a GRPC port.",
+							Description: "GRPC specifies a GRPC HealthCheckRequest.",
 							Ref:         ref("k8s.io/api/core/v1.GRPCAction"),
 						},
 					},
@@ -13007,7 +13895,7 @@ func schema_k8sio_api_core_v1_ResourceHealth(ref common.ReferenceCallback) commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ResourceHealth represents the health of a resource. It has the latest device health information. This is a part of KEP https://kep.k8s.io/4680 and historical health changes are planned to be added in future iterations of a KEP.",
+				Description: "ResourceHealth represents the health of a resource. It has the latest device health information. This is a part of KEP https://kep.k8s.io/4680.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"resourceID": {
@@ -13301,11 +14189,12 @@ func schema_k8sio_api_core_v1_ResourceStatus(ref common.ReferenceCallback) commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "ResourceStatus represents the status of a single resource allocated to a Pod.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the resource. Must be unique within the pod and match one of the resources from the pod spec.",
+							Description: "Name of the resource. Must be unique within the pod and in case of non-DRA resource, match one of the resources from the pod spec. For DRA resources, the value must be \"claim:<claim_name>/<request>\". When this status is reported about a container, the \"claim_name\" and \"request\" must match one of the claims of this container.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -13321,7 +14210,7 @@ func schema_k8sio_api_core_v1_ResourceStatus(ref common.ReferenceCallback) commo
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "List of unique Resources health. Each element in the list contains an unique resource ID and resource health. At a minimum, ResourceID must uniquely identify the Resource allocated to the Pod on the Node for the lifetime of a Pod. See ResourceID type for it's definition.",
+							Description: "List of unique resources health. Each element in the list contains an unique resource ID and its health. At a minimum, for the lifetime of a Pod, resource ID must uniquely identify the resource allocated to the Pod on the Node. If other Pod on the same Node reports the status with the same resource ID, it must be the same resource they share. See ResourceID type definition for a specific format it has in various use cases.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -14253,7 +15142,7 @@ func schema_k8sio_api_core_v1_ServiceAccount(ref common.ReferenceCallback) commo
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Secrets is a list of the secrets in the same namespace that pods running using this ServiceAccount are allowed to use. Pods are only limited to this list if this service account has a \"kubernetes.io/enforce-mountable-secrets\" annotation set to \"true\". This field should not be used to find auto-generated service account token secrets for use outside of pods. Instead, tokens can be requested directly using the TokenRequest API, or service account token secrets can be manually created. More info: https://kubernetes.io/docs/concepts/configuration/secret",
+							Description: "Secrets is a list of the secrets in the same namespace that pods running using this ServiceAccount are allowed to use. Pods are only limited to this list if this service account has a \"kubernetes.io/enforce-mountable-secrets\" annotation set to \"true\". The \"kubernetes.io/enforce-mountable-secrets\" annotation is deprecated since v1.32. Prefer separate namespaces to isolate access to mounted secrets. This field should not be used to find auto-generated service account token secrets for use outside of pods. Instead, tokens can be requested directly using the TokenRequest API, or service account token secrets can be manually created. More info: https://kubernetes.io/docs/concepts/configuration/secret",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -14762,7 +15651,7 @@ func schema_k8sio_api_core_v1_ServiceSpec(ref common.ReferenceCallback) common.O
 					},
 					"trafficDistribution": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TrafficDistribution offers a way to express preferences for how traffic is distributed to Service endpoints. Implementations can use this field as a hint, but are not required to guarantee strict adherence. If the field is not set, the implementation will apply its default routing strategy. If set to \"PreferClose\", implementations should prioritize endpoints that are topologically close (e.g., same zone). This is an alpha field and requires enabling ServiceTrafficDistribution feature.",
+							Description: "TrafficDistribution offers a way to express preferences for how traffic is distributed to Service endpoints. Implementations can use this field as a hint, but are not required to guarantee strict adherence. If the field is not set, the implementation will apply its default routing strategy. If set to \"PreferClose\", implementations should prioritize endpoints that are topologically close (e.g., same zone). This is a beta field and requires enabling ServiceTrafficDistribution feature.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -15334,7 +16223,8 @@ func schema_k8sio_api_core_v1_TypedObjectReference(ref common.ReferenceCallback)
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "TypedObjectReference contains enough information to let you locate the typed referenced object",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"apiGroup": {
 						SchemaProps: spec.SchemaProps{
@@ -15402,19 +16292,19 @@ func schema_k8sio_api_core_v1_Volume(ref common.ReferenceCallback) common.OpenAP
 					},
 					"gcePersistentDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
+							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
 							Ref:         ref("k8s.io/api/core/v1.GCEPersistentDiskVolumeSource"),
 						},
 					},
 					"awsElasticBlockStore": {
 						SchemaProps: spec.SchemaProps{
-							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
+							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
 							Ref:         ref("k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource"),
 						},
 					},
 					"gitRepo": {
 						SchemaProps: spec.SchemaProps{
-							Description: "gitRepo represents a git repository at a particular revision. DEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
+							Description: "gitRepo represents a git repository at a particular revision. Deprecated: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
 							Ref:         ref("k8s.io/api/core/v1.GitRepoVolumeSource"),
 						},
 					},
@@ -15438,7 +16328,7 @@ func schema_k8sio_api_core_v1_Volume(ref common.ReferenceCallback) common.OpenAP
 					},
 					"glusterfs": {
 						SchemaProps: spec.SchemaProps{
-							Description: "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
+							Description: "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
 							Ref:         ref("k8s.io/api/core/v1.GlusterfsVolumeSource"),
 						},
 					},
@@ -15450,31 +16340,31 @@ func schema_k8sio_api_core_v1_Volume(ref common.ReferenceCallback) common.OpenAP
 					},
 					"rbd": {
 						SchemaProps: spec.SchemaProps{
-							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/rbd/README.md",
+							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported. More info: https://examples.k8s.io/volumes/rbd/README.md",
 							Ref:         ref("k8s.io/api/core/v1.RBDVolumeSource"),
 						},
 					},
 					"flexVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin.",
+							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin. Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.",
 							Ref:         ref("k8s.io/api/core/v1.FlexVolumeSource"),
 						},
 					},
 					"cinder": {
 						SchemaProps: spec.SchemaProps{
-							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
+							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. Deprecated: Cinder is deprecated. All operations for the in-tree cinder type are redirected to the cinder.csi.openstack.org CSI driver. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
 							Ref:         ref("k8s.io/api/core/v1.CinderVolumeSource"),
 						},
 					},
 					"cephfs": {
 						SchemaProps: spec.SchemaProps{
-							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime",
+							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime. Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.CephFSVolumeSource"),
 						},
 					},
 					"flocker": {
 						SchemaProps: spec.SchemaProps{
-							Description: "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running",
+							Description: "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running. Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.FlockerVolumeSource"),
 						},
 					},
@@ -15492,7 +16382,7 @@ func schema_k8sio_api_core_v1_Volume(ref common.ReferenceCallback) common.OpenAP
 					},
 					"azureFile": {
 						SchemaProps: spec.SchemaProps{
-							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod.",
+							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod. Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type are redirected to the file.csi.azure.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.AzureFileVolumeSource"),
 						},
 					},
@@ -15504,25 +16394,25 @@ func schema_k8sio_api_core_v1_Volume(ref common.ReferenceCallback) common.OpenAP
 					},
 					"vsphereVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine",
+							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine. Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type are redirected to the csi.vsphere.vmware.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource"),
 						},
 					},
 					"quobyte": {
 						SchemaProps: spec.SchemaProps{
-							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime",
+							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime. Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.QuobyteVolumeSource"),
 						},
 					},
 					"azureDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.",
+							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod. Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type are redirected to the disk.csi.azure.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.AzureDiskVolumeSource"),
 						},
 					},
 					"photonPersistentDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine",
+							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine. Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource"),
 						},
 					},
@@ -15534,25 +16424,25 @@ func schema_k8sio_api_core_v1_Volume(ref common.ReferenceCallback) common.OpenAP
 					},
 					"portworxVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine",
+							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
 							Ref:         ref("k8s.io/api/core/v1.PortworxVolumeSource"),
 						},
 					},
 					"scaleIO": {
 						SchemaProps: spec.SchemaProps{
-							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.",
+							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes. Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.ScaleIOVolumeSource"),
 						},
 					},
 					"storageos": {
 						SchemaProps: spec.SchemaProps{
-							Description: "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes.",
+							Description: "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes. Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.StorageOSVolumeSource"),
 						},
 					},
 					"csi": {
 						SchemaProps: spec.SchemaProps{
-							Description: "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers (Beta feature).",
+							Description: "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers.",
 							Ref:         ref("k8s.io/api/core/v1.CSIVolumeSource"),
 						},
 					},
@@ -15847,19 +16737,19 @@ func schema_k8sio_api_core_v1_VolumeSource(ref common.ReferenceCallback) common.
 					},
 					"gcePersistentDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
+							Description: "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
 							Ref:         ref("k8s.io/api/core/v1.GCEPersistentDiskVolumeSource"),
 						},
 					},
 					"awsElasticBlockStore": {
 						SchemaProps: spec.SchemaProps{
-							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
+							Description: "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
 							Ref:         ref("k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource"),
 						},
 					},
 					"gitRepo": {
 						SchemaProps: spec.SchemaProps{
-							Description: "gitRepo represents a git repository at a particular revision. DEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
+							Description: "gitRepo represents a git repository at a particular revision. Deprecated: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
 							Ref:         ref("k8s.io/api/core/v1.GitRepoVolumeSource"),
 						},
 					},
@@ -15883,7 +16773,7 @@ func schema_k8sio_api_core_v1_VolumeSource(ref common.ReferenceCallback) common.
 					},
 					"glusterfs": {
 						SchemaProps: spec.SchemaProps{
-							Description: "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
+							Description: "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported. More info: https://examples.k8s.io/volumes/glusterfs/README.md",
 							Ref:         ref("k8s.io/api/core/v1.GlusterfsVolumeSource"),
 						},
 					},
@@ -15895,31 +16785,31 @@ func schema_k8sio_api_core_v1_VolumeSource(ref common.ReferenceCallback) common.
 					},
 					"rbd": {
 						SchemaProps: spec.SchemaProps{
-							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/rbd/README.md",
+							Description: "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported. More info: https://examples.k8s.io/volumes/rbd/README.md",
 							Ref:         ref("k8s.io/api/core/v1.RBDVolumeSource"),
 						},
 					},
 					"flexVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin.",
+							Description: "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin. Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.",
 							Ref:         ref("k8s.io/api/core/v1.FlexVolumeSource"),
 						},
 					},
 					"cinder": {
 						SchemaProps: spec.SchemaProps{
-							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
+							Description: "cinder represents a cinder volume attached and mounted on kubelets host machine. Deprecated: Cinder is deprecated. All operations for the in-tree cinder type are redirected to the cinder.csi.openstack.org CSI driver. More info: https://examples.k8s.io/mysql-cinder-pd/README.md",
 							Ref:         ref("k8s.io/api/core/v1.CinderVolumeSource"),
 						},
 					},
 					"cephfs": {
 						SchemaProps: spec.SchemaProps{
-							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime",
+							Description: "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime. Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.CephFSVolumeSource"),
 						},
 					},
 					"flocker": {
 						SchemaProps: spec.SchemaProps{
-							Description: "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running",
+							Description: "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running. Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.FlockerVolumeSource"),
 						},
 					},
@@ -15937,7 +16827,7 @@ func schema_k8sio_api_core_v1_VolumeSource(ref common.ReferenceCallback) common.
 					},
 					"azureFile": {
 						SchemaProps: spec.SchemaProps{
-							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod.",
+							Description: "azureFile represents an Azure File Service mount on the host and bind mount to the pod. Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type are redirected to the file.csi.azure.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.AzureFileVolumeSource"),
 						},
 					},
@@ -15949,25 +16839,25 @@ func schema_k8sio_api_core_v1_VolumeSource(ref common.ReferenceCallback) common.
 					},
 					"vsphereVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine",
+							Description: "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine. Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type are redirected to the csi.vsphere.vmware.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource"),
 						},
 					},
 					"quobyte": {
 						SchemaProps: spec.SchemaProps{
-							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime",
+							Description: "quobyte represents a Quobyte mount on the host that shares a pod's lifetime. Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.QuobyteVolumeSource"),
 						},
 					},
 					"azureDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.",
+							Description: "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod. Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type are redirected to the disk.csi.azure.com CSI driver.",
 							Ref:         ref("k8s.io/api/core/v1.AzureDiskVolumeSource"),
 						},
 					},
 					"photonPersistentDisk": {
 						SchemaProps: spec.SchemaProps{
-							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine",
+							Description: "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine. Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource"),
 						},
 					},
@@ -15979,25 +16869,25 @@ func schema_k8sio_api_core_v1_VolumeSource(ref common.ReferenceCallback) common.
 					},
 					"portworxVolume": {
 						SchemaProps: spec.SchemaProps{
-							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine",
+							Description: "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
 							Ref:         ref("k8s.io/api/core/v1.PortworxVolumeSource"),
 						},
 					},
 					"scaleIO": {
 						SchemaProps: spec.SchemaProps{
-							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.",
+							Description: "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes. Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.ScaleIOVolumeSource"),
 						},
 					},
 					"storageos": {
 						SchemaProps: spec.SchemaProps{
-							Description: "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes.",
+							Description: "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes. Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported.",
 							Ref:         ref("k8s.io/api/core/v1.StorageOSVolumeSource"),
 						},
 					},
 					"csi": {
 						SchemaProps: spec.SchemaProps{
-							Description: "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers (Beta feature).",
+							Description: "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers.",
 							Ref:         ref("k8s.io/api/core/v1.CSIVolumeSource"),
 						},
 					},
@@ -16816,6 +17706,13 @@ func schema_pkg_apis_meta_v1_DeleteOptions(ref common.ReferenceCallback) common.
 									},
 								},
 							},
+						},
+					},
+					"ignoreStoreReadErrorWithClusterBreakingPotential": {
+						SchemaProps: spec.SchemaProps{
+							Description: "if set to true, it will trigger an unsafe deletion of the resource in case the normal deletion flow fails with a corrupt object error. A resource is considered corrupt if it can not be retrieved from the underlying storage successfully because of a) its data can not be transformed e.g. decryption failure, or b) it fails to decode into an object. NOTE: unsafe deletion ignores finalizer constraints, skips precondition checks, and removes the object from the storage. WARNING: This may potentially break the cluster if the workload associated with the resource being unsafe-deleted relies on normal deletion flow. Use only if you REALLY know what you are doing. The default value is false, and the user must opt in to enable it",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
@@ -19810,8 +20707,7 @@ func schema_sigsk8sio_gateway_api_apis_v1_GatewayClassStatus(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("sigs.k8s.io/gateway-api/apis/v1.SupportedFeature"),
+										Ref: ref("sigs.k8s.io/gateway-api/apis/v1.SupportedFeature"),
 									},
 								},
 							},
@@ -21648,6 +22544,27 @@ func schema_sigsk8sio_gateway_api_apis_v1_SupportedFeature(ref common.ReferenceC
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
+func schema_sigsk8sio_gateway_api_apis_v1_supportedFeatureInternal(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "This is solely for the purpose of ensuring backward compatibility and SHOULD NOT be used elsewhere.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{

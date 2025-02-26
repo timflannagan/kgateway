@@ -113,8 +113,13 @@ func TestScenarios(t *testing.T) {
 
 	os.Setenv("POD_NAMESPACE", "gwtest") // TODO: is this still needed?
 	// set global settings env vars; current ggv2setup_tests all assume these are set to true
-	os.Setenv("KGW_ENABLEISTIOINTEGRATION", "true")
-	os.Setenv("KGW_ENABLEAUTOMTLS", "true")
+	os.Setenv("KGW_ENABLE_ISTIO_INTEGRATION", "true")
+	os.Setenv("KGW_ENABLE_AUTO_MTLS", "true")
+	t.Cleanup(func() {
+		os.Unsetenv("POD_NAMESPACE")
+		os.Unsetenv("KGW_ENABLE_ISTIO_INTEGRATION")
+		os.Unsetenv("KGW_ENABLE_AUTO_MTLS")
+	})
 
 	testEnv := &envtest.Environment{
 		CRDDirectoryPaths: []string{
@@ -216,7 +221,6 @@ func TestScenarios(t *testing.T) {
 				// once we change it to only include the ones in the proxy, we can re-enable this
 				//				t.Parallel()
 				testScenario(t, ctx, setupOpts.KrtDebugger, client, xdsPort, fullpath)
-
 			})
 		}
 	}
@@ -357,7 +361,7 @@ func newXdsDumper(t *testing.T, ctx context.Context, xdsPort int, gwname string)
 		dr: &discovery_v3.DiscoveryRequest{Node: &envoycore.Node{
 			Id: "gateway.gwtest",
 			Metadata: &structpb.Struct{
-				Fields: map[string]*structpb.Value{"role": {Kind: &structpb.Value_StringValue{StringValue: fmt.Sprintf("gloo-kube-gateway-api~%s~%s", "gwtest", gwname)}}}},
+				Fields: map[string]*structpb.Value{"role": {Kind: &structpb.Value_StringValue{StringValue: fmt.Sprintf("kgateway-kube-gateway-api~%s~%s", "gwtest", gwname)}}}},
 		}},
 	}
 
@@ -374,7 +378,6 @@ func newXdsDumper(t *testing.T, ctx context.Context, xdsPort int, gwname string)
 }
 
 func (x xdsDumper) Dump(t *testing.T, ctx context.Context) xdsDump {
-
 	dr := proto.Clone(x.dr).(*discovery_v3.DiscoveryRequest)
 	dr.TypeUrl = "type.googleapis.com/envoy.config.cluster.v3.Cluster"
 	x.adsClient.Send(dr)
@@ -398,7 +401,6 @@ func (x xdsDumper) Dump(t *testing.T, ctx context.Context) xdsDump {
 			t.Logf("got response: %s len: %d", dresp.GetTypeUrl(), len(dresp.GetResources()))
 			if dresp.GetTypeUrl() == "type.googleapis.com/envoy.config.cluster.v3.Cluster" {
 				for _, anyCluster := range dresp.GetResources() {
-
 					var cluster envoycluster.Cluster
 					if err := anyCluster.UnmarshalTo(&cluster); err != nil {
 						t.Errorf("failed to unmarshal cluster: %v", err)
@@ -616,7 +618,6 @@ func (x *xdsDump) Compare(t *testing.T, other xdsDump) {
 		}
 		c.Endpoints = ce
 		otherc.Endpoints = ocd
-
 	}
 }
 

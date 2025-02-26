@@ -1,5 +1,3 @@
-//go:build ignore
-
 package assertions
 
 import (
@@ -191,7 +189,6 @@ func (p *Provider) AssertEventualCurlError(
 		} else {
 			fmt.Printf("wanted any curl error, got error: %s\n", err.Error())
 		}
-
 	}).
 		WithTimeout(pollTimeout).
 		WithPolling(pollInterval).
@@ -201,7 +198,7 @@ func (p *Provider) AssertEventualCurlError(
 
 func (p *Provider) generateCurlOpts(host string) []curl.Option {
 	var curlOpts = []curl.Option{
-		curl.WithHost(kubeutils.ServiceFQDN(metav1.ObjectMeta{Name: GatewayProxyName, Namespace: p.kgatewayContext.InstallNamespace})),
+		curl.WithHost(kubeutils.ServiceFQDN(metav1.ObjectMeta{Name: GatewayProxyName, Namespace: p.installContext.InstallNamespace})),
 		curl.WithPort(80),
 		curl.Silent(),
 	}
