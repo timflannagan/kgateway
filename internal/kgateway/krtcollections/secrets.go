@@ -27,7 +27,7 @@ func (s *SecretIndex) HasSynced() bool {
 		return false
 	}
 	for _, col := range s.secrets {
-		if !col.HasSynced() {
+		if !col.Synced().HasSynced() {
 			return false
 		}
 	}

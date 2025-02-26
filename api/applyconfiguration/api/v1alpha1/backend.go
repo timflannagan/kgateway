@@ -72,7 +72,7 @@ func extractBackend(backend *apiv1alpha1.Backend, fieldManager string, subresour
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Kind field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithKind(value string) *BackendApplyConfiguration {
-	b.TypeMetaApplyConfiguration.Kind = &value
+	b.Kind = &value
 	return b
 }
 
@@ -80,7 +80,7 @@ func (b *BackendApplyConfiguration) WithKind(value string) *BackendApplyConfigur
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the APIVersion field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithAPIVersion(value string) *BackendApplyConfiguration {
-	b.TypeMetaApplyConfiguration.APIVersion = &value
+	b.APIVersion = &value
 	return b
 }
 
@@ -89,7 +89,7 @@ func (b *BackendApplyConfiguration) WithAPIVersion(value string) *BackendApplyCo
 // If called multiple times, the Name field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithName(value string) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Name = &value
+	b.Name = &value
 	return b
 }
 
@@ -98,7 +98,7 @@ func (b *BackendApplyConfiguration) WithName(value string) *BackendApplyConfigur
 // If called multiple times, the GenerateName field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithGenerateName(value string) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.GenerateName = &value
+	b.GenerateName = &value
 	return b
 }
 
@@ -107,7 +107,7 @@ func (b *BackendApplyConfiguration) WithGenerateName(value string) *BackendApply
 // If called multiple times, the Namespace field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithNamespace(value string) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Namespace = &value
+	b.Namespace = &value
 	return b
 }
 
@@ -116,7 +116,7 @@ func (b *BackendApplyConfiguration) WithNamespace(value string) *BackendApplyCon
 // If called multiple times, the UID field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithUID(value types.UID) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.UID = &value
+	b.UID = &value
 	return b
 }
 
@@ -125,7 +125,7 @@ func (b *BackendApplyConfiguration) WithUID(value types.UID) *BackendApplyConfig
 // If called multiple times, the ResourceVersion field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithResourceVersion(value string) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.ResourceVersion = &value
+	b.ResourceVersion = &value
 	return b
 }
 
@@ -134,7 +134,7 @@ func (b *BackendApplyConfiguration) WithResourceVersion(value string) *BackendAp
 // If called multiple times, the Generation field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithGeneration(value int64) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Generation = &value
+	b.Generation = &value
 	return b
 }
 
@@ -143,7 +143,7 @@ func (b *BackendApplyConfiguration) WithGeneration(value int64) *BackendApplyCon
 // If called multiple times, the CreationTimestamp field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithCreationTimestamp(value metav1.Time) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.CreationTimestamp = &value
+	b.CreationTimestamp = &value
 	return b
 }
 
@@ -152,7 +152,7 @@ func (b *BackendApplyConfiguration) WithCreationTimestamp(value metav1.Time) *Ba
 // If called multiple times, the DeletionTimestamp field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionTimestamp = &value
+	b.DeletionTimestamp = &value
 	return b
 }
 
@@ -161,7 +161,7 @@ func (b *BackendApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *Ba
 // If called multiple times, the DeletionGracePeriodSeconds field is set to the value of the last call.
 func (b *BackendApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionGracePeriodSeconds = &value
+	b.DeletionGracePeriodSeconds = &value
 	return b
 }
 
@@ -171,11 +171,11 @@ func (b *BackendApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) 
 // overwriting an existing map entries in Labels field with the same key.
 func (b *BackendApplyConfiguration) WithLabels(entries map[string]string) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Labels == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Labels = make(map[string]string, len(entries))
+	if b.Labels == nil && len(entries) > 0 {
+		b.Labels = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Labels[k] = v
+		b.Labels[k] = v
 	}
 	return b
 }
@@ -186,11 +186,11 @@ func (b *BackendApplyConfiguration) WithLabels(entries map[string]string) *Backe
 // overwriting an existing map entries in Annotations field with the same key.
 func (b *BackendApplyConfiguration) WithAnnotations(entries map[string]string) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Annotations == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Annotations = make(map[string]string, len(entries))
+	if b.Annotations == nil && len(entries) > 0 {
+		b.Annotations = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Annotations[k] = v
+		b.Annotations[k] = v
 	}
 	return b
 }
@@ -204,7 +204,7 @@ func (b *BackendApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerRefer
 		if values[i] == nil {
 			panic("nil value passed to WithOwnerReferences")
 		}
-		b.ObjectMetaApplyConfiguration.OwnerReferences = append(b.ObjectMetaApplyConfiguration.OwnerReferences, *values[i])
+		b.OwnerReferences = append(b.OwnerReferences, *values[i])
 	}
 	return b
 }
@@ -215,7 +215,7 @@ func (b *BackendApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerRefer
 func (b *BackendApplyConfiguration) WithFinalizers(values ...string) *BackendApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
-		b.ObjectMetaApplyConfiguration.Finalizers = append(b.ObjectMetaApplyConfiguration.Finalizers, values[i])
+		b.Finalizers = append(b.Finalizers, values[i])
 	}
 	return b
 }
@@ -245,5 +245,5 @@ func (b *BackendApplyConfiguration) WithStatus(value *BackendStatusApplyConfigur
 // GetName retrieves the value of the Name field in the declarative configuration.
 func (b *BackendApplyConfiguration) GetName() *string {
 	b.ensureObjectMetaApplyConfigurationExists()
-	return b.ObjectMetaApplyConfiguration.Name
+	return b.Name
 }
