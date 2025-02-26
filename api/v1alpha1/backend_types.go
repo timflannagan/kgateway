@@ -22,13 +22,6 @@ type Backend struct {
 	Status BackendStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-type BackendList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Backend `json:"items"`
-}
-
 // +kubebuilder:validation:XValidation:message="There must one and only one backend type set",rule="(has(self.aws) && !has(self.static) && !has(self.ai)) || (!has(self.aws) && has(self.static) && !has(self.ai)) || (!has(self.aws) && !has(self.static) && has(self.ai))"
 // +kubebuilder:validation:MaxProperties=1
 // +kubebuilder:validation:MinProperties=1
@@ -37,10 +30,12 @@ type BackendSpec struct {
 	Static *StaticBackend `json:"static,omitempty"`
 	AI     *AIBackend     `json:"ai,omitempty"`
 }
+
 type AwsBackend struct {
 	Region    string                      `json:"region,omitempty"`
 	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
 }
+
 type StaticBackend struct {
 	Hosts []Host `json:"hosts,omitempty"`
 }
@@ -58,4 +53,11 @@ type BackendStatus struct {
 	// +listMapKey=type
 	// +kubebuilder:validation:MaxItems=8
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+type BackendList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []Backend `json:"items"`
 }
