@@ -118,22 +118,72 @@ export ALPINE_BASE_IMAGE ?= alpine:3.17.6
 # in the tree rooted at that directory that match the given criteria.
 get_sources = $(shell find $(1) -name "*.go" | grep -v test | grep -v generated.go | grep -v mock_)
 
+#----------------------------------------------------------------------------
+# Tools
+#----------------------------------------------------------------------------
+
+.PHONY: tools
+tools: ## Install the tools needed to build and test the project
+tools: tool/generate tool/kind tool/goreleaser tool/golangci-lint tool/ginkgo tool/goimports tool/gettercheck mod-tidy
+
+.PHONY: tool/goimports
+tool/goimports:
+	@go get -tool golang.org/x/tools/cmd/goimports@latest
+
+.PHONY: tool/golangci-lint
+tool/golangci-lint:
+	@go get -tool github.com/golangci/golangci-lint/cmd/golangci-lint@$(LINTER_VERSION)
+
+.PHONY: tool/ginkgo
+tool/ginkgo:
+	@go get -tool github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
+
+.PHONY: tool/go-test-coverage
+tool/go-test-coverage:
+	@go get -tool github.com/vladopajic/go-test-coverage/v2@v2.8.1
+
+.PHONY: tool/gettercheck
+tool/gettercheck:
+	@go get -tool github.com/saiskee/gettercheck@latest
+
+.PHONY: tool/goreleaser
+tool/goreleaser:
+	@go get -tool github.com/goreleaser/goreleaser/v2@v2.5.1
+
+.PHONY: tool/kind
+tool/kind:
+	@go get -tool sigs.k8s.io/kind@v0.24.0
+
+.PHONY: tool/generate
+tool/generate: #
+	@go get -tool k8s.io/kube-openapi/cmd/openapi-gen@latest
+	@go get -tool k8s.io/code-generator/cmd/register-gen@v0.32.2
+	@go get -tool k8s.io/code-generator/cmd/applyconfiguration-gen@v0.32.2
+	@go get -tool k8s.io/code-generator/cmd/client-gen@v0.32.2
+	@go get -tool sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.5
+
 #----------------------------------------------------------------------------------
 # Repo setup
 #----------------------------------------------------------------------------------
 
+GOIMPORTS ?= go tool golang.org/x/tools/cmd/goimports
+
 .PHONY: fmt
-fmt:
-	go run golang.org/x/tools/cmd/goimports -local "github.com/kgateway-dev/kgateway/v2/"  -w $(shell ls -d */ | grep -v vendor)
+fmt: tool/goimports  ## Format the code with goimports
+	$(GOIMPORTS) -local "github.com/kgateway-dev/kgateway/v2/"  -w $(shell ls -d */ | grep -v vendor)
 
 .PHONY: fmt-changed
-fmt-changed:
-	git diff --name-only | grep '.*.go$$' | xargs -- goimports -w
+fmt-changed: tool/goimports  ## Format the code with goimports
+	git diff --name-only | grep '.*.go$$' | xargs -- $(GOIMPORTS) -w
 
 # must be a separate target so that make waits for it to complete before moving on
 .PHONY: mod-download
-mod-download:
+mod-download:  ## Download the dependencies
 	go mod download all
+
+.PHONY: mod-tidy
+mod-tidy: mod-download  ## Tidy the go mod file
+	go mod tidy
 
 .PHONY: check-format
 check-format:
@@ -146,14 +196,16 @@ check-spelling:
 #----------------------------------------------------------------------------
 # Analyze
 #----------------------------------------------------------------------------
+
 LINTER_VERSION := $(shell cat .github/workflows/static-analysis.yaml | yq '.jobs.static-analysis.steps.[] | select( .uses == "*golangci/golangci-lint-action*") | .with.version ')
 
+GOLANGCI_LINT ?= go tool github.com/golangci/golangci-lint/cmd/golangci-lint
 # The analyze target runs a suite of static analysis tools against the codebase.
 # The options are defined in .golangci.yaml, and can be overridden by setting the ANALYZE_ARGS variable.
 .PHONY: analyze
 ANALYZE_ARGS ?= --fast --verbose
-analyze:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@$(LINTER_VERSION) run $(ANALYZE_ARGS) ./...
+analyze: tool/golangci-lint
+	@$(GOLANGCI_LINT) run $(ANALYZE_ARGS) ./...
 
 #----------------------------------------------------------------------------------
 # Ginkgo Tests
@@ -171,8 +223,8 @@ TEST_PKG ?= ./... # Default to run all tests
 GINKGO_USER_FLAGS ?=
 
 .PHONY: test
-test: ## Run all tests, or only run the test package at {TEST_PKG} if it is specified
-	$(GINKGO_ENV) go run github.com/onsi/ginkgo/v2/ginkgo -ldflags='$(LDFLAGS)' \
+test: tool/ginkgo ## Run all tests, or only run the test package at {TEST_PKG} if it is specified
+	$(GINKGO_ENV) go tool github.com/onsi/ginkgo/v2/ginkgo -ldflags='$(LDFLAGS)' \
 	$(GINKGO_FLAGS) $(GINKGO_REPORT_FLAGS) $(GINKGO_USER_FLAGS) \
 	$(TEST_PKG)
 
@@ -207,12 +259,14 @@ run-kube-e2e-tests: test
 #----------------------------------------------------------------------------------
 # Go Tests
 #----------------------------------------------------------------------------------
+
 GO_TEST_ENV ?=
 # Testings flags: https://pkg.go.dev/cmd/go#hdr-Testing_flags
 # The default timeout for a suite is 10 minutes, but this can be overridden by setting the -timeout flag. Currently set
 # to 25 minutes based on the time it takes to run the longest test setup (kgateway_test).
 GO_TEST_ARGS ?= -timeout=25m -cpu=4 -race -outputdir=$(OUTPUT_DIR)
 GO_TEST_COVERAGE_ARGS ?= --cover --covermode=atomic --coverprofile=cover.out
+GO_TEST_COVERAGE ?= go tool github.com/vladopajic/go-test-coverage/v2
 
 # This is a way for a user executing `make go-test` to be able to provide args which we do not include by default
 # For example, you may want to run tests multiple times, or with various timeouts
@@ -234,19 +288,13 @@ go-test-with-coverage: GO_TEST_ARGS += $(GO_TEST_COVERAGE_ARGS)
 go-test-with-coverage: go-test
 
 .PHONY: validate-test-coverage
-validate-test-coverage:
-	go run github.com/vladopajic/go-test-coverage/v2@v2.8.1 --config=./test_coverage.yml
+validate-test-coverage: tool/go-test-coverage ## Validate the test coverage
+	$(GO_TEST_COVERAGE) --config=./test_coverage.yml
+
 # https://go.dev/blog/cover#heat-maps
 .PHONY: view-test-coverage
 view-test-coverage:
 	go tool cover -html $(OUTPUT_DIR)/cover.out
-
-.PHONY: package-kgateway-chart
-HELM_PACKAGE_ARGS ?= --version $(VERSION)
-package-kgateway-chart: ## Package the new kgateway helm chart for testing
-	mkdir -p $(TEST_ASSET_DIR); \
-	helm package $(HELM_PACKAGE_ARGS) --destination $(TEST_ASSET_DIR) install/helm/kgateway; \
-	helm repo index $(TEST_ASSET_DIR);
 
 #----------------------------------------------------------------------------------
 # Clean
@@ -303,32 +351,19 @@ generated-code: update-licenses
 generated-code: fmt
 
 .PHONY: go-generate-all
-go-generate-all: ## Run all go generate directives in the repo, including codegen for protos, mockgen, and more
+go-generate-all: tool/generate tool/goimports ## Run all go generate directives in the repo, including codegen for protos, mockgen, and more
 	GO111MODULE=on go generate ./hack/...
 
 .PHONY: go-generate-mocks
 go-generate-mocks: ## Runs all generate directives for mockgen in the repo
 	GO111MODULE=on go generate -run="mockgen" ./...
 
+GETTERCHECK ?= go tool github.com/saiskee/gettercheck
 # Ensures that accesses for fields which have "getter" functions are exclusively done via said "getter" functions
 # TODO: do we still want this?
 .PHONY: getter-check
-getter-check:
-	go run github.com/saiskee/gettercheck -ignoretests -ignoregenerated -write ./internal/kgateway/...
-
-.PHONY: mod-tidy
-mod-tidy:
-	go mod tidy
-
-#----------------------------------------------------------------------------------
-# Generate CRD Reference Documentation
-#
-# See docs/content/crds/README.md for more details.
-#----------------------------------------------------------------------------------
-
-.PHONY: generate-crd-reference-docs
-generate-crd-reference-docs:
-	go run docs/content/crds/generate.go
+getter-check: tool/gettercheck ## Runs all generate directives for mockgen in the repo
+	$(GETTERCHECK) -ignoretests -ignoregenerated -write ./internal/kgateway/...
 
 #----------------------------------------------------------------------------------
 # Distroless base images
@@ -474,14 +509,27 @@ envoy-wrapper-distroless-docker: $(ENVOYINIT_OUTPUT_DIR)/envoyinit-linux-$(GOARC
 		-t $(IMAGE_REGISTRY)/$(ENVOYINIT_IMAGE_REPO):$(VERSION)-distroless
 
 #----------------------------------------------------------------------------------
+# Helm
+#----------------------------------------------------------------------------------
+
+.PHONY: package-kgateway-chart
+HELM ?= helm
+HELM_PACKAGE_ARGS ?= --version $(VERSION)
+package-kgateway-chart: ## Package the new kgateway helm chart for testing
+	mkdir -p $(TEST_ASSET_DIR); \
+	$(HELM) package $(HELM_PACKAGE_ARGS) --destination $(TEST_ASSET_DIR) install/helm/kgateway; \
+	$(HELM) repo index $(TEST_ASSET_DIR);
+
+#----------------------------------------------------------------------------------
 # Release
 #----------------------------------------------------------------------------------
 
-GORELEASER ?= go run github.com/goreleaser/goreleaser/v2@v2.5.1
+GORELEASER ?= go tool github.com/goreleaser/goreleaser/v2
 GORELEASER_ARGS ?= --snapshot --clean
 GORELEASER_CURRENT_TAG ?= $(VERSION)
+
 .PHONY: release
-release:  ## Create a release using goreleaser
+release: tool/goreleaser ## Create a release using goreleaser
 	GORELEASER_CURRENT_TAG=$(GORELEASER_CURRENT_TAG) $(GORELEASER) release $(GORELEASER_ARGS)
 
 #----------------------------------------------------------------------------------
@@ -573,14 +621,16 @@ endif # distroless images
 CLUSTER_NAME ?= kind
 INSTALL_NAMESPACE ?= kgateway-system
 
-kind-setup:
+KIND ?= go tool sigs.k8s.io/kind
+
+kind-setup: tool/kind
 	VERSION=${VERSION} CLUSTER_NAME=${CLUSTER_NAME} ./hack/kind/setup-kind.sh
 
 kind-load-%-distroless:
-	kind load docker-image $(IMAGE_REGISTRY)/$*:$(VERSION)-distroless --name $(CLUSTER_NAME)
+	$(KIND) load docker-image $(IMAGE_REGISTRY)/$*:$(VERSION)-distroless --name $(CLUSTER_NAME)
 
 kind-load-%:
-	kind load docker-image $(IMAGE_REGISTRY)/$*:$(VERSION) --name $(CLUSTER_NAME)
+	$(KIND) load docker-image $(IMAGE_REGISTRY)/$*:$(VERSION) --name $(CLUSTER_NAME)
 
 # Build an image and load it into the KinD cluster
 # Depends on: IMAGE_REGISTRY, VERSION, CLUSTER_NAME

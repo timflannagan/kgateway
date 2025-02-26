@@ -29,14 +29,14 @@ done
 API_INPUT_DIRS_SPACE="${API_INPUT_DIRS_SPACE%,}" # drop trailing space
 API_INPUT_DIRS_COMMA="${API_INPUT_DIRS_COMMA%,}" # drop trailing comma
 
-go run k8s.io/code-generator/cmd/register-gen --output-file zz_generated.register.go ${API_INPUT_DIRS_SPACE}
-go run sigs.k8s.io/controller-tools/cmd/controller-gen crd:maxDescLen=0 object rbac:roleName=kgateway paths="${APIS_PKG}/api/${VERSION}" \
+go tool k8s.io/code-generator/cmd/register-gen --output-file zz_generated.register.go ${API_INPUT_DIRS_SPACE}
+go tool sigs.k8s.io/controller-tools/cmd/controller-gen crd:maxDescLen=0 object rbac:roleName=kgateway paths="${APIS_PKG}/api/${VERSION}" \
     output:crd:artifacts:config=${ROOT_DIR}/install/helm/kgateway/crds/ output:rbac:artifacts:config=${ROOT_DIR}/install/helm/kgateway/templates
 
 # throw away
 new_report="$(mktemp -t "$(basename "$0").api_violations.XXXXXX")"
 
-go run k8s.io/kube-openapi/cmd/openapi-gen \
+go tool k8s.io/kube-openapi/cmd/openapi-gen \
   --output-file zz_generated.openapi.go \
   --report-filename "${new_report}" \
   --output-dir "${ROOT_DIR}/pkg/generated/openapi" \
@@ -50,13 +50,13 @@ go run k8s.io/kube-openapi/cmd/openapi-gen \
   k8s.io/apimachinery/pkg/api/resource \
   k8s.io/apimachinery/pkg/version
 
-go run k8s.io/code-generator/cmd/applyconfiguration-gen \
+go tool k8s.io/code-generator/cmd/applyconfiguration-gen \
   --openapi-schema <(go run ${ROOT_DIR}/cmd/modelschema) \
   --output-dir "${ROOT_DIR}/api/applyconfiguration" \
   --output-pkg "github.com/kgateway-dev/kgateway/v2/api/applyconfiguration" \
   ${API_INPUT_DIRS_SPACE}
 
-go run k8s.io/code-generator/cmd/client-gen \
+go tool k8s.io/code-generator/cmd/client-gen \
   --clientset-name "versioned" \
   --input-base "${APIS_PKG}" \
   --input "${API_INPUT_DIRS_COMMA//${APIS_PKG}/}" \
@@ -64,6 +64,5 @@ go run k8s.io/code-generator/cmd/client-gen \
   --output-pkg "${OUTPUT_PKG}/${CLIENTSET_PKG_NAME}" \
   --apply-configuration-package "${APIS_PKG}/api/applyconfiguration"
 
-# fix imports of gen code
-go run golang.org/x/tools/cmd/goimports -w ${ROOT_DIR}/pkg/client
-go run golang.org/x/tools/cmd/goimports -w ${ROOT_DIR}/api
+# fix imports of gen code (TODO: what about pkg/listers, pkg/generated too)
+go tool golang.org/x/tools/cmd/goimports -w ${ROOT_DIR}/pkg/client ${ROOT_DIR}/api
