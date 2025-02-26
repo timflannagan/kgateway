@@ -35,9 +35,13 @@ const (
 )
 
 // BackendSpec defines the desired state of Backend.
-// +kubebuilder:validation:XValidation:message="There must one and only one backend type set",rule="(has(self.aws) && !has(self.static) && !has(self.ai)) || (!has(self.aws) && has(self.static) && !has(self.ai)) || (!has(self.aws) && !has(self.static) && has(self.ai))"
-// +kubebuilder:validation:MaxProperties=1
-// +kubebuilder:validation:MinProperties=1
+// +union
+// +kubebuilder:validation:XValidation:message="ai backend must be nil if the type is not 'ai'",rule="!(has(self.ai) && self.type != 'ai')"
+// +kubebuilder:validation:XValidation:message="ai backend must be specified when type is 'ai'",rule="!(!has(self.ai) && self.type == 'ai')"
+// +kubebuilder:validation:XValidation:message="aws backend must be nil if the type is not 'aws'",rule="!(has(self.aws) && self.type != 'aws')"
+// +kubebuilder:validation:XValidation:message="aws backend must be specified when type is 'aws'",rule="!(!has(self.aws) && self.type == 'aws')"
+// +kubebuilder:validation:XValidation:message="static backend must be nil if the type is not 'static'",rule="!(has(self.static) && self.type != 'static')"
+// +kubebuilder:validation:XValidation:message="static backend must be specified when type is 'static'",rule="!(!has(self.static) && self.type == 'static')"
 type BackendSpec struct {
 	// Type indicates the type of the backend to be used.
 	// +unionDiscriminator

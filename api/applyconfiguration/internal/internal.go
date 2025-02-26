@@ -243,6 +243,15 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: string
       default: ""
+    unions:
+    - discriminator: type
+      fields:
+      - fieldName: ai
+        discriminatorValue: AI
+      - fieldName: aws
+        discriminatorValue: Aws
+      - fieldName: static
+        discriminatorValue: Static
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.BackendStatus
   map:
     fields:
