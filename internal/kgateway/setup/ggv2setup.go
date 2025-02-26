@@ -7,27 +7,22 @@ import (
 
 	envoycache "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	xdsserver "github.com/envoyproxy/go-control-plane/pkg/server/v3"
-	"github.com/go-logr/zapr"
 	"github.com/solo-io/go-utils/contextutils"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	istiokube "istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/krt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	zaputil "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/admin"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/controller"
 	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/krtcollections"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils/krtutil"
-	"github.com/kgateway-dev/kgateway/v2/internal/version"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/envutils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/kubeutils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/namespaces"
+	"github.com/kgateway-dev/kgateway/v2/pkg/utils/setuputils"
 )
 
 const (
@@ -35,7 +30,7 @@ const (
 )
 
 func Main(customCtx context.Context) error {
-	SetupLogging(customCtx, componentName)
+	setuputils.SetupLogging(customCtx, componentName)
 	return startSetupLoop(customCtx)
 }
 
@@ -147,29 +142,4 @@ func StartGGv2WithConfig(
 
 	logger.Info("starting controller")
 	return c.Start(ctx)
-}
-
-// SetupLogging sets up controller-runtime logging
-func SetupLogging(ctx context.Context, loggerName string) {
-	level := zapcore.InfoLevel
-	// if log level is set in env, use that
-	if envLogLevel := os.Getenv(contextutils.LogLevelEnvName); envLogLevel != "" {
-		if err := (&level).Set(envLogLevel); err != nil {
-			contextutils.LoggerFrom(ctx).Infof("Could not set log level from env %s=%s, available levels "+
-				"can be found here: https://pkg.go.dev/go.uber.org/zap/zapcore?tab=doc#Level",
-				contextutils.LogLevelEnvName,
-				envLogLevel,
-				zap.Error(err),
-			)
-		}
-	}
-	atomicLevel := zap.NewAtomicLevelAt(level)
-
-	baseLogger := zaputil.NewRaw(
-		zaputil.Level(&atomicLevel),
-		zaputil.RawZapOpts(zap.Fields(zap.String("version", version.Version))),
-	).Named(loggerName)
-
-	// controller-runtime
-	log.SetLogger(zapr.NewLogger(baseLogger))
 }
