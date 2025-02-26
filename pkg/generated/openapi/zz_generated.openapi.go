@@ -1029,7 +1029,7 @@ func schema_kgateway_v2_api_v1alpha1_BackendSpec(ref common.ReferenceCallback) c
 				Properties: map[string]spec.Schema{
 					"type": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Type is the type of the backend.",
+							Description: "Type indicates the type of the backend to be used.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",

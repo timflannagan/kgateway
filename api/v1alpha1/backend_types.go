@@ -39,7 +39,8 @@ const (
 // +kubebuilder:validation:MaxProperties=1
 // +kubebuilder:validation:MinProperties=1
 type BackendSpec struct {
-	// Type is the type of the backend.
+	// Type indicates the type of the backend to be used.
+	// +unionDiscriminator
 	// +kubebuilder:validation:Enum=ai;aws;static
 	// +kubebuilder:validation:Required
 	Type BackendType `json:"type"`
