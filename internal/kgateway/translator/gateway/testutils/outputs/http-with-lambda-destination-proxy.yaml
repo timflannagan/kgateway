@@ -10,9 +10,6 @@ Listeners:
       typedConfig:
         '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
         httpFilters:
-        - name: io.solo.aws_lambda
-          typedConfig:
-            '@type': type.googleapis.com/envoy.config.filter.http.aws_lambda.v2.AWSLambdaConfig
         - name: envoy.filters.http.router
           typedConfig:
             '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -24,7 +21,7 @@ Listeners:
             resourceApiVersion: V3
           routeConfigName: http
         statPrefix: http
-        use_remote_address: true
+        useRemoteAddress: true
     name: http
   name: http
 Routes:
@@ -41,7 +38,3 @@ Routes:
       route:
         cluster: backend_default_aws-backend_0
         clusterNotFoundResponseCode: INTERNAL_SERVER_ERROR
-      typedPerFilterConfig:
-        io.solo.aws_lambda:
-          '@type': type.googleapis.com/envoy.config.filter.http.aws_lambda.v2.AWSLambdaPerRoute
-          name: uppercase

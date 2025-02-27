@@ -39,7 +39,6 @@ func TestKgateway(t *testing.T) {
 		if t.Failed() {
 			testInstallation.PreFailHandler(ctx)
 		}
-
 		testInstallation.UninstallKgateway(ctx)
 	})
 

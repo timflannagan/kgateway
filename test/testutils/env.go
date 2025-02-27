@@ -4,12 +4,14 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/envutils"
 )
 
+// Add E2E_ prefix to all env vars.
+// Enable functionality via go test flags as well...
 const (
-	// TearDown is used to TearDown assets after a test completes. This is used in kubernetes e2e tests to uninstall
-	// Gloo after a test suite completes
+	// TearDown is used to tear down testing assets after a test completes. This is primarily used to uninstall
+	// the kgateway chart after a test suite completes.
 	TearDown = "TEAR_DOWN"
 
-	// SkipInstall can be used when running Kube suites consecutively, and you didn't tear down the Gloo
+	// SkipInstall can be used when running e2e suites consecutively, and you didn't tear down the kgateway
 	// installation from a previous run
 	SkipInstall = "SKIP_INSTALL"
 
@@ -32,9 +34,7 @@ const (
 	RunConsulTests = "RUN_CONSUL_TESTS"
 
 	// WaitOnFail is used to halt execution of a failed test to give the developer a chance to inspect
-	// any assets before they are cleaned up when the test completes
-	// This functionality is defined: https://github.com/solo-io/solo-kit/blob/main/test/helpers/fail_handler.go
-	// and for it to be available, a test must have registered the custom fail handler using `RegisterCommonFailHandlers`
+	// any assets before they are cleaned up when the test completes.
 	WaitOnFail = "WAIT_ON_FAIL"
 
 	// SkipTempDisabledTests is used to temporarily disable tests in CI

@@ -37,10 +37,9 @@ If release name contains chart name it will be used as a full name.
 
 {{/*
 Constant labels - labels that are stable across releases
-We want this label to remain constant as it is used in glooctl version.
 */}}
 {{- define "kgateway.gateway.constLabels" -}}
-gloo: kube-gateway
+kgateway: kube-gateway
 {{- end }}
 
 

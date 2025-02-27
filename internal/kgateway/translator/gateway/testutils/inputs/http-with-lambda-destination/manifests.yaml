@@ -26,12 +26,6 @@ spec:
         - name: aws-backend
           kind: Backend
           group: gateway.kgateway.dev
-          filters:
-            - type: ExtensionRef
-              extensionRef:
-                group: gloo.solo.io
-                kind: Parameter
-                name: uppercase
 ---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: Backend
@@ -41,8 +35,10 @@ spec:
   type: aws
   aws:
     region: us-east-1
-    # TODO: add these back
-    # roleArn: arn:aws:iam::123456789012:role/lambda-role
-    # lambdaFunctions:
-    #   - lambdaFunctionName: uppercase
-    #     logicalName: uppercase
+    accountId: 123456789012
+    auth:
+      type: irsa
+      irsa:
+        roleArn: arn:aws:iam::123456789012:role/lambda-role
+    lambda:
+      functionName: uppercase

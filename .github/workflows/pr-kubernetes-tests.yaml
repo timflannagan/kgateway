@@ -23,45 +23,17 @@ jobs:
         #
         # Above each test below, we document the latest date/time for the GitHub action step to run
         # NOTE: We use the GitHub action step time (as opposed to the `go test` time), because it is easier to capture
-
         test:
         # Feb 27, 2025: 13 minutes
         - cluster-name: 'cluster-one'
           go-test-args: '-v -timeout=25m'
           go-test-run-regex: '^TestKgateway$$/^BasicRouting$$|^TestKgateway$$/^Deployer$$|^TestKgateway$$/^HTTPRouteServices$$|^TestKgateway$$/^TCPRouteServices$$|^TestKgateway$$/^TLSRouteServices$$'
-
-#         # Dec 4, 2024: 23 minutes
-#         - cluster-name: 'cluster-two'
-#           go-test-args: '-v -timeout=25m'
-#           go-test-run-regex: '^TestKgateway$$/^RouteDelegation$$|^TestKgatewayIstioRevision$$|^TestRevisionIstioRegression$$|^TestKgateway$$/^RouteOptions$$|^TestKgateway$$/^VirtualHostOptions$$|^TestKgateway$$/^Upstreams$$|^TestKgateway$$/^HeadlessSvc$$|^TestKgateway$$/^PortRouting$$|^TestKgatewayMinimalDefaultGatewayParameters$$|^TestKgateway$$/^DirectResponse$$|^TestKgateway$$/^HttpListenerOptions$$|^TestKgateway$$/^ListenerOptions$$|^TestKgateway$$/^GlooAdminServer$$'
-
-#         # Dec 4, 2024: 24 minutes
-#         - cluster-name: 'cluster-three'
-#           go-test-args: '-v -timeout=30m'
-#           go-test-run-regex: '(^TestKgatewayIstioAutoMtls$$|^TestIstioRegression$$)'
-
-#         # Dec 4, 2024: 21 minutes
-#         - cluster-name: 'cluster-four'
-#           go-test-args: '-v -timeout=30m'
-#           go-test-run-regex: '(^TestKgatewayIstio$$)'
-
-#         # Dec 4, 2024: 24 minutes
-#         - cluster-name: 'cluster-five'
-#           go-test-args: '-v -timeout=30m'
-#           go-test-run-regex: '^TestFullEnvoyValidation$$|^TestValidationStrict$$|^TestValidationAlwaysAccept$$|^TestTransformationValidationDisabled$$'
-
-#         # Dec 4, 2024: 26 minutes
-#         - cluster-name: 'cluster-six'
-#           go-test-args: '-v -timeout=30m'
-#           go-test-run-regex: '^TestDiscoveryWatchlabels$$|^TestKgatewayNoValidation$$|^TestHelm$$|^TestHelmSettings$$|^TestKgatewayAws$$|^TestZeroDowntimeRollout$$'
-
-#         # Dec 4, 2024: 13 minutes
-#         - cluster-name: 'cluster-seven'
-#           go-test-args: '-v -timeout=25m'
-#           go-test-run-regex: '^TestKgateway$$/^CRDCategories$$|^TestKgateway$$/^Metrics$$|^TestWatchNamespaceSelector$$'
-
-        # In our PR tests, we run the suite of tests using the upper ends of versions that we claim to support
-        # The versions should mirror: https://kgateway.dev/docs/reference/versions/
+          localstack: 'false'
+        # Hack.
+        - cluster-name: 'cluster-two'
+          go-test-args: '-v -timeout=25m'
+          go-test-run-regex: '^TestKgateway$$/^Lambda$$'
+          localstack: 'true'
         version-files:
           - file: './.github/workflows/.env/pr-tests/versions.env'
     steps:
@@ -86,6 +58,7 @@ jobs:
         kubectl-version: ${{ steps.dotenv.outputs.kubectl_version }}
         helm-version: ${{ steps.dotenv.outputs.helm_version }}
         istio-version: ${{ steps.dotenv.outputs.istio_version }}
+        localstack: ${{ matrix.test.localstack }}
     - id: run-tests
       uses: ./.github/actions/kubernetes-e2e-tests
       with:

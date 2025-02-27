@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
@@ -61,29 +60,119 @@ type BackendSpec struct {
 
 // AwsBackend is the AWS backend configuration.
 type AwsBackend struct {
-	// Region is the AWS region.
+	// AccountId is the AWS account ID to use for the upstream.
+	// +kubebuilder:validation:Required
+	AccountId string `json:"accountId"`
+	// Auth specifies the authentication method to use for the upstream.
+	// +kubebuilder:validation:Required
+	// +required
+	Auth *AwsAuth `json:"auth"`
+	// Lambda configures the AWS lambda service.
 	// +optional
-	Region string `json:"region,omitempty"`
-	// SecretRef is the secret reference for the AWS credentials.
+	Lambda *AwsLambda `json:"lambda,omitempty"`
+	// Region is the AWS region to use for the upstream.
+	// Defaults to us-east-1 if not specified.
 	// +optional
-	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	Region *string `json:"region,omitempty"`
 }
 
-// StaticBackend is the static backend configuration.
-type StaticBackend struct {
-	// Hosts is the list of hosts.
+// AwsAuthType is the type of authentication to use for the upstream.
+type AwsAuthType string
+
+const (
+	// AwsAuthTypeIRSA is the IRSA authentication type.
+	AwsAuthTypeIRSA AwsAuthType = "irsa"
+	// AwsAuthTypeSecret is the secret authentication type.
+	AwsAuthTypeSecret AwsAuthType = "secret"
+)
+
+// AwsAuth defines the authentication method to use for the upstream.
+// +union
+// +kubebuilder:validation:XValidation:message="irsa auth must be nil if the type is not 'irsa'",rule="!(has(self.irsa) && self.type != 'irsa')"
+// +kubebuilder:validation:XValidation:message="irsa auth must be specified when type is 'irsa'",rule="!(!has(self.irsa) && self.type == 'irsa')"
+// +kubebuilder:validation:XValidation:message="secret auth must be nil if the type is not 'secret'",rule="!(has(self.secret) && self.type != 'secret')"
+// +kubebuilder:validation:XValidation:message="secret auth must be specified when type is 'secret'",rule="!(!has(self.secret) && self.type == 'secret')"
+type AwsAuth struct {
+	// Type is the type of authentication to use for the upstream.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=irsa;secret
+	Type AwsAuthType `json:"type"`
+	// IRSA is the IRSA authentication configuration.
 	// +optional
+	IRSA *AWSAuthIRSA `json:"irsa,omitempty"`
+	// Secret is a reference to a secret containing AWS credentials.
+	// +optional
+	Secret *AWSAuthSecretReference `json:"secret,omitempty"`
+}
+
+// SecretReference is a reference to a secret containing AWS credentials.
+type AWSAuthSecretReference struct {
+	// Name is the name of the secret.
+	// +kubebuilder:validation:Required
+	Name string `json:"name,omitempty"`
+}
+
+// AWSAuthIRSA defines the IRSA configuration for the upstream.
+type AWSAuthIRSA struct {
+	// RoleARN is the AWS IAM role to assume when using IRSA.
+	// Used for IAM-based authentication.
+	// +kubebuilder:validation:Required
+	RoleARN string `json:"roleARN,omitempty"`
+}
+
+const (
+	// AwsLambdaInvocationModeSynchronous is the synchronous invocation mode for the lambda function.
+	AwsLambdaInvocationModeSynchronous = "Sync"
+	// AwsLambdaInvocationModeAsynchronous is the asynchronous invocation mode for the lambda function.
+	AwsLambdaInvocationModeAsynchronous = "Async"
+)
+
+// AwsLambda configures the AWS lambda service.
+type AwsLambda struct {
+	// EndpointURL is the URL to use for the upstream host.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=2048
+	EndpointURL string `json:"endpointURL,omitempty"`
+	// FunctionName is the name of the lambda function to invoke.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=140
+	FunctionName string `json:"functionName"`
+	// InvocationMode defines how to invoke the lambda function.
+	// Defaults to SYNCHRONOUS if not specified.
+	// +optional
+	// +kubebuilder:validation:Enum=Sync;Async
+	InvocationMode string `json:"invocationMode,omitempty"`
+	// Qualifier is the qualifier of the lambda function to invoke.
+	// When unspecified, the $LATEST version of the function is used.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=128
+	Qualifier string `json:"qualifier,omitempty"`
+}
+
+// StaticBackend is an upstream that references a static list of hosts.
+type StaticBackend struct {
+	// Name configures the underlying Envoy cluster name.
+	// +optional
+	Name string `json:"name,omitempty"`
+	// Hosts is a list of hosts to use for the upstream.
+	// +kubebuilder:validation:required
 	// +kubebuilder:validation:MinItems=1
+	// +listType=map
+	// +listMapKey=host
 	Hosts []Host `json:"hosts,omitempty"`
 }
 
-// Host is a host and port pair.
+// Host defines a static upstream host.
 type Host struct {
-	// Host is the host name.
+	// Host is the host to use for the upstream.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
 	Host string `json:"host"`
-	// Port is the port number.
+	// Port is the port to use for the upstream.
+	// +kubebuilder:validation:Required
 	Port gwv1.PortNumber `json:"port"`
 }
 

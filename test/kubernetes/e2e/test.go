@@ -149,7 +149,7 @@ func (i *TestInstallation) InstallKgatewayFromLocalChart(ctx context.Context) {
 	}
 
 	chartUri, err := helper.GetLocalChartPath(helmutils.ChartName)
-	i.Assertions.Require.NoError(err)
+	i.Assertions.Require.NoError(err, "failed to get local chart path")
 
 	err = i.Actions.Helm().Install(
 		ctx,
@@ -172,7 +172,8 @@ func (i *TestInstallation) InstallKgatewayFromLocalChart(ctx context.Context) {
 // }
 
 func (i *TestInstallation) UninstallKgateway(ctx context.Context) {
-	if testutils.ShouldSkipInstall() {
+	if testutils.ShouldTearDown() {
+		fmt.Println("TEAR_DOWN is set, skipping uninstall")
 		return
 	}
 	err := i.Actions.Helm().Uninstall(

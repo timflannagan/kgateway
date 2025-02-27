@@ -298,6 +298,7 @@ func testScenario(
 		}
 	})
 
+	t.Logf("dumping xds")
 	dump := dumper.Dump(t, ctx)
 	if len(dump.Listeners) == 0 {
 		j, _ := kdbg.MarshalJSON()
@@ -314,8 +315,9 @@ func testScenario(
 		os.WriteFile(fout, d, 0644)
 		t.Fatal("wrote out file - nothing to test")
 	}
+	t.Logf("comparing xds dump")
 	dump.Compare(t, expectedXdsDump)
-	fmt.Println("test done")
+	t.Logf("xds dump compared")
 }
 
 // logKrtState logs the krt state with a message

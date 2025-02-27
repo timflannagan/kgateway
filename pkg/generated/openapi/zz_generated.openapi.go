@@ -20,12 +20,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptEnrichment":         schema_kgateway_v2_api_v1alpha1_AIPromptEnrichment(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptGuard":              schema_kgateway_v2_api_v1alpha1_AIPromptGuard(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIRoutePolicy":              schema_kgateway_v2_api_v1alpha1_AIRoutePolicy(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AWSAuthIRSA":                schema_kgateway_v2_api_v1alpha1_AWSAuthIRSA(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AWSAuthSecretReference":     schema_kgateway_v2_api_v1alpha1_AWSAuthSecretReference(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AccessLog":                  schema_kgateway_v2_api_v1alpha1_AccessLog(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AccessLogFilter":            schema_kgateway_v2_api_v1alpha1_AccessLogFilter(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AiExtension":                schema_kgateway_v2_api_v1alpha1_AiExtension(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AiExtensionStats":           schema_kgateway_v2_api_v1alpha1_AiExtensionStats(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AnthropicConfig":            schema_kgateway_v2_api_v1alpha1_AnthropicConfig(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsAuth":                    schema_kgateway_v2_api_v1alpha1_AwsAuth(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsBackend":                 schema_kgateway_v2_api_v1alpha1_AwsBackend(ref),
+		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsLambda":                  schema_kgateway_v2_api_v1alpha1_AwsLambda(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AzureOpenAIConfig":          schema_kgateway_v2_api_v1alpha1_AzureOpenAIConfig(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Backend":                    schema_kgateway_v2_api_v1alpha1_Backend(ref),
 		"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.BackendList":                schema_kgateway_v2_api_v1alpha1_BackendList(ref),
@@ -592,6 +596,46 @@ func schema_kgateway_v2_api_v1alpha1_AIRoutePolicy(ref common.ReferenceCallback)
 	}
 }
 
+func schema_kgateway_v2_api_v1alpha1_AWSAuthIRSA(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AWSAuthIRSA defines the IRSA configuration for the upstream.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"roleARN": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RoleARN is the AWS IAM role to assume when using IRSA. Used for IAM-based authentication.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_AWSAuthSecretReference(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SecretReference is a reference to a secret containing AWS credentials.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the secret.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_kgateway_v2_api_v1alpha1_AccessLog(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -850,6 +894,55 @@ func schema_kgateway_v2_api_v1alpha1_AnthropicConfig(ref common.ReferenceCallbac
 	}
 }
 
+func schema_kgateway_v2_api_v1alpha1_AwsAuth(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AwsAuth defines the authentication method to use for the upstream.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type is the type of authentication to use for the upstream.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"irsa": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IRSA is the IRSA authentication configuration.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AWSAuthIRSA"),
+						},
+					},
+					"secret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Secret is a reference to a secret containing AWS credentials.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AWSAuthSecretReference"),
+						},
+					},
+				},
+				Required: []string{"type"},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-unions": []interface{}{
+						map[string]interface{}{
+							"fields-to-discriminateBy": map[string]interface{}{
+								"irsa":   "IRSA",
+								"secret": "Secret",
+								"type":   "Type",
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AWSAuthIRSA", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AWSAuthSecretReference"},
+	}
+}
+
 func schema_kgateway_v2_api_v1alpha1_AwsBackend(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -857,25 +950,82 @@ func schema_kgateway_v2_api_v1alpha1_AwsBackend(ref common.ReferenceCallback) co
 				Description: "AwsBackend is the AWS backend configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"region": {
+					"accountId": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Region is the AWS region.",
+							Description: "AccountId is the AWS account ID to use for the upstream.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"secretRef": {
+					"auth": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecretRef is the secret reference for the AWS credentials.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("k8s.io/api/core/v1.LocalObjectReference"),
+							Description: "Auth specifies the authentication method to use for the upstream.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsAuth"),
+						},
+					},
+					"lambda": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Lambda configures the AWS lambda service.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsLambda"),
+						},
+					},
+					"region": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Region is the AWS region to use for the upstream. Defaults to us-east-1 if not specified.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
+				Required: []string{"accountId", "auth"},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.LocalObjectReference"},
+			"github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsAuth", "github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AwsLambda"},
+	}
+}
+
+func schema_kgateway_v2_api_v1alpha1_AwsLambda(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AwsLambda configures the AWS lambda service.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"endpointURL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EndpointURL is the URL to use for the upstream host.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"functionName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FunctionName is the name of the lambda function to invoke.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"invocationMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InvocationMode defines how to invoke the lambda function. Defaults to SYNCHRONOUS if not specified.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"qualifier": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Qualifier is the qualifier of the lambda function to invoke. When unspecified, the $LATEST version of the function is used.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"functionName"},
+			},
+		},
 	}
 }
 
@@ -2066,12 +2216,12 @@ func schema_kgateway_v2_api_v1alpha1_Host(ref common.ReferenceCallback) common.O
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Host is a host and port pair.",
+				Description: "Host defines a static upstream host.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"host": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Host is the host name.",
+							Description: "Host is the host to use for the upstream.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -2079,7 +2229,7 @@ func schema_kgateway_v2_api_v1alpha1_Host(ref common.ReferenceCallback) common.O
 					},
 					"port": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Port is the port number.",
+							Description: "Port is the port to use for the upstream.",
 							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
@@ -3398,12 +3548,27 @@ func schema_kgateway_v2_api_v1alpha1_StaticBackend(ref common.ReferenceCallback)
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "StaticBackend is the static backend configuration.",
+				Description: "StaticBackend is an upstream that references a static list of hosts.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"hosts": {
+					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Hosts is the list of hosts.",
+							Description: "Name configures the underlying Envoy cluster name.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"hosts": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"host",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Hosts is a list of hosts to use for the upstream.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
