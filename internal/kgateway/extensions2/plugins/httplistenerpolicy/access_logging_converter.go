@@ -25,8 +25,8 @@ import (
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/krtcollections"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 	kwellknown "github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 )
@@ -35,29 +35,38 @@ import (
 func convertAccessLogConfig(
 	ctx context.Context,
 	policy *v1alpha1.HTTPListenerPolicy,
-	commoncol *common.CommonCollections,
+	backends *krtcollections.BackendIndex,
 	krtctx krt.HandlerContext,
 	parentSrc ir.ObjectSource,
 ) ([]*envoyaccesslog.AccessLog, error) {
 	configs := policy.Spec.AccessLog
-
 	if configs != nil && len(configs) == 0 {
 		return nil, nil
 	}
 
 	grpcBackends := make(map[string]*ir.BackendObjectIR, len(policy.Spec.AccessLog))
 	for idx, log := range configs {
-		if log.GrpcService != nil && log.GrpcService.BackendRef != nil {
-			upstream, err := commoncol.Backends.GetBackendFromRef(krtctx, parentSrc, log.GrpcService.BackendRef.BackendObjectReference)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get upstream from ref: %s", err.Error())
-			}
-			grpcBackends[getLogId(log.GrpcService.LogName, idx)] = upstream
+		if log.GrpcService == nil {
+			continue
 		}
+		if log.GrpcService.BackendRef == nil {
+			continue
+		}
+
+		ref, err := backends.GetBackendFromRef(krtctx, parentSrc, log.GrpcService.BackendRef.BackendObjectReference)
+		if err != nil {
+			return nil, fmt.Errorf("tim -- failed to get upstream from ref: %s", err.Error())
+		}
+		grpcBackends[getLogId(log.GrpcService.LogName, idx)] = ref
 	}
 
 	logger := contextutils.LoggerFrom(ctx).Desugar()
-	return translateAccessLogs(logger, configs, grpcBackends)
+	res, err := translateAccessLogs(logger, configs, grpcBackends)
+	if err != nil {
+		return nil, fmt.Errorf("failed to translate access logs: %s", err.Error())
+	}
+
+	return res, nil
 }
 
 func getLogId(logName string, idx int) string {
@@ -66,7 +75,6 @@ func getLogId(logName string, idx int) string {
 
 func translateAccessLogs(logger *zap.Logger, configs []v1alpha1.AccessLog, grpcBackends map[string]*ir.BackendObjectIR) ([]*envoyaccesslog.AccessLog, error) {
 	var results []*envoyaccesslog.AccessLog
-
 	for idx, logConfig := range configs {
 		accessLogCfg, err := translateAccessLog(logger, logConfig, grpcBackends, idx)
 		if err != nil {
@@ -74,12 +82,16 @@ func translateAccessLogs(logger *zap.Logger, configs []v1alpha1.AccessLog, grpcB
 		}
 		results = append(results, accessLogCfg)
 	}
-
 	return results, nil
 }
 
 // translateAccessLog creates an Envoy AccessLog configuration for a single log config
-func translateAccessLog(logger *zap.Logger, logConfig v1alpha1.AccessLog, grpcBackends map[string]*ir.BackendObjectIR, accessLogId int) (*envoyaccesslog.AccessLog, error) {
+func translateAccessLog(
+	logger *zap.Logger,
+	logConfig v1alpha1.AccessLog,
+	grpcBackends map[string]*ir.BackendObjectIR,
+	accessLogId int,
+) (*envoyaccesslog.AccessLog, error) {
 	// Validate mutual exclusivity of sink types
 	if logConfig.FileSink != nil && logConfig.GrpcService != nil {
 		return nil, errors.New("access log config cannot have both file sink and grpc service")
@@ -173,8 +185,13 @@ func addAccessLogFilter(logger *zap.Logger, accessLogCfg *envoyaccesslog.AccessL
 		filters []*envoyaccesslog.AccessLogFilter
 		err     error
 	)
-
 	switch {
+	case filter.FilterType != nil:
+		cfg, err := translateFilter(logger, filter.FilterType)
+		if err != nil {
+			return err
+		}
+		accessLogCfg.Filter = cfg
 	case filter.OrFilter != nil:
 		filters, err = translateOrFilters(logger, filter.OrFilter)
 		if err != nil {
@@ -190,11 +207,6 @@ func addAccessLogFilter(logger *zap.Logger, accessLogCfg *envoyaccesslog.AccessL
 		}
 		accessLogCfg.GetFilter().FilterSpecifier = &envoyaccesslog.AccessLogFilter_AndFilter{
 			AndFilter: &envoyaccesslog.AndFilter{Filters: filters},
-		}
-	case filter.FilterType != nil:
-		accessLogCfg.Filter, err = translateFilter(logger, filter.FilterType)
-		if err != nil {
-			return err
 		}
 	}
 
@@ -310,13 +322,11 @@ func translateFilter(logger *zap.Logger, filter *v1alpha1.FilterType) (*envoyacc
 		}
 
 	case filter.CELFilter != nil:
-		celExpressionFilter := &cel.ExpressionFilter{
+		celCfg, err := utils.MessageToAny(&cel.ExpressionFilter{
 			Expression: filter.CELFilter.Match,
-		}
-		celCfg, err := utils.MessageToAny(celExpressionFilter)
+		})
 		if err != nil {
-			logger.Error(fmt.Sprintf("error converting CEL filter: %s", err.Error()))
-			return nil, err
+			return nil, fmt.Errorf("error converting CEL filter: %s", err.Error())
 		}
 
 		alCfg = &envoyaccesslog.AccessLogFilter{

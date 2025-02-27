@@ -82,7 +82,7 @@ func tlsInspectorFilter() *envoy_config_listener_v3.ListenerFilter {
 	}
 }
 
-func (h *filterChainTranslator) initFilterChain(ctx context.Context, fcc ir.FilterChainCommon, reporter reports.ListenerReporter) *envoy_config_listener_v3.FilterChain {
+func (h *filterChainTranslator) initFilterChain(_ context.Context, fcc ir.FilterChainCommon, _ reports.ListenerReporter) *envoy_config_listener_v3.FilterChain {
 	info := &FilterChainInfo{
 		Match: fcc.Matcher,
 		TLS:   fcc.TLS,
@@ -135,6 +135,7 @@ func (n *filterChainTranslator) computePreHCMFilters(ctx context.Context, l ir.H
 	for _, plug := range n.PluginPass {
 		stagedFilters, err := plug.NetworkFilters(ctx)
 		if err != nil {
+			contextutils.LoggerFrom(ctx).Error("error processing network plugin", zap.Error(err))
 			reporter.SetCondition(reports.ListenerCondition{
 				Type:    gwv1.ListenerConditionProgrammed,
 				Reason:  gwv1.ListenerReasonInvalid,
@@ -195,7 +196,6 @@ func (h *hcmNetworkFilterTranslator) computeNetworkFilters(ctx context.Context, 
 	httpConnectionManager := h.initializeHCM()
 
 	// 2. Apply HttpFilters
-	var err error
 	httpConnectionManager.HttpFilters = h.computeHttpFilters(ctx, l)
 
 	pass := h.PluginPass
@@ -204,11 +204,12 @@ func (h *hcmNetworkFilterTranslator) computeNetworkFilters(ctx context.Context, 
 		h.gateway.AttachedHttpPolicies,
 		l.AttachedPolicies,
 	}
+
 	for _, attachedPolicies := range attachedPoliciesSlice {
 		for gk, pols := range attachedPolicies.Policies {
 			pass := pass[gk]
 			if pass == nil {
-				// TODO: report user error - they attached a non http policy
+				contextutils.LoggerFrom(ctx).DPanicf("no pass found for policy", zap.String("policy", gk.String()))
 				continue
 			}
 			for _, pol := range pols {
@@ -216,6 +217,7 @@ func (h *hcmNetworkFilterTranslator) computeNetworkFilters(ctx context.Context, 
 					Policy: pol.PolicyIr,
 				}
 				if err := pass.ApplyHCM(ctx, pctx, httpConnectionManager); err != nil {
+					contextutils.LoggerFrom(ctx).Error("error processing HCM plugin", zap.Error(err))
 					h.reporter.SetCondition(reports.ListenerCondition{
 						Type:    gwv1.ListenerConditionProgrammed,
 						Reason:  gwv1.ListenerReasonInvalid,
@@ -265,14 +267,14 @@ func (h *hcmNetworkFilterTranslator) initializeHCM() *envoyhttp.HttpConnectionMa
 }
 
 func (h *hcmNetworkFilterTranslator) computeHttpFilters(ctx context.Context, l ir.HttpFilterChainIR) []*envoyhttp.HttpFilter {
-	var httpFilters plugins.StagedHttpFilterList
-
 	log := contextutils.LoggerFrom(ctx).Desugar()
 
+	var httpFilters plugins.StagedHttpFilterList
 	// run the HttpFilter Plugins
 	for _, plug := range h.PluginPass {
 		stagedFilters, err := plug.HttpFilters(ctx, l.FilterChainCommon)
 		if err != nil {
+			log.Error("failed to process http plugin", zap.Error(err))
 			// what to do with errors here? ignore the listener??
 			h.reporter.SetCondition(reports.ListenerCondition{
 				Type:    gwv1.ListenerConditionProgrammed,
@@ -358,11 +360,9 @@ func (h *hcmNetworkFilterTranslator) computeUpstreamHTTPFilters(ctx context.Cont
 			upstreamHttpFilters = append(upstreamHttpFilters, httpFilter)
 		}
 	}
-
 	if len(upstreamHttpFilters) == 0 {
 		return
 	}
-
 	sort.Sort(upstreamHttpFilters)
 
 	sortedFilters := make([]*envoyhttp.HttpFilter, len(upstreamHttpFilters))
@@ -372,6 +372,7 @@ func (h *hcmNetworkFilterTranslator) computeUpstreamHTTPFilters(ctx context.Cont
 
 	msg, err := anypb.New(&codecv3.UpstreamCodec{})
 	if err != nil {
+		log.Error("failed to sort upstream http filters", zap.Error(err))
 		// what to do with errors here? ignore the listener??
 		h.reporter.SetCondition(reports.ListenerCondition{
 			Type:    gwv1.ListenerConditionProgrammed,
@@ -478,6 +479,7 @@ type SslConfig struct {
 	Bundle     TlsBundle
 	SniDomains []string
 }
+
 type TlsBundle struct {
 	CA         []byte
 	PrivateKey []byte

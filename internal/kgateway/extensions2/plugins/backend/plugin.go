@@ -140,7 +140,6 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 			ParameterGK: {
 				Name:                      "upstream",
 				NewGatewayTranslationPass: newPlug,
-				//			AttachmentPoints: []ir.AttachmentPoints{ir.HttpBackendRefAttachmentPoint},
 				PoliciesFetch: func(n, ns string) ir.PolicyIR {
 					// virtual policy - we don't have a real policy object
 					return &backendDestination{

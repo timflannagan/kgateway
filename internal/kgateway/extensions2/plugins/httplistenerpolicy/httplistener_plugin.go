@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sort"
 	"time"
 
 	envoyaccesslog "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
@@ -12,16 +13,22 @@ import (
 	envoy_hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/solo-io/go-utils/contextutils"
 	"google.golang.org/protobuf/proto"
+	"istio.io/istio/pkg/config/schema/kubeclient"
+	"istio.io/istio/pkg/kube/kclient"
 	"istio.io/istio/pkg/kube/krt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
 	extensionplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
 	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/krtcollections"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/plugins"
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils/krtutil"
+	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 )
 
 type httpListenerPolicy struct {
@@ -55,22 +62,27 @@ func (d *httpListenerPolicy) Equals(in any) bool {
 	return true
 }
 
-type httpListenerPolicyPluginGwPass struct {
-}
-
-func (p *httpListenerPolicyPluginGwPass) ApplyListenerPlugin(ctx context.Context, pCtx *ir.ListenerContext, out *envoy_config_listener_v3.Listener) {
-	// no op
+func registerTypes(ourCli versioned.Interface) {
+	kubeclient.Register[*v1alpha1.HTTPListenerPolicy](
+		v1alpha1.HTTPListenerPolicyGVK.GroupVersion().WithResource("httplistenerpolicies"),
+		v1alpha1.HTTPListenerPolicyGVK,
+		func(c kubeclient.ClientGetter, namespace string, o metav1.ListOptions) (runtime.Object, error) {
+			return ourCli.GatewayV1alpha1().HTTPListenerPolicies(namespace).List(context.Background(), o)
+		},
+		func(c kubeclient.ClientGetter, namespace string, o metav1.ListOptions) (watch.Interface, error) {
+			return ourCli.GatewayV1alpha1().HTTPListenerPolicies(namespace).Watch(context.Background(), o)
+		},
+	)
 }
 
 func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensionplug.Plugin {
 	// need upstreams for backend refs
-	col := krtutil.SetupCollectionDynamic[v1alpha1.HTTPListenerPolicy](
-		ctx,
-		commoncol.Client,
-		v1alpha1.SchemeGroupVersion.WithResource("httplistenerpolicies"),
-		commoncol.KrtOpts.ToOptions("HTTPListenerPolicy")...,
-	)
+	registerTypes(commoncol.OurClient)
+	col := krt.WrapClient(kclient.New[*v1alpha1.HTTPListenerPolicy](commoncol.Client), commoncol.KrtOpts.ToOptions("HTTPListenerPolicy")...)
 	gk := v1alpha1.HTTPListenerPolicyGVK.GroupKind()
+
+	translateFn := translateFn(ctx, commoncol.Backends)
+
 	policyCol := krt.NewCollection(col, func(krtctx krt.HandlerContext, i *v1alpha1.HTTPListenerPolicy) *ir.PolicyWrapper {
 		objSrc := ir.ObjectSource{
 			Group:     gk.Group,
@@ -79,36 +91,46 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 			Name:      i.Name,
 		}
 
-		errors := []error{}
-		accessLog, err := convertAccessLogConfig(ctx, i, commoncol, krtctx, objSrc)
-		if err != nil {
-			contextutils.LoggerFrom(ctx).Error(err)
-			errors = append(errors, err)
-		}
+		polIR, err := translateFn(krtctx, i, objSrc)
 
-		var pol = &ir.PolicyWrapper{
+		return &ir.PolicyWrapper{
 			ObjectSource: objSrc,
 			Policy:       i,
-			PolicyIR: &httpListenerPolicy{
-				ct:        i.CreationTimestamp.Time,
-				compress:  i.Spec.Compress,
-				accessLog: accessLog,
-			},
-			TargetRefs: convert(i.Spec.TargetRef),
-			Errors:     errors,
+			PolicyIR:     polIR,
+			TargetRefs:   convert(i.Spec.TargetRef),
+			Errors:       []error{err},
 		}
-
-		return pol
 	})
 
 	return extensionplug.Plugin{
 		ContributesPolicies: map[schema.GroupKind]extensionsplug.PolicyPlugin{
-			v1alpha1.HTTPListenerPolicyGVK.GroupKind(): {
-				//AttachmentPoints: []ir.AttachmentPoints{ir.HttpAttachmentPoint},
+			gk: {
+				Name:                      "httplistenerpolicies",
 				NewGatewayTranslationPass: NewGatewayTranslationPass,
 				Policies:                  policyCol,
 			},
 		},
+		ExtraHasSynced: func() bool {
+			return commoncol.HasSynced()
+		},
+	}
+}
+
+func translateFn(
+	ctx context.Context,
+	backends *krtcollections.BackendIndex,
+) func(krtctx krt.HandlerContext, i *v1alpha1.HTTPListenerPolicy, src ir.ObjectSource) (*httpListenerPolicy, error) {
+	return func(krtctx krt.HandlerContext, i *v1alpha1.HTTPListenerPolicy, src ir.ObjectSource) (*httpListenerPolicy, error) {
+		accessLog, err := convertAccessLogConfig(ctx, i, backends, krtctx, src)
+		if err != nil {
+			return nil, err
+		}
+
+		return &httpListenerPolicy{
+			ct:        i.CreationTimestamp.Time,
+			compress:  i.Spec.Compress,
+			accessLog: accessLog,
+		}, nil
 	}
 }
 
@@ -120,9 +142,17 @@ func convert(targetRef v1alpha1.LocalPolicyTargetReference) []ir.PolicyTargetRef
 	}}
 }
 
+type httpListenerPolicyPluginGwPass struct {
+}
+
+func (p *httpListenerPolicyPluginGwPass) ApplyListenerPlugin(ctx context.Context, pCtx *ir.ListenerContext, out *envoy_config_listener_v3.Listener) {
+	// no op
+}
+
 func NewGatewayTranslationPass(ctx context.Context, tctx ir.GwTranslationCtx) ir.ProxyTranslationPass {
 	return &httpListenerPolicyPluginGwPass{}
 }
+
 func (p *httpListenerPolicyPluginGwPass) Name() string {
 	return "httplistenerpolicies"
 }
@@ -130,14 +160,25 @@ func (p *httpListenerPolicyPluginGwPass) Name() string {
 func (p *httpListenerPolicyPluginGwPass) ApplyHCM(
 	ctx context.Context,
 	pCtx *ir.HcmContext,
-	out *envoy_hcm.HttpConnectionManager) error {
+	out *envoy_hcm.HttpConnectionManager,
+) error {
 	policy, ok := pCtx.Policy.(*httpListenerPolicy)
 	if !ok {
 		return fmt.Errorf("internal error: expected httplistener policy, got %T", pCtx.Policy)
 	}
 
+	al := policy.accessLog
+	if len(al) == 0 {
+		contextutils.LoggerFrom(ctx).Info("tim -- no access log configs were cached for policy")
+		return nil
+	}
+	sort.Slice(al, func(i, j int) bool {
+		return al[i].Name < al[j].Name
+	})
+
 	// translate access logging configuration
-	out.AccessLog = append(out.GetAccessLog(), policy.accessLog...)
+	contextutils.LoggerFrom(ctx).Infof("tim -- plugin translated %d access log configs", len(al))
+	out.AccessLog = append(out.GetAccessLog(), al...)
 	return nil
 }
 

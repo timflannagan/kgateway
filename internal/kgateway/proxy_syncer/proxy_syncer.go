@@ -66,6 +66,32 @@ type ProxySyncer struct {
 	waitForSync []cache.InformerSynced
 }
 
+// NewProxySyncer returns an implementation of the ProxySyncer
+// The provided GatewayInputChannels are used to trigger syncs.
+func NewProxySyncer(
+	ctx context.Context,
+	controllerName string,
+	mgr manager.Manager,
+	client kube.Client,
+	uniqueClients krt.Collection[ir.UniqlyConnectedClient],
+	extensionsFactory extensions.K8sGatewayExtensionsFactory,
+	commonCols *common.CommonCollections,
+	xdsCache envoycache.SnapshotCache,
+) *ProxySyncer {
+	extensions := extensionsFactory(ctx, commonCols)
+
+	return &ProxySyncer{
+		controllerName:  controllerName,
+		commonCols:      commonCols,
+		mgr:             mgr,
+		istioClient:     client,
+		proxyTranslator: NewProxyTranslator(xdsCache),
+		uniqueClients:   uniqueClients,
+		translator:      translator.NewCombinedTranslator(ctx, extensions, commonCols),
+		extensions:      extensions,
+	}
+}
+
 type GatewayXdsResources struct {
 	types.NamespacedName
 
@@ -84,10 +110,12 @@ type GatewayXdsResources struct {
 func (r GatewayXdsResources) ResourceName() string {
 	return xds.OwnerNamespaceNameID(wellknown.GatewayApiProxyValue, r.Namespace, r.Name)
 }
+
 func (r GatewayXdsResources) Equals(in GatewayXdsResources) bool {
 	return r.NamespacedName == in.NamespacedName && report{r.reports}.Equals(report{in.reports}) && r.ClustersHash == in.ClustersHash &&
 		r.Routes.Version == in.Routes.Version && r.Listeners.Version == in.Listeners.Version
 }
+
 func sliceToResourcesHash[T proto.Message](slice []T) ([]envoycachetypes.ResourceWithTTL, uint64) {
 	var slicePb []envoycachetypes.ResourceWithTTL
 	var resourcesHash uint64
@@ -118,32 +146,6 @@ func toResources(gw ir.Gateway, xdsSnap irtranslator.TranslationResult, r report
 		Clusters:     c,
 		Routes:       sliceToResources(xdsSnap.Routes),
 		Listeners:    sliceToResources(xdsSnap.Listeners),
-	}
-}
-
-// NewProxySyncer returns an implementation of the ProxySyncer
-// The provided GatewayInputChannels are used to trigger syncs.
-func NewProxySyncer(
-	ctx context.Context,
-	controllerName string,
-	mgr manager.Manager,
-	client kube.Client,
-	uniqueClients krt.Collection[ir.UniqlyConnectedClient],
-	extensionsFactory extensions.K8sGatewayExtensionsFactory,
-	commonCols *common.CommonCollections,
-	xdsCache envoycache.SnapshotCache,
-) *ProxySyncer {
-	extensions := extensionsFactory(ctx, commonCols)
-
-	return &ProxySyncer{
-		controllerName:  controllerName,
-		commonCols:      commonCols,
-		mgr:             mgr,
-		istioClient:     client,
-		proxyTranslator: NewProxyTranslator(xdsCache),
-		uniqueClients:   uniqueClients,
-		translator:      translator.NewCombinedTranslator(ctx, extensions, commonCols),
-		extensions:      extensions,
 	}
 }
 
@@ -196,9 +198,10 @@ func (s *ProxySyncer) Init(ctx context.Context, isOurGw func(gw *gwv1.Gateway) b
 
 	finalBackends := krt.JoinCollection(backendIndex.Backends(), krtopts.ToOptions("FinalUpstreams")...)
 
+	logger.Info("tim -- adding backends to common collections")
 	// add the upstreams to the common collections, so they are available for policies.
 	s.commonCols.Backends = backendIndex
-
+	// TODO: Does this need s.commonCols to be DI?
 	s.translator.Init(ctx, routes)
 
 	s.mostXdsSnapshots = krt.NewCollection(kubeGateways.Gateways, func(kctx krt.HandlerContext, gw ir.Gateway) *GatewayXdsResources {
@@ -285,6 +288,7 @@ func (s *ProxySyncer) Init(ctx context.Context, isOurGw func(gw *gwv1.Gateway) b
 		routes.HasSynced,
 		s.translator.HasSynced,
 	}
+
 	return nil
 }
 
@@ -498,19 +502,6 @@ func (s *ProxySyncer) syncGatewayStatus(ctx context.Context, rm reports.ReportMa
 	duration := stopwatch.Stop(ctx)
 	logger.Debugf("synced gw status for %d gateways in %s", len(rm.Gateways), duration.String())
 }
-
-//func applyPostTranslationPlugins(ctx context.Context, pluginRegistry registry.PluginRegistry, translationContext *gwplugins.PostTranslationContext) {
-//	ctx = contextutils.WithLogger(ctx, "postTranslation")
-//	logger := contextutils.LoggerFrom(ctx)
-//
-//	for _, postTranslationPlugin := range pluginRegistry.GetPostTranslationPlugins() {
-//		err := postTranslationPlugin.ApplyPostTranslationPlugin(ctx, translationContext)
-//		if err != nil {
-//			logger.Errorf("Error applying post-translation plugin: %v", err)
-//			continue
-//		}
-//	}
-//}
 
 var opts = cmp.Options{
 	cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),

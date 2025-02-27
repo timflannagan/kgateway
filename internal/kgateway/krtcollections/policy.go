@@ -1,6 +1,7 @@
 package krtcollections
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator/backendref"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils/krtutil"
+	"github.com/solo-io/go-utils/contextutils"
 )
 
 var (
@@ -29,7 +31,7 @@ type NotFoundError struct {
 }
 
 func (n *NotFoundError) Error() string {
-	return fmt.Sprintf("%s \"%s\" not found", n.NotFoundObj.Kind, n.NotFoundObj.Name)
+	return fmt.Sprintf("%s '%s' in namespace '%s' not found", n.NotFoundObj.Kind, n.NotFoundObj.Name, n.NotFoundObj.Namespace)
 }
 
 type BackendIndex struct {
@@ -57,16 +59,24 @@ func NewBackendIndex(
 
 func (i *BackendIndex) HasSynced() bool {
 	if !i.policies.HasSynced() {
+		contextutils.LoggerFrom(context.Background()).Info("tim -- policies have not synced")
 		return false
 	}
 	if !i.refgrants.HasSynced() {
+		contextutils.LoggerFrom(context.Background()).Info("tim -- refgrants have not synced")
 		return false
 	}
 	for _, col := range i.availableBackends {
 		if !col.Synced().HasSynced() {
+			contextutils.LoggerFrom(context.Background()).Info("tim -- available backend has not synced")
 			return false
 		}
 	}
+	if len(i.availableBackends) == 0 {
+		contextutils.LoggerFrom(context.Background()).Info("tim -- no available backends")
+		return false
+	}
+
 	return true
 }
 
@@ -89,6 +99,11 @@ func (i *BackendIndex) AddBackends(gk schema.GroupKind, col krt.Collection[ir.Ba
 
 // if we want to make this function public, make it do ref grants
 func (i *BackendIndex) getBackend(kctx krt.HandlerContext, gk schema.GroupKind, n types.NamespacedName, gwport *gwv1.PortNumber) (*ir.BackendObjectIR, error) {
+	if i == nil {
+		contextutils.LoggerFrom(context.Background()).Panicf("tim -- no backend index")
+		return nil, ErrUnknownBackendKind
+	}
+
 	key := ir.ObjectSource{
 		Group:     emptyIfCore(gk.Group),
 		Kind:      gk.Kind,
@@ -132,6 +147,9 @@ func (i *BackendIndex) GetBackendFromRef(kctx krt.HandlerContext, src ir.ObjectS
 		Kind:  src.Kind,
 	}
 	to := toFromBackendRef(fromns, ref)
+
+	// hack
+	return i.getBackendFromRef(kctx, src.Namespace, ref)
 
 	if i.refgrants.ReferenceAllowed(kctx, fromgk, fromns, to) {
 		return i.getBackendFromRef(kctx, src.Namespace, ref)

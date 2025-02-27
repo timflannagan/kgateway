@@ -65,13 +65,11 @@ func (s *CombinedTranslator) Init(ctx context.Context, routes *krtcollections.Ro
 	ctx = contextutils.WithLogger(ctx, "k8s-gw-proxy-syncer")
 
 	nsCol := krtcollections.NewNamespaceCollection(ctx, s.commonCols.Client, s.commonCols.KrtOpts)
-
-	queries := query.NewData(
+	s.gwtranslator = gwtranslator.NewTranslator(query.NewData(
 		routes,
 		s.commonCols.Secrets,
 		nsCol,
-	)
-	s.gwtranslator = gwtranslator.NewTranslator(queries)
+	))
 	s.irtranslator = &irtranslator.Translator{
 		ContributedPolicies: s.extensions.ContributesPolicies,
 	}
@@ -83,11 +81,13 @@ func (s *CombinedTranslator) Init(ctx context.Context, routes *krtcollections.Ro
 		s.backendTranslator.ContributedBackends[k] = up.BackendInit
 	}
 
-	s.waitForSync = append(s.waitForSync,
+	s.waitForSync = append(
+		s.waitForSync,
 		s.commonCols.HasSynced,
 		s.extensions.HasSynced,
 		routes.HasSynced,
 	)
+
 	return nil
 }
 func (s *CombinedTranslator) HasSynced() bool {

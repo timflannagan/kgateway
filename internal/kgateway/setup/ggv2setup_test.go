@@ -212,6 +212,24 @@ func TestScenarios(t *testing.T) {
 	for _, f := range files {
 		// run tests with the yaml files (but not -out.yaml files)/s
 		parentT := t
+
+		// if !strings.Contains(f.Name(), "accesslog-filtercel-httplisteneropt") {
+		// 	t.Logf("skipping %s", f.Name())
+		// 	continue
+		// }
+
+		// if !strings.Contains(f.Name(), "accesslog-httplisteneropt.yaml") {
+		// 	t.Logf("skipping %s", f.Name())
+		// 	continue
+		// }
+
+		if !strings.Contains(f.Name(), "accesslog-filterhttp-httplisteneropt.yaml") {
+			t.Logf("skipping %s", f.Name())
+			continue
+		}
+
+		t.Logf("running %s", f.Name())
+
 		if strings.HasSuffix(f.Name(), ".yaml") && !strings.HasSuffix(f.Name(), "-out.yaml") {
 			fullpath := filepath.Join("testdata", f.Name())
 			t.Run(strings.TrimSuffix(f.Name(), ".yaml"), func(t *testing.T) {
@@ -267,11 +285,8 @@ func testScenario(
 	// change the gw name, so we could potentially run multiple tests in parallel (tough currently
 	// it has other issues, so we don't run them in parallel)
 	testyaml := strings.ReplaceAll(string(testyamlbytes), gwname, testgwname)
-
 	yamlfile := filepath.Join(t.TempDir(), "test.yaml")
 	os.WriteFile(yamlfile, []byte(testyaml), 0644)
-
-	err = client.ApplyYAMLFiles("", yamlfile)
 
 	t.Cleanup(func() {
 		// always delete yamls, even if there was an error applying them; to prevent test pollution.
@@ -282,15 +297,13 @@ func testScenario(
 		t.Log("deleted yamls", t.Name())
 	})
 
+	err = client.ApplyYAMLFiles("", yamlfile)
 	if err != nil {
 		t.Fatalf("failed to apply yaml: %v", err)
 	}
 	t.Log("applied yamls", t.Name())
 	// make sure all yamls reached the control plane
 	time.Sleep(time.Second)
-
-	dumper := newXdsDumper(t, ctx, xdsPort, testgwname)
-	t.Cleanup(dumper.Close)
 
 	t.Cleanup(func() {
 		if t.Failed() {
@@ -299,6 +312,9 @@ func testScenario(
 			logKrtState(t, fmt.Sprintf("krt state for successful test: %s", t.Name()), kdbg)
 		}
 	})
+
+	dumper := newXdsDumper(t, ctx, xdsPort, testgwname)
+	t.Cleanup(dumper.Close)
 
 	dump := dumper.Dump(t, ctx)
 	if len(dump.Listeners) == 0 {
@@ -388,9 +404,10 @@ func (x xdsDumper) Dump(t *testing.T, ctx context.Context) xdsDump {
 	dr.TypeUrl = "type.googleapis.com/envoy.config.listener.v3.Listener"
 	x.adsClient.Send(dr)
 
-	var clusters []*envoycluster.Cluster
-	var listeners []*envoylistener.Listener
-
+	var (
+		clusters  []*envoycluster.Cluster
+		listeners []*envoylistener.Listener
+	)
 	// run this in parallel with a 5s timeout
 	done := make(chan struct{})
 	go func() {
@@ -541,7 +558,6 @@ func (x *xdsDump) Compare(t *testing.T, other xdsDump) {
 	if len(x.Clusters) != len(other.Clusters) {
 		t.Errorf("expected %v clusters, got %v", len(other.Clusters), len(x.Clusters))
 	}
-
 	if len(x.Listeners) != len(other.Listeners) {
 		t.Errorf("expected %v listeners, got %v", len(other.Listeners), len(x.Listeners))
 	}
@@ -569,17 +585,19 @@ func (x *xdsDump) Compare(t *testing.T, other xdsDump) {
 		}
 	}
 	listenerset := map[string]*envoylistener.Listener{}
-	for _, c := range x.Listeners {
-		listenerset[c.Name] = c
+	for _, l := range x.Listeners {
+		listenerset[l.Name] = l
 	}
-	for _, c := range other.Listeners {
-		otherc := listenerset[c.Name]
-		if otherc == nil {
-			t.Errorf("listener %v not found", c.Name)
+	for _, otherl := range other.Listeners {
+		ourl := listenerset[otherl.Name]
+		if ourl == nil {
+			t.Errorf("listener %v not found", otherl.Name)
 			continue
 		}
-		if !proto.Equal(c, otherc) {
-			t.Errorf("listener %v not equal", c.Name)
+		if !proto.Equal(otherl, ourl) {
+			t.Errorf("listener %v not equal", otherl.Name)
+			t.Errorf("got: %s", ourl.String())
+			t.Errorf("expected: %s", otherl.String())
 		}
 	}
 	routeset := map[string]*envoy_config_route_v3.RouteConfiguration{}
@@ -594,6 +612,8 @@ func (x *xdsDump) Compare(t *testing.T, other xdsDump) {
 		}
 		if !proto.Equal(c, otherc) {
 			t.Errorf("route %v not equal: %v vs %v", c.Name, c, otherc)
+			t.Errorf("got: %s", c.String())
+			t.Errorf("expected: %s", otherc.String())
 		}
 	}
 

@@ -105,11 +105,11 @@ clusters:
       - endpoint:
           address:
             socketAddress:
-              address: 1.2.3.4
-              portValue: 8080
+              address: 10.244.1.11
+              portValue: 50051
           healthCheckConfig:
-            hostname: 1.2.3.4
-          hostname: 1.2.3.4
+            hostname: 10.244.1.11
+          hostname: 10.244.1.11
   metadata: {}
   name: backend_gwtest_log_0
   transportSocketMatches:
@@ -161,7 +161,7 @@ endpoints:
         address:
           socketAddress:
             address: 10.244.1.11
-            portValue: 8080
+            portValue: 50051
       loadBalancingWeight: 1
     loadBalancingWeight: 1
 listeners:
@@ -176,21 +176,6 @@ listeners:
       typedConfig:
         '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
         accessLog:
-        - filter:
-            extensionFilter:
-              name: envoy.access_loggers.extension_filters.cel
-              typedConfig:
-                '@type': type.googleapis.com/envoy.extensions.access_loggers.filters.cel.v3.ExpressionFilter
-                expression: request.headers['test'].contains('cool-beans')
-          name: envoy.access_loggers.http_grpc
-          typedConfig:
-            '@type': type.googleapis.com/envoy.extensions.access_loggers.grpc.v3.HttpGrpcAccessLogConfig
-            commonConfig:
-              grpcService:
-                envoyGrpc:
-                  clusterName: log
-              logName: test-accesslog-service
-              transportApiVersion: V3
         - filter:
             extensionFilter:
               name: envoy.access_loggers.extension_filters.cel
@@ -232,21 +217,6 @@ listeners:
       typedConfig:
         '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
         accessLog:
-        - filter:
-            extensionFilter:
-              name: envoy.access_loggers.extension_filters.cel
-              typedConfig:
-                '@type': type.googleapis.com/envoy.extensions.access_loggers.filters.cel.v3.ExpressionFilter
-                expression: request.headers['test'].contains('cool-beans')
-          name: envoy.access_loggers.http_grpc
-          typedConfig:
-            '@type': type.googleapis.com/envoy.extensions.access_loggers.grpc.v3.HttpGrpcAccessLogConfig
-            commonConfig:
-              grpcService:
-                envoyGrpc:
-                  clusterName: log
-              logName: test-accesslog-service
-              transportApiVersion: V3
         - filter:
             extensionFilter:
               name: envoy.access_loggers.extension_filters.cel

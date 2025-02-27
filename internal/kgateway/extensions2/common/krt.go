@@ -33,10 +33,6 @@ type CommonCollections struct {
 	Settings settings.Settings
 }
 
-func (c *CommonCollections) HasSynced() bool {
-	return c.Secrets.HasSynced() && c.Pods.Synced().HasSynced() && c.RefGrants.HasSynced()
-}
-
 func NewCommonCollections(
 	krtOptions krtutil.KrtOptions,
 	client istiokube.Client,
@@ -66,6 +62,7 @@ func NewCommonCollections(
 	refgrantsCol := krt.WrapClient(kclient.New[*gwv1beta1.ReferenceGrant](client), krtOptions.ToOptions("RefGrants")...)
 	refgrants := krtcollections.NewRefGrantIndex(refgrantsCol)
 
+	// Note: Backends are initialized later in the proxy_syncer Init().
 	return &CommonCollections{
 		OurClient: ourClient,
 		Client:    client,
@@ -75,4 +72,8 @@ func NewCommonCollections(
 		RefGrants: refgrants,
 		Settings:  settings,
 	}
+}
+
+func (c *CommonCollections) HasSynced() bool {
+	return c.Secrets.HasSynced() && c.Pods.Synced().HasSynced() && c.RefGrants.HasSynced() && c.Backends.HasSynced()
 }
