@@ -898,17 +898,9 @@ func schema_kgateway_v2_api_v1alpha1_AwsAuth(ref common.ReferenceCallback) commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "AwsAuth defines the authentication method to use for the upstream.",
+				Description: "AwsAuth defines the authentication method to use for the backend.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"type": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Type is the type of authentication to use for the upstream.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"irsa": {
 						SchemaProps: spec.SchemaProps{
 							Description: "IRSA is the IRSA authentication configuration.",
@@ -919,20 +911,6 @@ func schema_kgateway_v2_api_v1alpha1_AwsAuth(ref common.ReferenceCallback) commo
 						SchemaProps: spec.SchemaProps{
 							Description: "Secret is a reference to a secret containing AWS credentials.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AWSAuthSecretReference"),
-						},
-					},
-				},
-				Required: []string{"type"},
-			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-unions": []interface{}{
-						map[string]interface{}{
-							"fields-to-discriminateBy": map[string]interface{}{
-								"irsa":   "IRSA",
-								"secret": "Secret",
-								"type":   "Type",
-							},
 						},
 					},
 				},
@@ -978,7 +956,7 @@ func schema_kgateway_v2_api_v1alpha1_AwsBackend(ref common.ReferenceCallback) co
 						},
 					},
 				},
-				Required: []string{"accountId", "auth"},
+				Required: []string{"accountId"},
 			},
 		},
 		Dependencies: []string{
@@ -3551,13 +3529,6 @@ func schema_kgateway_v2_api_v1alpha1_StaticBackend(ref common.ReferenceCallback)
 				Description: "StaticBackend is an upstream that references a static list of hosts.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name configures the underlying Envoy cluster name.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"hosts": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{

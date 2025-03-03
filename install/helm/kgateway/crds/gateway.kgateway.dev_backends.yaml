@@ -472,23 +472,7 @@ spec:
                         required:
                         - name
                         type: object
-                      type:
-                        enum:
-                        - irsa
-                        - secret
-                        type: string
-                    required:
-                    - type
                     type: object
-                    x-kubernetes-validations:
-                    - message: irsa auth must be nil if the type is not 'irsa'
-                      rule: '!(has(self.irsa) && self.type != ''irsa'')'
-                    - message: irsa auth must be specified when type is 'irsa'
-                      rule: '!(!has(self.irsa) && self.type == ''irsa'')'
-                    - message: secret auth must be nil if the type is not 'secret'
-                      rule: '!(has(self.secret) && self.type != ''secret'')'
-                    - message: secret auth must be specified when type is 'secret'
-                      rule: '!(!has(self.secret) && self.type == ''secret'')'
                   lambda:
                     properties:
                       endpointURL:
@@ -515,7 +499,6 @@ spec:
                     type: string
                 required:
                 - accountId
-                - auth
                 type: object
               static:
                 properties:
@@ -540,8 +523,6 @@ spec:
                     x-kubernetes-list-map-keys:
                     - host
                     x-kubernetes-list-type: map
-                  name:
-                    type: string
                 type: object
               type:
                 enum:

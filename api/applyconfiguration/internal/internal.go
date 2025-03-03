@@ -198,18 +198,6 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: secret
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.AWSAuthSecretReference
-    - name: type
-      type:
-        scalar: string
-      default: ""
-    unions:
-    - fields:
-      - fieldName: irsa
-        discriminatorValue: IRSA
-      - fieldName: secret
-        discriminatorValue: Secret
-      - fieldName: type
-        discriminatorValue: Type
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.AwsBackend
   map:
     fields:
@@ -1105,9 +1093,6 @@ var schemaYAML = typed.YAMLObject(`types:
           elementRelationship: associative
           keys:
           - host
-    - name: name
-      type:
-        scalar: string
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.StatsConfig
   map:
     fields:

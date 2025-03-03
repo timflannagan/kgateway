@@ -2,14 +2,9 @@
 
 package v1alpha1
 
-import (
-	apiv1alpha1 "github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
-)
-
 // AwsAuthApplyConfiguration represents a declarative configuration of the AwsAuth type for use
 // with apply.
 type AwsAuthApplyConfiguration struct {
-	Type   *apiv1alpha1.AwsAuthType                  `json:"type,omitempty"`
 	IRSA   *AWSAuthIRSAApplyConfiguration            `json:"irsa,omitempty"`
 	Secret *AWSAuthSecretReferenceApplyConfiguration `json:"secret,omitempty"`
 }
@@ -18,14 +13,6 @@ type AwsAuthApplyConfiguration struct {
 // apply.
 func AwsAuth() *AwsAuthApplyConfiguration {
 	return &AwsAuthApplyConfiguration{}
-}
-
-// WithType sets the Type field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Type field is set to the value of the last call.
-func (b *AwsAuthApplyConfiguration) WithType(value apiv1alpha1.AwsAuthType) *AwsAuthApplyConfiguration {
-	b.Type = &value
-	return b
 }
 
 // WithIRSA sets the IRSA field in the declarative configuration to the given value

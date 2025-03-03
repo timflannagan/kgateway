@@ -20,13 +20,13 @@ import (
 	envoyauth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_upstreams_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator/utils"
+	translatorutils "github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator/utils"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 )
 
 const (
@@ -112,7 +112,7 @@ func configureEndpoint(in *v1alpha1.AwsBackend) (*endpointConfig, error) {
 
 // configureTLS configures TLS for the cluster.
 func configureTLS(out *envoy_config_cluster_v3.Cluster, hostname string) error {
-	typedConfig, err := anypb.New(&envoyauth.UpstreamTlsContext{
+	typedConfig, err := utils.MessageToAny(&envoyauth.UpstreamTlsContext{
 		Sni: hostname,
 	})
 	if err != nil {
@@ -150,8 +150,14 @@ func buildLambdaARN(in *v1alpha1.AwsBackend, region string) (string, error) {
 // configureAWSAuth configures AWS authentication for the given backend.
 func configureAWSAuth(in *v1alpha1.AwsBackend, ir *BackendIr, region string) (*envoy_request_signing_v3.AwsRequestSigning, error) {
 	var awsRequestSigning *envoy_request_signing_v3.AwsRequestSigning
-	switch in.Auth.Type {
-	case v1alpha1.AwsAuthTypeIRSA:
+	switch {
+	case in.Auth == nil:
+		// when no auth has been specified, we use instance metadata.
+		awsRequestSigning = &envoy_request_signing_v3.AwsRequestSigning{
+			ServiceName: lambdaServiceName,
+			Region:      region,
+		}
+	case in.Auth.IRSA != nil:
 		awsRequestSigning = &envoy_request_signing_v3.AwsRequestSigning{
 			ServiceName: lambdaServiceName,
 			Region:      region,
@@ -167,7 +173,7 @@ func configureAWSAuth(in *v1alpha1.AwsBackend, ir *BackendIr, region string) (*e
 				},
 			},
 		}
-	case v1alpha1.AwsAuthTypeSecret:
+	case in.Auth.Secret != nil:
 		derived, err := deriveStaticSecret(ir.AwsSecret)
 		if err != nil {
 			return nil, fmt.Errorf("failed to derive static secret: %v", err)
@@ -185,7 +191,7 @@ func configureAWSAuth(in *v1alpha1.AwsBackend, ir *BackendIr, region string) (*e
 			},
 		}
 	default:
-		return nil, fmt.Errorf("unsupported auth type: %v", in.Auth.Type)
+		return nil, fmt.Errorf("unsupported auth type")
 	}
 
 	return awsRequestSigning, nil
@@ -203,16 +209,7 @@ func configureUpstreamHTTPFilters(
 		return err
 	}
 
-	awsRequestSigning, err := configureAWSAuth(in, ir, region)
-	if err != nil {
-		return err
-	}
-	awsRequestSigningAny, err := anypb.New(awsRequestSigning)
-	if err != nil {
-		return fmt.Errorf("failed to create aws request signing config: %v", err)
-	}
-
-	lambdaConfigAny, err := anypb.New(&envoy_lambda_v3.Config{
+	lambdaConfigAny, err := utils.MessageToAny(&envoy_lambda_v3.Config{
 		Arn:            lambdaARN,
 		InvocationMode: getLambdaInvocationMode(in),
 	})
@@ -220,12 +217,21 @@ func configureUpstreamHTTPFilters(
 		return fmt.Errorf("failed to create lambda config: %v", err)
 	}
 
-	codecConfigAny, err := anypb.New(&envoy_upstream_codec.UpstreamCodec{})
+	awsRequestSigning, err := configureAWSAuth(in, ir, region)
+	if err != nil {
+		return err
+	}
+	awsRequestSigningAny, err := utils.MessageToAny(awsRequestSigning)
+	if err != nil {
+		return fmt.Errorf("failed to create aws request signing config: %v", err)
+	}
+
+	codecConfigAny, err := utils.MessageToAny(&envoy_upstream_codec.UpstreamCodec{})
 	if err != nil {
 		return fmt.Errorf("failed to create upstream codec config: %v", err)
 	}
 
-	if err := utils.MutateHttpOptions(out, func(opts *envoy_upstreams_v3.HttpProtocolOptions) {
+	if err := translatorutils.MutateHttpOptions(out, func(opts *envoy_upstreams_v3.HttpProtocolOptions) {
 		opts.UpstreamProtocolOptions = &envoy_upstreams_v3.HttpProtocolOptions_ExplicitHttpConfig_{
 			ExplicitHttpConfig: &envoy_upstreams_v3.HttpProtocolOptions_ExplicitHttpConfig{
 				ProtocolConfig: &envoy_upstreams_v3.HttpProtocolOptions_ExplicitHttpConfig_Http2ProtocolOptions{
@@ -239,15 +245,15 @@ func configureUpstreamHTTPFilters(
 			},
 		}
 		opts.HttpFilters = append(opts.GetHttpFilters(), &envoy_hcm.HttpFilter{
-			Name: awsRequestSigningFilterName,
-			ConfigType: &envoy_hcm.HttpFilter_TypedConfig{
-				TypedConfig: awsRequestSigningAny,
-			},
-		})
-		opts.HttpFilters = append(opts.GetHttpFilters(), &envoy_hcm.HttpFilter{
 			Name: lambdaFilterName,
 			ConfigType: &envoy_hcm.HttpFilter_TypedConfig{
 				TypedConfig: lambdaConfigAny,
+			},
+		})
+		opts.HttpFilters = append(opts.GetHttpFilters(), &envoy_hcm.HttpFilter{
+			Name: awsRequestSigningFilterName,
+			ConfigType: &envoy_hcm.HttpFilter_TypedConfig{
+				TypedConfig: awsRequestSigningAny,
 			},
 		})
 		opts.HttpFilters = append(opts.GetHttpFilters(), &envoy_hcm.HttpFilter{

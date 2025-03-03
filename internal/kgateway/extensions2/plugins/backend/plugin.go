@@ -117,8 +117,11 @@ func buildTranslateFunc(secrets *krtcollections.SecretIndex) func(krtctx krt.Han
 			return nil, nil
 		}
 		var ir BackendIr
-		switch i.Spec.Aws.Auth.Type {
-		case v1alpha1.AwsAuthTypeSecret:
+		if i.Spec.Aws.Auth == nil {
+			// if auth is not specified, we use instance metadata.
+			return nil, nil
+		}
+		if i.Spec.Aws.Auth.Secret != nil {
 			secretRef := gwv1.SecretObjectReference{
 				Name: gwv1.ObjectName(i.Spec.Aws.Auth.Secret.Name),
 			}
@@ -132,10 +135,6 @@ func buildTranslateFunc(secrets *krtcollections.SecretIndex) func(krtctx krt.Han
 			if secret != nil {
 				ir.AwsSecret = secret
 			}
-		case v1alpha1.AwsAuthTypeIRSA:
-			return nil, nil
-		default:
-			return nil, fmt.Errorf("unsupported auth type: %v", i.Spec.Aws.Auth.Type)
 		}
 		return &ir, nil
 	}

@@ -5,7 +5,6 @@ package v1alpha1
 // StaticBackendApplyConfiguration represents a declarative configuration of the StaticBackend type for use
 // with apply.
 type StaticBackendApplyConfiguration struct {
-	Name  *string                  `json:"name,omitempty"`
 	Hosts []HostApplyConfiguration `json:"hosts,omitempty"`
 }
 
@@ -13,14 +12,6 @@ type StaticBackendApplyConfiguration struct {
 // apply.
 func StaticBackend() *StaticBackendApplyConfiguration {
 	return &StaticBackendApplyConfiguration{}
-}
-
-// WithName sets the Name field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Name field is set to the value of the last call.
-func (b *StaticBackendApplyConfiguration) WithName(value string) *StaticBackendApplyConfiguration {
-	b.Name = &value
-	return b
 }
 
 // WithHosts adds the given value to the Hosts field in the declarative configuration

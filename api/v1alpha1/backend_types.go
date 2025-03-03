@@ -64,9 +64,8 @@ type AwsBackend struct {
 	// +kubebuilder:validation:Required
 	AccountId string `json:"accountId"`
 	// Auth specifies the authentication method to use for the upstream.
-	// +kubebuilder:validation:Required
-	// +required
-	Auth *AwsAuth `json:"auth"`
+	// +optional
+	Auth *AwsAuth `json:"auth,omitempty"`
 	// Lambda configures the AWS lambda service.
 	// +optional
 	Lambda *AwsLambda `json:"lambda,omitempty"`
@@ -80,23 +79,16 @@ type AwsBackend struct {
 type AwsAuthType string
 
 const (
+	// AwsAuthTypeInstanceMetadata is the instance metadata authentication type.
+	AwsAuthTypeInstanceMetadata AwsAuthType = "default"
 	// AwsAuthTypeIRSA is the IRSA authentication type.
 	AwsAuthTypeIRSA AwsAuthType = "irsa"
 	// AwsAuthTypeSecret is the secret authentication type.
 	AwsAuthTypeSecret AwsAuthType = "secret"
 )
 
-// AwsAuth defines the authentication method to use for the upstream.
-// +union
-// +kubebuilder:validation:XValidation:message="irsa auth must be nil if the type is not 'irsa'",rule="!(has(self.irsa) && self.type != 'irsa')"
-// +kubebuilder:validation:XValidation:message="irsa auth must be specified when type is 'irsa'",rule="!(!has(self.irsa) && self.type == 'irsa')"
-// +kubebuilder:validation:XValidation:message="secret auth must be nil if the type is not 'secret'",rule="!(has(self.secret) && self.type != 'secret')"
-// +kubebuilder:validation:XValidation:message="secret auth must be specified when type is 'secret'",rule="!(!has(self.secret) && self.type == 'secret')"
+// AwsAuth defines the authentication method to use for the backend.
 type AwsAuth struct {
-	// Type is the type of authentication to use for the upstream.
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Enum=irsa;secret
-	Type AwsAuthType `json:"type"`
 	// IRSA is the IRSA authentication configuration.
 	// +optional
 	IRSA *AWSAuthIRSA `json:"irsa,omitempty"`
@@ -154,9 +146,6 @@ type AwsLambda struct {
 
 // StaticBackend is an upstream that references a static list of hosts.
 type StaticBackend struct {
-	// Name configures the underlying Envoy cluster name.
-	// +optional
-	Name string `json:"name,omitempty"`
 	// Hosts is a list of hosts to use for the upstream.
 	// +kubebuilder:validation:required
 	// +kubebuilder:validation:MinItems=1
