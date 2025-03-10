@@ -2,11 +2,13 @@ package route_delegation
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/suite"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -54,7 +56,7 @@ func (s *tsuite) SetupSuite() {
 	// Not every resource that is applied needs to be verified. We are not testing `kubectl apply`,
 	// but the below code demonstrates how it can be done if necessary
 	s.manifestObjects = map[string][]client.Object{
-		commonManifest:                      {proxyService, proxyDeployment, defaults.CurlPod, httpbinTeam1, httpbinTeam2, gateway},
+		commonManifest:                      {proxyService, proxyDeployment, httpbinTeam1, httpbinTeam2, gateway},
 		basicRoutesManifest:                 {routeRoot, routeTeam1, routeTeam2},
 		cyclicRoutesManifest:                {routeRoot, routeTeam1, routeTeam2},
 		recursiveRoutesManifest:             {routeRoot, routeTeam1, routeTeam2},
@@ -65,10 +67,18 @@ func (s *tsuite) SetupSuite() {
 		unresolvedChildManifest:             {routeRoot},
 		matcherInheritanceManifest:          {routeParent1, routeParent2, routeTeam1},
 	}
+	err := s.ti.Actions.Kubectl().ApplyFile(s.ctx, defaults.CurlPodManifest)
+	s.Require().NoError(err, "can apply curl pod manifest")
+	s.ti.Assertions.EventuallyObjectsExist(s.ctx, defaults.CurlPod)
+	s.ti.Assertions.EventuallyPodsRunning(s.ctx, defaults.CurlPod.GetNamespace(), metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/name=curl",
+	})
 }
 
 func (s *tsuite) TearDownSuite() {
-	// nothing at the moment
+	err := s.ti.Actions.Kubectl().DeleteFileSafe(s.ctx, defaults.CurlPodManifest)
+	s.Require().NoError(err, "can delete curl pod manifest")
+	s.ti.Assertions.EventuallyObjectsNotExist(s.ctx, defaults.CurlPod)
 }
 
 func (s *tsuite) BeforeTest(suiteName, testName string) {
@@ -78,6 +88,15 @@ func (s *tsuite) BeforeTest(suiteName, testName string) {
 		s.Require().NoError(err)
 		s.ti.Assertions.EventuallyObjectsExist(s.ctx, s.manifestObjects[manifest]...)
 	}
+	s.ti.Assertions.EventuallyObjectsExist(s.ctx, defaults.CurlPod)
+	s.ti.Assertions.EventuallyPodsRunning(s.ctx, defaults.CurlPod.GetNamespace(), metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/name=curl",
+	})
+	s.ti.Assertions.EventuallyObjectsExist(s.ctx, proxyService)
+	s.ti.Assertions.EventuallyObjectsExist(s.ctx, proxyDeployment)
+	s.ti.Assertions.EventuallyPodsRunning(s.ctx, proxyDeployment.GetNamespace(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", gateway.GetName()),
+	})
 }
 
 func (s *tsuite) AfterTest(suiteName, testName string) {
