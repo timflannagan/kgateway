@@ -25,6 +25,8 @@ CONFORMANCE_CHANNEL="${CONFORMANCE_CHANNEL:-"experimental"}"
 KIND="${KIND:-go tool kind}"
 # If true, use localstack for lambda functions
 LOCALSTACK="${LOCALSTACK:-false}"
+# If true, install the helm charts
+INSTALL_KGATEWAY="${INSTALL_KGATEWAY:-false}"
 
 function create_kind_cluster_or_skip() {
   activeClusters=$(kind get clusters)
@@ -53,24 +55,7 @@ function create_kind_cluster_or_skip() {
 # This config is roughly based on: https://kind.sigs.k8s.io/docs/user/ingress/
 create_kind_cluster_or_skip
 
-if [[ $SKIP_DOCKER == 'true' ]]; then
-  # TODO(tim): refactor the Makefile & CI scripts so we're loading local
-  # charts to real helm repos, and then we can remove this block.
-  echo "SKIP_DOCKER=true, not building images or chart"
-  helm repo add gloo https://storage.googleapis.com/solo-public-helm
-  helm repo update
-else
-  # 2. Make all the docker images and load them to the kind cluster
-  VERSION=$VERSION CLUSTER_NAME=$CLUSTER_NAME IMAGE_VARIANT=$IMAGE_VARIANT make kind-build-and-load
-
-  # 3. Build the test helm chart, ensuring we have a chart in the `_test` folder
-  VERSION=$VERSION make package-kgateway-chart
-fi
-
-# 4. Build the gloo command line tool, ensuring we have one in the `_output` folder
-# make -s build-cli-local
-
-# 5. Apply the Kubernetes Gateway API CRDs
+# 2. Apply the Kubernetes Gateway API CRDs
 # Note, we're using kustomize to apply the CRDs from the k8s gateway api repo as
 # kustomize supports remote GH URLs and provides more flexibility compared to
 # alternatives like running a series of `kubectl apply -f <url>` commands. This
@@ -78,14 +63,35 @@ fi
 # the CRDs yet, or won't be for the foreseeable future.
 kubectl apply --kustomize "https://github.com/kubernetes-sigs/gateway-api/config/crd/$CONFORMANCE_CHANNEL?ref=$CONFORMANCE_VERSION"
 
-# 6. Conformance test setup
+if [[ $SKIP_DOCKER == 'true' ]]; then
+  # TODO(tim): refactor the Makefile & CI scripts so we're loading local
+  # charts to real helm repos, and then we can remove this block.
+  echo "SKIP_DOCKER=true, not building images or chart"
+  helm repo add gloo https://storage.googleapis.com/solo-public-helm
+  helm repo update
+else
+  # 3. Make all the docker images and load them to the kind cluster
+  VERSION=$VERSION CLUSTER_NAME=$CLUSTER_NAME IMAGE_VARIANT=$IMAGE_VARIANT make kind-build-and-load
+
+  # 4. Build the test helm chart, ensuring we have a chart in the `_test` folder
+  VERSION=$VERSION make package-kgateway-charts
+
+  # 5. Install the locally packagedhelm charts if the INSTALL_KGATEWAY flag is set
+  if [[ $INSTALL_KGATEWAY == "true" ]]; then
+    echo "Installing the helm charts"
+    helm upgrade -i kgateway-crds _test/kgateway-crds-$VERSION.tgz
+    helm upgrade -i kgateway _test/kgateway-$VERSION.tgz --create-namespace -n kgateway-system --set image.registry=ghcr.io/kgateway-dev
+  fi
+fi
+
+# 5. Conformance test setup
 if [[ $CONFORMANCE == "true" ]]; then
   echo "Running conformance test setup"
 
   . $SCRIPT_DIR/setup-metalllb-on-kind.sh
 fi
 
-# 7. Setup localstack
+# 6. Setup localstack
 if [[ $LOCALSTACK == "true" ]]; then
   echo "Setting up localstack"
   . $SCRIPT_DIR/setup-localstack.sh
