@@ -493,12 +493,24 @@ envoy-wrapper-distroless-docker: $(ENVOYINIT_OUTPUT_DIR)/envoyinit-linux-$(GOARC
 # Helm
 #----------------------------------------------------------------------------------
 
-.PHONY: package-kgateway-chart
 HELM ?= helm
 HELM_PACKAGE_ARGS ?= --version $(VERSION)
-package-kgateway-chart: ## Package the new kgateway helm chart for testing
+HELM_CHART_DIR=install/helm/kgateway
+HELM_CHART_DIR_CRD=install/helm/kgateway-crds
+
+.PHONY: package-kgateway-charts
+package-kgateway-charts: package-kgateway-chart package-kgateway-crd-chart
+
+.PHONY: package-kgateway-chart
+package-kgateway-chart: ## Package the kgateway chart for testing
 	mkdir -p $(TEST_ASSET_DIR); \
-	$(HELM) package $(HELM_PACKAGE_ARGS) --destination $(TEST_ASSET_DIR) install/helm/kgateway; \
+	$(HELM) package $(HELM_PACKAGE_ARGS) --destination $(TEST_ASSET_DIR) $(HELM_CHART_DIR); \
+	$(HELM) repo index $(TEST_ASSET_DIR);
+
+.PHONY: package-kgateway-crd-chart
+package-kgateway-crd-chart: ## Package the kgateway crd chart for testing
+	mkdir -p $(TEST_ASSET_DIR); \
+	$(HELM) package $(HELM_PACKAGE_ARGS) --destination $(TEST_ASSET_DIR) $(HELM_CHART_DIR_CRD); \
 	$(HELM) repo index $(TEST_ASSET_DIR);
 
 #----------------------------------------------------------------------------------
