@@ -25,6 +25,11 @@ type Settings struct {
 	XdsServicePort uint32 `split_words:"true" default:"9977"`
 
 	UseRustFormations bool `split_words:"true" default:"false"`
+
+	// DefaultImageRegistry is the default image registry to use for the kgateway image.
+	DefaultImageRegistry string `split_words:"true" default:"cr.kgateway.dev"`
+	// DefaultImageTag is the default image tag to use for the kgateway image.
+	DefaultImageTag string `split_words:"true" default:""`
 }
 
 // BuildSettings returns a zero-valued Settings obj if error is encountered when parsing env

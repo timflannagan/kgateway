@@ -190,6 +190,14 @@ func (c *ControllerBuilder) Start(ctx context.Context) error {
 	xdsPort := globalSettings.XdsServicePort
 	logger.Info("got xds address for deployer", uzap.String("xds_host", xdsHost), uzap.Uint32("xds_port", xdsPort))
 
+	// TODO: need to handle the possibility that users set the registry to an empty string?
+	// What about local dev? need to also inject pull policy too.
+	imageInfo := deployer.ImageInfo{
+		Registry: globalSettings.DefaultImageRegistry,
+		Tag:      globalSettings.DefaultImageTag,
+	}
+	logger.Info("using image info", uzap.Any("image_info", imageInfo))
+
 	integrationEnabled := globalSettings.EnableIstioIntegration
 
 	if err := NewBaseGatewayController(ctx, GatewayConfig{
@@ -200,6 +208,7 @@ func (c *ControllerBuilder) Start(ctx context.Context) error {
 			XdsHost: xdsHost,
 			XdsPort: xdsPort,
 		},
+		ImageInfo:               imageInfo,
 		IstioIntegrationEnabled: integrationEnabled,
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller")

@@ -62,12 +62,24 @@ type Inputs struct {
 	Dev                     bool
 	IstioIntegrationEnabled bool
 	ControlPlane            ControlPlaneInfo
+	ImageInfo               ImageInfo
+}
+
+type ImageInfo struct {
+	Registry   string
+	Tag        string
+	PullPolicy string
 }
 
 // NewDeployer creates a new gateway deployer
 func NewDeployer(cli client.Client, inputs *Inputs) (*Deployer, error) {
 	if inputs == nil {
 		return nil, NilDeployerInputsErr
+	}
+
+	// TODO: validation field were properly set.
+	if inputs.ImageInfo.PullPolicy == "" {
+		inputs.ImageInfo.PullPolicy = string(corev1.PullIfNotPresent)
 	}
 
 	helmChart, err := loadFs(helm.KgatewayHelmChart)
@@ -201,20 +213,39 @@ func (d *Deployer) getDefaultGatewayParameters(ctx context.Context, gw *api.Gate
 	return d.getGatewayParametersForGatewayClass(ctx, gwc)
 }
 
-// Gets the GatewayParameters object (if any) associated with a given GatewayClass.
+// Gets the GatewayParameters object associated with a given GatewayClass.
 func (d *Deployer) getGatewayParametersForGatewayClass(ctx context.Context, gwc *api.GatewayClass) (*v1alpha1.GatewayParameters, error) {
 	logger := log.FromContext(ctx)
 
 	paramRef := gwc.Spec.ParametersRef
 	if paramRef == nil {
-		return nil, eris.Errorf("no default GatewayParameters associated with GatewayClass %s/%s", gwc.GetNamespace(), gwc.GetName())
+		// Return in-memory defaults if no parametersRef is specified
+		logger.V(1).Info("using default in-memory GatewayParameters",
+			"gatewayClassName", gwc.GetName(),
+		)
+		switch gwc.GetName() {
+		case wellknown.GatewayClassName:
+			logger.V(1).Info("using default in-memory GatewayParameters",
+				"gatewayClassName", gwc.GetName(),
+			)
+			return defaultGatewayParameters(d.inputs.ImageInfo), nil
+		case "kgateway-waypoint":
+			logger.V(1).Info("using default in-memory GatewayParameters",
+				"gatewayClassName", gwc.GetName(),
+			)
+			return defaultWaypointGatewayParameters(d.inputs.ImageInfo), nil
+		default:
+			return defaultGatewayParameters(d.inputs.ImageInfo), nil
+		}
 	}
+
 	gwpName := paramRef.Name
 	if gwpName == "" {
-		err := eris.New("no GatewayParameters found for GatewayClass")
+		err := eris.New("parametersRef.name cannot be empty when parametersRef is specified")
 		logger.Error(err,
 			"gatewayClassName", gwc.GetName(),
-			"gatewayClassNamespace", gwc.GetNamespace())
+			"gatewayClassNamespace", gwc.GetNamespace(),
+		)
 		return nil, err
 	}
 
@@ -226,7 +257,12 @@ func (d *Deployer) getGatewayParametersForGatewayClass(ctx context.Context, gwc 
 	gwp := &v1alpha1.GatewayParameters{}
 	err := d.cli.Get(ctx, client.ObjectKey{Namespace: gwpNamespace, Name: gwpName}, gwp)
 	if err != nil {
-		return nil, getGatewayParametersError(err, gwpNamespace, gwpName, gwc.GetNamespace(), gwc.GetName(), "GatewayClass")
+		return nil, getGatewayParametersError(
+			err,
+			gwpNamespace, gwpName,
+			gwc.GetNamespace(), gwc.GetName(),
+			"GatewayClass",
+		)
 	}
 
 	return gwp, nil
@@ -236,7 +272,6 @@ func (d *Deployer) getGatewayClassFromGateway(ctx context.Context, gw *api.Gatew
 	if gw == nil {
 		return nil, eris.New("nil Gateway")
 	}
-
 	if gw.Spec.GatewayClassName == "" {
 		return nil, eris.New("GatewayClassName must not be empty")
 	}
@@ -415,7 +450,8 @@ func (d *Deployer) GetObjsToDeploy(ctx context.Context, gw *api.Gateway) ([]clie
 	logger.V(1).Info("got deployer helm values",
 		"gatewayName", gw.GetName(),
 		"gatewayNamespace", gw.GetNamespace(),
-		"values", vals)
+		"values", vals,
+	)
 
 	// convert to json for helm (otherwise go template fails, as the field names are uppercase)
 	var convertedVals map[string]any
@@ -555,5 +591,88 @@ func applyFloatingUserId(dstKube *v1alpha1.KubernetesProxyConfig) {
 		if securityContext != nil {
 			securityContext.RunAsUser = nil
 		}
+	}
+}
+
+func defaultWaypointGatewayParameters(imageInfo ImageInfo) *v1alpha1.GatewayParameters {
+	gwp := defaultGatewayParameters(imageInfo)
+	gwp.Spec.Kube.PodTemplate.ExtraLabels["istio.io/dataplane-mode"] = "ambient"
+	gwp.Spec.Kube.Service.Type = ptr.To(corev1.ServiceTypeClusterIP)
+	return gwp
+}
+
+// defaultGatewayParameters returns an in-memory GatewayParameters with default values
+// that match the helm chart defaults
+func defaultGatewayParameters(imageInfo ImageInfo) *v1alpha1.GatewayParameters {
+	return &v1alpha1.GatewayParameters{
+		Spec: v1alpha1.GatewayParametersSpec{
+			SelfManaged: nil,
+			Kube: &v1alpha1.KubernetesProxyConfig{
+				Deployment: &v1alpha1.ProxyDeployment{
+					Replicas: ptr.To[uint32](1),
+				},
+				Service: &v1alpha1.Service{
+					Type: (*corev1.ServiceType)(ptr.To(string(corev1.ServiceTypeLoadBalancer))),
+				},
+				EnvoyContainer: &v1alpha1.EnvoyContainer{
+					Image: &v1alpha1.Image{
+						Registry:   ptr.To(imageInfo.Registry),
+						Tag:        ptr.To(imageInfo.Tag),
+						Repository: ptr.To(EnvoyWrapperImage),
+						PullPolicy: (*corev1.PullPolicy)(ptr.To(string(corev1.PullIfNotPresent))),
+					},
+					SecurityContext: &corev1.SecurityContext{
+						AllowPrivilegeEscalation: ptr.To(false),
+						ReadOnlyRootFilesystem:   ptr.To(true),
+						RunAsNonRoot:             ptr.To(true),
+						RunAsUser:                ptr.To[int64](10101),
+						Capabilities: &corev1.Capabilities{
+							Drop: []corev1.Capability{"ALL"},
+							Add:  []corev1.Capability{"NET_BIND_SERVICE"},
+						},
+					},
+				},
+				Stats: &v1alpha1.StatsConfig{
+					Enabled:                 ptr.To(true),
+					RoutePrefixRewrite:      ptr.To("/stats/prometheus"),
+					EnableStatsRoute:        ptr.To(true),
+					StatsRoutePrefixRewrite: ptr.To("/stats"),
+				},
+				SdsContainer: &v1alpha1.SdsContainer{
+					Image: &v1alpha1.Image{
+						Registry:   ptr.To(imageInfo.Registry),
+						Tag:        ptr.To(imageInfo.Tag),
+						Repository: ptr.To(SdsImage),
+						PullPolicy: (*corev1.PullPolicy)(ptr.To(string(corev1.PullIfNotPresent))),
+					},
+					Bootstrap: &v1alpha1.SdsBootstrap{
+						LogLevel: ptr.To("info"),
+					},
+				},
+				Istio: &v1alpha1.IstioIntegration{
+					IstioProxyContainer: &v1alpha1.IstioContainer{
+						Image: &v1alpha1.Image{
+							Registry:   ptr.To("docker.io/istio"),
+							Repository: ptr.To("proxyv2"),
+							Tag:        ptr.To("1.22.0"),
+							PullPolicy: (*corev1.PullPolicy)(ptr.To(string(corev1.PullIfNotPresent))),
+						},
+						LogLevel:              ptr.To("warning"),
+						IstioDiscoveryAddress: ptr.To("istiod.istio-system.svc:15012"),
+						IstioMetaMeshId:       ptr.To("cluster.local"),
+						IstioMetaClusterId:    ptr.To("Kubernetes"),
+					},
+				},
+				AiExtension: &v1alpha1.AiExtension{
+					Enabled: ptr.To(false),
+					Image: &v1alpha1.Image{
+						// TODO: Make this configurable once nina's work merges.
+						Repository: ptr.To("gloo-ai-extension"),
+						Registry:   ptr.To("quay.io/solo-io"),
+						PullPolicy: (*corev1.PullPolicy)(ptr.To(string(corev1.PullIfNotPresent))),
+					},
+				},
+			},
+		},
 	}
 }

@@ -381,6 +381,8 @@ func (in *SdsBootstrap) GetLogLevel() *string {
 
 // Configuration for the Istio integration settings used by a Gloo Gateway's data plane (Envoy proxy instance)
 type IstioIntegration struct {
+	// TODO(tim): Enabled field?
+
 	// Configuration for the container running istio-proxy.
 	// Note that if Istio integration is not enabled, the istio container will not be injected
 	// into the gateway proxy deployment.

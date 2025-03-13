@@ -36,6 +36,8 @@ func TestSettings(t *testing.T) {
 				XdsServiceName:         wellknown.DefaultXdsService,
 				XdsServicePort:         wellknown.DefaultXdsPort,
 				UseRustFormations:      false,
+				DefaultImageRegistry:   "cr.kgateway.dev",
+				DefaultImageTag:        "",
 			},
 		},
 		{
@@ -49,6 +51,8 @@ func TestSettings(t *testing.T) {
 				"KGW_XDS_SERVICE_NAME":         "custom-svc",
 				"KGW_XDS_SERVICE_PORT":         "1234",
 				"KGW_USE_RUST_FORMATIONS":      "true",
+				"KGW_DEFAULT_IMAGE_REGISTRY":   "my-registry",
+				"KGW_DEFAULT_IMAGE_TAG":        "my-tag",
 			},
 			expectedSettings: &settings.Settings{
 				DnsLookupFamily:        "V4_ONLY",
@@ -57,6 +61,8 @@ func TestSettings(t *testing.T) {
 				XdsServiceName:         "custom-svc",
 				XdsServicePort:         1234,
 				UseRustFormations:      true,
+				DefaultImageRegistry:   "my-registry",
+				DefaultImageTag:        "my-tag",
 			},
 		},
 		{
@@ -81,10 +87,12 @@ func TestSettings(t *testing.T) {
 				"KGW_ENABLE_AUTO_MTLS": "true",
 			},
 			expectedSettings: &settings.Settings{
-				DnsLookupFamily: "V4_PREFERRED",
-				EnableAutoMtls:  true,
-				XdsServiceName:  wellknown.DefaultXdsService,
-				XdsServicePort:  wellknown.DefaultXdsPort,
+				DnsLookupFamily:      "V4_PREFERRED",
+				EnableAutoMtls:       true,
+				XdsServiceName:       wellknown.DefaultXdsService,
+				XdsServicePort:       wellknown.DefaultXdsPort,
+				DefaultImageRegistry: "cr.kgateway.dev",
+				DefaultImageTag:      "",
 			},
 		},
 	}

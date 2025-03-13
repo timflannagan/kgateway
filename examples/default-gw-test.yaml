@@ -1,0 +1,42 @@
+kind: Gateway
+apiVersion: gateway.networking.k8s.io/v1
+metadata:
+  name: gw
+spec:
+  gatewayClassName: kgateway
+  listeners:
+  - protocol: HTTP
+    port: 8080
+    name: http
+    allowedRoutes:
+      namespaces:
+        from: Same
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayParameters
+metadata:
+  name: gw-params
+spec:
+  kube:
+    deployment:
+      replicas: 1
+    envoyContainer:
+      image:
+        registry: ghcr.io/kgateway-dev
+        tag: v2.0.0-beta1
+---
+kind: Gateway
+apiVersion: gateway.networking.k8s.io/v1
+metadata:
+  name: gw-override
+  annotations:
+    gateway.kgateway.dev/gateway-parameters-name: "gw-params"
+spec:
+  gatewayClassName: kgateway
+  listeners:
+  - protocol: HTTP
+    port: 8080
+    name: http
+    allowedRoutes:
+      namespaces:
+        from: Same
