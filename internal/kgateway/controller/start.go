@@ -195,8 +195,6 @@ func (c *ControllerBuilder) Start(ctx context.Context) error {
 	xdsPort := globalSettings.XdsServicePort
 	logger.Info("got xds address for deployer", uzap.String("xds_host", xdsHost), uzap.Uint32("xds_port", xdsPort))
 
-	integrationEnabled := globalSettings.EnableIstioIntegration
-
 	if err := NewBaseGatewayController(ctx, GatewayConfig{
 		Mgr: c.mgr,
 		// TODO read this from globalSettings
@@ -206,7 +204,12 @@ func (c *ControllerBuilder) Start(ctx context.Context) error {
 			XdsHost: xdsHost,
 			XdsPort: xdsPort,
 		},
-		IstioIntegrationEnabled: integrationEnabled,
+		ImageInfo: deployer.ImageInfo{
+			Registry:   globalSettings.DefaultImageRegistry,
+			Tag:        globalSettings.DefaultImageTag,
+			PullPolicy: globalSettings.DefaultImagePullPolicy,
+		},
+		IstioIntegrationEnabled: globalSettings.EnableIstioIntegration,
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller")
 		return err
