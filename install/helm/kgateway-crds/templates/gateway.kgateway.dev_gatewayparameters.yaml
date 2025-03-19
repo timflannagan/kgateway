@@ -1092,6 +1092,9 @@ spec:
                         type: array
                       istioProxyContainer:
                         properties:
+                          enabled:
+                            default: true
+                            type: boolean
                           image:
                             properties:
                               digest:
@@ -1961,6 +1964,9 @@ spec:
                             default: info
                             type: string
                         type: object
+                      enabled:
+                        default: false
+                        type: boolean
                       image:
                         properties:
                           digest:

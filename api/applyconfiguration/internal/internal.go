@@ -668,6 +668,9 @@ var schemaYAML = typed.YAMLObject(`types:
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.IstioContainer
   map:
     fields:
+    - name: enabled
+      type:
+        scalar: boolean
     - name: image
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.Image
@@ -1036,6 +1039,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: bootstrap
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.SdsBootstrap
+    - name: enabled
+      type:
+        scalar: boolean
     - name: image
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.Image

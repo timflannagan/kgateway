@@ -2316,6 +2316,13 @@ func schema_kgateway_v2_api_v1alpha1_IstioContainer(ref common.ReferenceCallback
 				Description: "Configuration for the container running the istio-proxy.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether to enable the istio-proxy container.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The envoy container image. See https://kubernetes.io/docs/concepts/containers/images for details.",
@@ -3393,6 +3400,13 @@ func schema_kgateway_v2_api_v1alpha1_SdsContainer(ref common.ReferenceCallback) 
 				Description: "Configuration for the container running Gloo SDS.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether to enable the SDS container.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The SDS container image. See https://kubernetes.io/docs/concepts/containers/images for details.",
