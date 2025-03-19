@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -51,7 +52,6 @@ func (r *gatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := r.cli.Get(ctx, req.NamespacedName, &gw); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
 	if gw.GetDeletionTimestamp() != nil {
 		// no need to do anything as we have owner refs, so children will be deleted
 		log.Info("gateway deleted, no need for reconciling")
@@ -76,7 +76,16 @@ func (r *gatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	log.Info("reconciling gateway")
 	objs, err := r.deployer.GetObjsToDeploy(ctx, &gw)
 	if err != nil {
-		return ctrl.Result{}, err
+		// if we fail to either reference a valid GatewayParameters or
+		// the GatewayParameters configuration leads to issues building the
+		// objects, we want to set the status to InvalidParameters.
+		meta.SetStatusCondition(&gw.Status.Conditions, metav1.Condition{
+			Type:    string(api.GatewayClassConditionStatusAccepted),
+			Status:  metav1.ConditionFalse,
+			Reason:  string(api.GatewayClassReasonInvalidParameters),
+			Message: err.Error(),
+		})
+		return ctrl.Result{}, r.cli.Status().Update(ctx, &gw)
 	}
 	// update gw status: find the name of the service we own, and see if it update the status with it
 	result := ctrl.Result{}

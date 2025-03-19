@@ -422,7 +422,8 @@ func (d *Deployer) GetObjsToDeploy(ctx context.Context, gw *api.Gateway) ([]clie
 	logger.V(1).Info("got deployer helm values",
 		"gatewayName", gw.GetName(),
 		"gatewayNamespace", gw.GetNamespace(),
-		"values", vals)
+		"values", vals,
+	)
 
 	// convert to json for helm (otherwise go template fails, as the field names are uppercase)
 	var convertedVals map[string]any
