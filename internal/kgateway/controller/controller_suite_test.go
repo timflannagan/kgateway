@@ -121,22 +121,24 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	for class := range gwClasses {
-		err = k8sClient.Create(ctx, &api.GatewayClass{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: string(class),
-			},
-			Spec: api.GatewayClassSpec{
-				ControllerName: api.GatewayController(gatewayControllerName),
-				ParametersRef: &api.ParametersReference{
-					Group:     api.Group(v1alpha1.GroupVersion.Group),
-					Kind:      api.Kind("GatewayParameters"),
-					Name:      wellknown.DefaultGatewayParametersName,
-					Namespace: ptr.To(api.Namespace("default")),
+	if os.Getenv("KGW_CREATE_GATEWAY_CLASSES") == "true" {
+		for class := range gwClasses {
+			err = k8sClient.Create(ctx, &api.GatewayClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: string(class),
 				},
-			},
-		})
-		Expect(err).NotTo(HaveOccurred())
+				Spec: api.GatewayClassSpec{
+					ControllerName: api.GatewayController(gatewayControllerName),
+					ParametersRef: &api.ParametersReference{
+						Group:     api.Group(v1alpha1.GroupVersion.Group),
+						Kind:      api.Kind("GatewayParameters"),
+						Name:      wellknown.DefaultGatewayParametersName,
+						Namespace: ptr.To(api.Namespace("default")),
+					},
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+		}
 	}
 
 	err = k8sClient.Create(ctx, &v1alpha1.GatewayParameters{

@@ -47,11 +47,16 @@ func NewBaseGatewayController(ctx context.Context, cfg GatewayConfig) error {
 	log := log.FromContext(ctx)
 	log.V(5).Info("starting controller", "controllerName", cfg.ControllerName)
 
+	if err := NewGatewayClassProvisioner(cfg.Mgr, cfg.ControllerName); err != nil {
+		return fmt.Errorf("failed to create GatewayClassProvisioner: %w", err)
+	}
+
 	controllerBuilder := &controllerBuilder{
 		cfg: cfg,
 		reconciler: &controllerReconciler{
-			cli:    cfg.Mgr.GetClient(),
-			scheme: cfg.Mgr.GetScheme(),
+			cli:            cfg.Mgr.GetClient(),
+			scheme:         cfg.Mgr.GetScheme(),
+			controllerName: cfg.ControllerName,
 		},
 	}
 
@@ -236,26 +241,26 @@ func shouldIgnoreStatusChild(gvk schema.GroupVersionKind) bool {
 	return gvk.Kind == "Deployment"
 }
 
+// TODO: does this need to be modified at all if there's a separate controller?
 func (c *controllerBuilder) watchGwClass(_ context.Context) error {
 	return ctrl.NewControllerManagedBy(c.cfg.Mgr).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			// we only care about GatewayClasses that use our controller name
-			if gwClass, ok := object.(*apiv1.GatewayClass); ok {
-				return gwClass.Spec.ControllerName == apiv1.GatewayController(c.cfg.ControllerName)
-			}
-			return false
+			gwClass, ok := object.(*apiv1.GatewayClass)
+			return ok && gwClass.Spec.ControllerName == apiv1.GatewayController(c.cfg.ControllerName)
 		})).
 		For(&apiv1.GatewayClass{}).
-		Complete(reconcile.Func(c.reconciler.ReconcileGatewayClasses))
+		Complete(c.reconciler)
 }
 
 type controllerReconciler struct {
-	cli    client.Client
-	scheme *runtime.Scheme
+	cli            client.Client
+	scheme         *runtime.Scheme
+	controllerName string
 }
 
-func (r *controllerReconciler) ReconcileGatewayClasses(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *controllerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("gwclass", req.NamespacedName)
 
 	gwclass := &apiv1.GatewayClass{}
@@ -269,24 +274,21 @@ func (r *controllerReconciler) ReconcileGatewayClasses(ctx context.Context, req 
 
 	log.Info("reconciling gateway class")
 
-	// mark it as accepted:
-	acceptedCondition := metav1.Condition{
+	meta.SetStatusCondition(&gwclass.Status.Conditions, metav1.Condition{
 		Type:               string(apiv1.GatewayClassConditionStatusAccepted),
 		Status:             metav1.ConditionTrue,
 		Reason:             string(apiv1.GatewayClassReasonAccepted),
 		ObservedGeneration: gwclass.Generation,
 		// no need to set LastTransitionTime, it will be set automatically by SetStatusCondition
-	}
-	meta.SetStatusCondition(&gwclass.Status.Conditions, acceptedCondition)
+	})
 
 	// TODO: This should actually check the version of the CRDs in the cluster to be 100% sure
-	supportedVersionCondition := metav1.Condition{
+	meta.SetStatusCondition(&gwclass.Status.Conditions, metav1.Condition{
 		Type:               string(apiv1.GatewayClassConditionStatusSupportedVersion),
 		Status:             metav1.ConditionTrue,
 		ObservedGeneration: gwclass.Generation,
 		Reason:             string(apiv1.GatewayClassReasonSupportedVersion),
-	}
-	meta.SetStatusCondition(&gwclass.Status.Conditions, supportedVersionCondition)
+	})
 
 	if err := r.cli.Status().Update(ctx, gwclass); err != nil {
 		return ctrl.Result{}, err
