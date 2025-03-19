@@ -107,6 +107,9 @@ type KubernetesProxyConfig struct {
 	AiExtension *AiExtension `json:"aiExtension,omitempty"`
 
 	// Used to unset the `runAsUser` values in security contexts.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
 	FloatingUserId *bool `json:"floatingUserId,omitempty"`
 }
 
@@ -185,6 +188,7 @@ type ProxyDeployment struct {
 	// The number of desired pods. Defaults to 1.
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=1
 	Replicas *uint32 `json:"replicas,omitempty"`
 }
 
@@ -269,6 +273,7 @@ type EnvoyBootstrap struct {
 	// for more information.
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=info
 	LogLevel *string `json:"logLevel,omitempty"`
 
 	// Envoy log levels for specific components. The keys are component names and
@@ -308,6 +313,12 @@ func (in *EnvoyBootstrap) GetComponentLogLevels() map[string]string {
 
 // Configuration for the container running Gloo SDS.
 type SdsContainer struct {
+	// Whether to enable the SDS container.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	Enabled *bool `json:"enabled,omitempty"`
+
 	// The SDS container image. See
 	// https://kubernetes.io/docs/concepts/containers/images
 	// for details.
@@ -369,6 +380,7 @@ type SdsBootstrap struct {
 	// Default level is "info".
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=info
 	LogLevel *string `json:"logLevel,omitempty"`
 }
 
@@ -411,6 +423,12 @@ func (in *IstioIntegration) GetCustomSidecars() []corev1.Container {
 
 // Configuration for the container running the istio-proxy.
 type IstioContainer struct {
+	// Whether to enable the istio-proxy container.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=true
+	Enabled *bool `json:"enabled,omitempty"`
+
 	// The envoy container image. See
 	// https://kubernetes.io/docs/concepts/containers/images
 	// for details.
@@ -436,21 +454,25 @@ type IstioContainer struct {
 	// Default level is info Default is "warning".
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=warning
 	LogLevel *string `json:"logLevel,omitempty"`
 
 	// The address of the istio discovery service. Defaults to "istiod.istio-system.svc:15012".
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="istiod.istio-system.svc:15012"
 	IstioDiscoveryAddress *string `json:"istioDiscoveryAddress,omitempty"`
 
 	// The mesh id of the istio mesh. Defaults to "cluster.local".
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="cluster.local"
 	IstioMetaMeshId *string `json:"istioMetaMeshId,omitempty"`
 
 	// The cluster id of the istio cluster. Defaults to "Kubernetes".
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="Kubernetes"
 	IstioMetaClusterId *string `json:"istioMetaClusterId,omitempty"`
 }
 
@@ -508,21 +530,25 @@ type StatsConfig struct {
 	// Whether to expose metrics annotations and ports for scraping metrics.
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=true
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// The Envoy stats endpoint to which the metrics are written
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=/stats/prometheus
 	RoutePrefixRewrite *string `json:"routePrefixRewrite,omitempty"`
 
 	// Enables an additional route to the stats cluster defaulting to /stats
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=true
 	EnableStatsRoute *bool `json:"enableStatsRoute,omitempty"`
 
 	// The Envoy stats endpoint with general metrics for the additional stats route
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=/stats
 	StatsRoutePrefixRewrite *string `json:"statsRoutePrefixRewrite,omitempty"`
 }
 
@@ -559,6 +585,7 @@ type AiExtension struct {
 	// Whether to enable the extension.
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// The extension's container image. See

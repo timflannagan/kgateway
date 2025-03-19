@@ -72,9 +72,10 @@ func (in *Image) GetPullPolicy() *corev1.PullPolicy {
 
 // Configuration for a Kubernetes Service.
 type Service struct {
-	// The Kubernetes Service type.
+	// The Kubernetes Service type. Defaults to LoadBalancer.
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=LoadBalancer
 	Type *corev1.ServiceType `json:"type,omitempty"`
 
 	// The manually specified IP address of the service, if a randomly assigned
