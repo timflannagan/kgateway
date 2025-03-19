@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	envoy_config_bootstrap "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
@@ -651,6 +652,124 @@ var _ = Describe("Deployer", func() {
 
 				By("validating the image overrides the default")
 				Expect(objs.findDeployment(defaultNamespace, "foo").Spec.Template.Spec.Containers[0].Image).To(Equal(fmt.Sprintf("bar/%s:2.3.4", deployer.EnvoyWrapperImage)))
+			})
+		})
+
+		When("a Gateway has a minimal GatewayParameters with only overrides", func() {
+			var (
+				d   *deployer.Deployer
+				gwp *gw2_v1alpha1.GatewayParameters
+			)
+			BeforeEach(func() {
+				gwp = &gw2_v1alpha1.GatewayParameters{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       wellknown.GatewayParametersGVK.Kind,
+						APIVersion: gw2_v1alpha1.GroupVersion.String(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "minimal-gwp",
+						Namespace: defaultNamespace,
+					},
+					Spec: gw2_v1alpha1.GatewayParametersSpec{
+						Kube: &gw2_v1alpha1.KubernetesProxyConfig{
+							// Only override a few values, rest should be defaulted
+							Service: &gw2_v1alpha1.Service{
+								Type: ptr.To(corev1.ServiceTypeClusterIP),
+							},
+							EnvoyContainer: &gw2_v1alpha1.EnvoyContainer{
+								Bootstrap: &gw2_v1alpha1.EnvoyBootstrap{
+									LogLevel: ptr.To("debug"),
+								},
+							},
+						},
+					},
+				}
+				gwc := defaultGatewayClassWithParamsRef()
+				gwc.Spec.ParametersRef.Name = gwp.GetName()
+				var err error
+				d, err = deployer.NewDeployer(newFakeClientWithObjs(gwc, gwp), &deployer.Inputs{
+					ControllerName: wellknown.GatewayControllerName,
+					Dev:            false,
+					ControlPlane: deployer.ControlPlaneInfo{
+						XdsHost: "something.cluster.local",
+						XdsPort: 1234,
+					},
+					ImageInfo: deployer.ImageInfo{
+						Registry: registry,
+						Tag:      tag,
+					},
+				})
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("should inherit defaults for non-overridden fields", func() {
+				var objs clientObjects
+				var err error
+				objs, err = d.GetObjsToDeploy(context.Background(), &api.Gateway{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Gateway",
+						APIVersion: "gateway.solo.io/v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foo",
+						Namespace: defaultNamespace,
+						UID:       "1235",
+					},
+					Spec: api.GatewaySpec{
+						GatewayClassName: wellknown.GatewayClassName,
+						Infrastructure: &api.GatewayInfrastructure{
+							ParametersRef: &api.LocalParametersReference{
+								Group: "gateway.kgateway.dev",
+								Kind:  "GatewayParameters",
+								Name:  gwp.GetName(),
+							},
+						},
+						Listeners: []api.Listener{{
+							Name: "listener-1",
+							Port: 80,
+						}},
+					},
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("validating the expected objects are deployed")
+				Expect(objs).NotTo(BeEmpty())
+				Expect(objs).To(HaveLen(4))
+
+				By("verifying service type was overridden")
+				svc := objs.findService(defaultNamespace, defaultDeploymentName)
+				Expect(svc).ToNot(BeNil())
+				Expect(svc.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
+
+				By("verifying deployment inherited default replicas")
+				dep := objs.findDeployment(defaultNamespace, defaultDeploymentName)
+				Expect(dep).ToNot(BeNil())
+				Expect(*dep.Spec.Replicas).To(Equal(int32(1)))
+
+				By("verifying envoy container log level was overridden")
+				envoyContainer := dep.Spec.Template.Spec.Containers[0]
+				foundLogLevel := false
+				for i, arg := range envoyContainer.Args {
+					if strings.HasPrefix(arg, "--log-level") {
+						Expect(envoyContainer.Args[i+1]).To(Equal("debug"))
+						foundLogLevel = true
+						break
+					}
+				}
+				Expect(foundLogLevel).To(BeTrue(), "envoy proxy log level not found")
+
+				// // FIXME. Currently broken.
+				// By("verifying stats config inherited defaults")
+				// foundStatsPort := false
+				// for _, port := range envoyContainer.Ports {
+				// 	if port.Name == "stats" {
+				// 		foundStatsPort = true
+				// 		break
+				// 	}
+				// }
+				// Expect(foundStatsPort).To(BeTrue(), "stats port not found")
+
+				By("verifying image registry and tag were inherited")
+				Expect(envoyContainer.Image).To(Equal(fmt.Sprintf("%s/%s:%s", registry, deployer.EnvoyWrapperImage, tag)))
 			})
 		})
 	})

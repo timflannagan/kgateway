@@ -226,12 +226,14 @@ func (d *Deployer) getDefaultGatewayParameters(ctx context.Context, gw *api.Gate
 func (d *Deployer) getGatewayParametersForGatewayClass(ctx context.Context, gwc *api.GatewayClass) (*v1alpha1.GatewayParameters, error) {
 	logger := log.FromContext(ctx)
 
+	defaultGwp := getInMemoryGatewayParameters(gwc.GetName(), d.inputs.ImageInfo)
 	paramRef := gwc.Spec.ParametersRef
 	if paramRef == nil {
-		// when there is no parametersRef, we use the default in-memory GatewayParameters.
-		return getInMemoryGatewayParameters(gwc.GetName(), d.inputs.ImageInfo), nil
+		// when there is no parametersRef, just return the defaults
+		return defaultGwp, nil
 	}
 
+	// TODO: is this even possible with kubebuilder validation?
 	gwpName := paramRef.Name
 	if gwpName == "" {
 		err := eris.New("parametersRef.name cannot be empty when parametersRef is specified")
@@ -247,6 +249,7 @@ func (d *Deployer) getGatewayParametersForGatewayClass(ctx context.Context, gwc 
 		gwpNamespace = string(*paramRef.Namespace)
 	}
 
+	// Get the explicit GatewayParameters
 	gwp := &v1alpha1.GatewayParameters{}
 	err := d.cli.Get(ctx, client.ObjectKey{Namespace: gwpNamespace, Name: gwpName}, gwp)
 	if err != nil {
@@ -258,7 +261,12 @@ func (d *Deployer) getGatewayParametersForGatewayClass(ctx context.Context, gwc 
 		)
 	}
 
-	return gwp, nil
+	// merge the explicit GatewayParameters with the defaults. this is
+	// primarily done to ensure that the image registry and tag are
+	// correctly set when they aren't overridden by the GatewayParameters.
+	mergedGwp := defaultGwp
+	deepMergeGatewayParameters(mergedGwp, gwp)
+	return mergedGwp, nil
 }
 
 func (d *Deployer) getGatewayClassFromGateway(ctx context.Context, gw *api.Gateway) (*api.GatewayClass, error) {
@@ -604,6 +612,18 @@ func defaultWaypointGatewayParameters(imageInfo ImageInfo) *v1alpha1.GatewayPara
 
 	return gwp
 }
+
+/*
+Current plan:
+- Add kubebuilder default markers to handle defaulting for explicit GWPs from users
+- Audit the minimum set of default values.
+  - Basically, the proxy replicas, service type, etc.
+  - Stats are enabled by default.
+  - Use info-level logging by default.
+  - All extension sidecar containers are disabled by default. Enabled via global settings.
+  - Open question, while the extension containers are disabled by default, we still need to set
+    the image registry, tag, etc. because we can't encode that in the kubebuilder defaults.
+*/
 
 // defaultGatewayParameters returns an in-memory GatewayParameters with the default values
 // set for the gateway.
