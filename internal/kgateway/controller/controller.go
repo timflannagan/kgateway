@@ -290,6 +290,7 @@ func (c *controllerBuilder) watchInferencePool(ctx context.Context) error {
 	// Create a deployer using the controllerBuilder as inputs.
 	d, err := deployer.NewDeployer(c.cfg.Mgr.GetClient(), &deployer.Inputs{
 		ControllerName:     c.cfg.ControllerName,
+		ImageInfo:          c.cfg.ImageInfo,
 		InferenceExtension: c.poolCfg.InferenceExt,
 	})
 	if err != nil {
