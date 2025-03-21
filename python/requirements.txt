@@ -10,7 +10,7 @@ langchainhub
 tldextract
 openai
 bs4
-psycopg[c]
+psycopg[binary]
 gptcache
 fastapi[standard]
 uvicorn[standard]
@@ -21,7 +21,7 @@ kubernetes
 # build to fail. Temp workaround is to limit spacy to < 3.8.0. Switch over to pyproject.toml and use
 # platform specific deps if needed
 spacy<3.8.0
-numpy==1.26.4
+numpy==1.26.4  # Pinned for cross-platform wheel availability and spacy compatibility
 presidio_analyzer
 presidio_anonymizer
 opentelemetry-distro
