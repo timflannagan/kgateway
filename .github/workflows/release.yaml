@@ -24,6 +24,9 @@ env:
   # this is uses the `github.repository_owner` to support releases from forks (useful for testing).
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
   VANITY_REGISTRY: cr.kgateway.dev/kgateway-dev
+  DOCKER_CACHE_PATH: ${{ github.workspace }}/tmp/docker-cache
+  DOCKER_BUILDKIT: 1
+  BUILDX_CACHE_PATH: /tmp/.buildx-cache
 
 permissions:
   contents: write
@@ -97,6 +100,7 @@ jobs:
         run: |
           helm push _test/kgateway-${{ needs.setup.outputs.version }}.tgz oci://${{ env.IMAGE_REGISTRY }}/charts
           helm push _test/kgateway-crds-${{ needs.setup.outputs.version }}.tgz oci://${{ env.IMAGE_REGISTRY }}/charts
+
   goreleaser:
     name: goreleaser
     needs: [setup, helm]
@@ -105,8 +109,30 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+
       - name: Prep Go Runner
         uses: ./.github/actions/prep-go-runner
+
+      # Cache Go modules
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BUILDX_CACHE_PATH }}
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
       # We publish a rolling main release for every commit to main. Deleting the release
       # ensures that the tagged commit is not stale. Goreleaser will create a new tag
@@ -130,7 +156,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: "docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392" # v3.6.0
-      - uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2" # v3.10 .0
 
       - name: Run goreleaser
         run: make release
@@ -140,6 +165,9 @@ jobs:
           IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
           GORELEASER_ARGS: ${{ needs.setup.outputs.goreleaser_args }}
           GORELEASER_CURRENT_TAG: ${{ needs.setup.outputs.version }}
+          DOCKER_BUILDKIT: 1
+          DOCKER_CLI_EXPERIMENTAL: enabled
+          BUILDX_CACHE_PATH: ${{ env.BUILDX_CACHE_PATH }}
 
   validate:
     name: Validate release artifacts
@@ -148,8 +176,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Prep Go Runner
-        uses: ./.github/actions/prep-go-runner
 
       - name: Login to ghcr.io
         if: ${{ github.event_name != 'pull_request' }}
