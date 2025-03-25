@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
@@ -85,7 +86,7 @@ func (r *gatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			Reason:  string(api.GatewayClassReasonInvalidParameters),
 			Message: err.Error(),
 		})
-		return ctrl.Result{}, r.cli.Status().Update(ctx, &gw)
+		return ctrl.Result{}, errors.Join(err, r.cli.Status().Update(ctx, &gw))
 	}
 	// update gw status: find the name of the service we own, and see if it update the status with it
 	result := ctrl.Result{}
