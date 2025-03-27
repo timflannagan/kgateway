@@ -41,6 +41,9 @@ go tool register-gen --output-file zz_generated.register.go ${API_INPUT_DIRS_SPA
 go tool controller-gen crd:maxDescLen=0 object rbac:roleName=kgateway paths="${APIS_PKG}/api/${VERSION}" \
     output:crd:artifacts:config=${ROOT_DIR}/${CRD_DIR} output:rbac:artifacts:config=${ROOT_DIR}/${MANIFESTS_DIR}
 
+# Substitute the role name in the rbac manifests
+sed -i 's/name: kgateway/name: {{ include "kgateway.name" . }}-role/' ${ROOT_DIR}/${MANIFESTS_DIR}/role.yaml
+
 # throw away
 new_report="$(mktemp -t "$(basename "$0").api_violations.XXXXXX")"
 
