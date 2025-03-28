@@ -51,7 +51,7 @@ func buildRegisterCallback(
 				func() error {
 					err := cl.Get(ctx, resNN, &res)
 					if err != nil {
-						logger.Error("error getting route policy: ", err.Error())
+						logger.Error("error getting traffic policy: ", err.Error())
 						return err
 					}
 
