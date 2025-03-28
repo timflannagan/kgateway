@@ -11,7 +11,7 @@ import (
 type AIPolicyApplyConfiguration struct {
 	PromptEnrichment *AIPromptEnrichmentApplyConfiguration `json:"promptEnrichment,omitempty"`
 	PromptGuard      *AIPromptGuardApplyConfiguration      `json:"promptGuard,omitempty"`
-	Defaults         []FieldDefaultApplyConfiguration      `json:"defaults,omitempty"`
+	FieldDefaults    []FieldDefaultApplyConfiguration      `json:"fieldDefaults,omitempty"`
 	RouteType        *apiv1alpha1.RouteType                `json:"routeType,omitempty"`
 }
 
@@ -37,15 +37,15 @@ func (b *AIPolicyApplyConfiguration) WithPromptGuard(value *AIPromptGuardApplyCo
 	return b
 }
 
-// WithDefaults adds the given value to the Defaults field in the declarative configuration
+// WithFieldDefaults adds the given value to the FieldDefaults field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
-// If called multiple times, values provided by each call will be appended to the Defaults field.
-func (b *AIPolicyApplyConfiguration) WithDefaults(values ...*FieldDefaultApplyConfiguration) *AIPolicyApplyConfiguration {
+// If called multiple times, values provided by each call will be appended to the FieldDefaults field.
+func (b *AIPolicyApplyConfiguration) WithFieldDefaults(values ...*FieldDefaultApplyConfiguration) *AIPolicyApplyConfiguration {
 	for i := range values {
 		if values[i] == nil {
-			panic("nil value passed to WithDefaults")
+			panic("nil value passed to WithFieldDefaults")
 		}
-		b.Defaults = append(b.Defaults, *values[i])
+		b.FieldDefaults = append(b.FieldDefaults, *values[i])
 	}
 	return b
 }

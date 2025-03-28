@@ -11,6 +11,8 @@ import (
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=".spec.type",description="Which extension type?"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="The age of the gatewayextension."
 
+// GatewayExtension is a resource that defines a gateway extension.
+//
 // +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:metadata:labels={app=kgateway,app.kubernetes.io/name=kgateway}
@@ -48,6 +50,7 @@ type ExtProcProvider struct {
 	GrpcService *ExtGrpcService `json:"grpcService"`
 }
 
+// ExtGrpcService is the specification for an ExtGrpcService.
 type ExtGrpcService struct {
 	// BackendRef references the backend GRPC service.
 	// +kubebuilder:validation:Required
@@ -55,6 +58,7 @@ type ExtGrpcService struct {
 
 	// Authority is the authority header to use for the GRPC service.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
 	Authority *string `json:"authority,omitempty"`
 }
 
@@ -69,12 +73,6 @@ type GatewayExtensionSpec struct {
 	// +kubebuilder:validation:Enum=ExtAuth;ExtProc;Extended
 	// +kubebuilder:validation:Required
 	Type GatewayExtensionType `json:"type"`
-
-	// Placement configuration for where this extension should be placed in the filter chain.
-	// If not specified, the extension will be placed based on the type of the extension.
-	// For example, ExtAuth will be placed in the AuthZStage by default.
-	// +optional
-	// Placement Placement `json:"placement"`
 
 	// ExtAuth configuration for ExtAuth extension type.
 	// +optional

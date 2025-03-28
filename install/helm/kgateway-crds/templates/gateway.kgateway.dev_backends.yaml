@@ -445,6 +445,8 @@ spec:
                               maxItems: 20
                               minItems: 1
                               type: array
+                          required:
+                          - pool
                           type: object
                         maxItems: 20
                         minItems: 1
@@ -534,6 +536,8 @@ spec:
                       type: object
                     minItems: 1
                     type: array
+                required:
+                - hosts
                 type: object
               type:
                 enum:

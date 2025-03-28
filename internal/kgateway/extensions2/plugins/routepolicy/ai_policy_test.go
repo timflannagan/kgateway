@@ -100,7 +100,7 @@ func TestProcessAITrafficPolicy(t *testing.T) {
 		// Setup
 		plugin := &trafficPolicyPluginGwPass{}
 		aiConfig := &v1alpha1.AIPolicy{
-			Defaults: []v1alpha1.FieldDefault{
+			FieldDefaults: []v1alpha1.FieldDefault{
 				{
 					Field: "model",
 					Value: "gpt-4",

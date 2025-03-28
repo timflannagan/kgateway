@@ -470,7 +470,8 @@ func schema_kgateway_v2_api_v1alpha1_AIBackend(ref common.ReferenceCallback) com
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "AIBackend is a resource that configures the AI gateway to use a single LLM provider backend or multiple backends for multiple hosts or models from the same provider.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"llm": {
 						SchemaProps: spec.SchemaProps{
@@ -496,24 +497,24 @@ func schema_kgateway_v2_api_v1alpha1_AIPolicy(ref common.ReferenceCallback) comm
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "AIPolicy config is used to configure the behavior of the LLM provider on the level of individual routes. These route settings, such as prompt enrichment, retrieval augmented generation (RAG), and semantic caching, are applicable only for routes that send requests to an LLM provider backend.",
+				Description: "AIPolicy configures the behavior of the LLM provider on the level of individual routes. These route settings, such as prompt enrichment, retrieval augmented generation (RAG), and semantic caching, are applicable only for routes that send requests to an LLM provider backend.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"promptEnrichment": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enrich requests sent to the LLM provider by appending and prepending system prompts. This can be configured only for LLM providers that use the `CHAT` or `CHAT_STREAMING` API route type.",
+							Description: "PromptEnrichment configures the enrichment of requests sent to the LLM provider by appending and prepending system prompts. This can be configured only for LLM providers that use the `CHAT` or `CHAT_STREAMING` API route type.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptEnrichment"),
 						},
 					},
 					"promptGuard": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Set up prompt guards to block unwanted requests to the LLM provider and mask sensitive data. Prompt guards can be used to reject requests based on the content of the prompt, as well as mask responses based on the content of the response.",
+							Description: "PromptGuard configures the prompt guards to block unwanted requests to the LLM provider and mask sensitive data. Prompt guards can be used to reject requests based on the content of the prompt, as well as mask responses based on the content of the response.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPromptGuard"),
 						},
 					},
-					"defaults": {
+					"fieldDefaults": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Provide defaults to merge with user input fields. Defaults do _not_ override the user input fields, unless you explicitly set `override` to `true`.",
+							Description: "FieldDefaults configures the defaults to merge with user input fields. Defaults do _not_ override the user input fields, unless you explicitly set `override` to `true`.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -527,7 +528,7 @@ func schema_kgateway_v2_api_v1alpha1_AIPolicy(ref common.ReferenceCallback) comm
 					},
 					"routeType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The type of route to the LLM provider API. Currently, `CHAT` and `CHAT_STREAMING` are supported.",
+							Description: "RouteType configures the type of route to the LLM provider API. Currently, `CHAT` and `CHAT_STREAMING` are supported.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -549,7 +550,7 @@ func schema_kgateway_v2_api_v1alpha1_AIPromptEnrichment(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"prepend": {
 						SchemaProps: spec.SchemaProps{
-							Description: "A list of messages to be prepended to the prompt sent by the client.",
+							Description: "Prepend configures a list of messages to be prepended to the prompt sent by the client.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -563,7 +564,7 @@ func schema_kgateway_v2_api_v1alpha1_AIPromptEnrichment(ref common.ReferenceCall
 					},
 					"append": {
 						SchemaProps: spec.SchemaProps{
-							Description: "A list of messages to be appended to the prompt sent by the client.",
+							Description: "Append configures a list of messages to be appended to the prompt sent by the client.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -592,13 +593,13 @@ func schema_kgateway_v2_api_v1alpha1_AIPromptGuard(ref common.ReferenceCallback)
 				Properties: map[string]spec.Schema{
 					"request": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Prompt guards to apply to requests sent by the client.",
+							Description: "Request is the prompt guards to apply to requests sent by the client.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PromptguardRequest"),
 						},
 					},
 					"response": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Prompt guards to apply to responses returned by the LLM provider.",
+							Description: "Response is the prompt guards to apply to responses returned by the LLM provider.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.PromptguardResponse"),
 						},
 					},
@@ -619,13 +620,13 @@ func schema_kgateway_v2_api_v1alpha1_AccessLog(ref common.ReferenceCallback) com
 				Properties: map[string]spec.Schema{
 					"fileSink": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Output access logs to local file",
+							Description: "FileSink is used to output access logs to a local file.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.FileSink"),
 						},
 					},
 					"grpcService": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Send access logs to gRPC service",
+							Description: "GrpcService is used to send access logs to a gRPC service.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GrpcService"),
 						},
 					},
@@ -652,51 +653,57 @@ func schema_kgateway_v2_api_v1alpha1_AccessLogFilter(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"statusCodeFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StatusCodeFilter"),
+							Description: "StatusCodeFilter filters based on HTTP status code.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StatusCodeFilter"),
 						},
 					},
 					"durationFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DurationFilter"),
+							Description: "DurationFilter filters based on request duration.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DurationFilter"),
 						},
 					},
 					"notHealthCheckFilter": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Filters for requests that are not health check requests. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-nothealthcheckfilter",
+							Description: "NotHealthCheckFilter filters for requests that are not health check requests. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-nothealthcheckfilter",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"traceableFilter": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Filters for requests that are traceable. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-traceablefilter",
+							Description: "TraceableFilter filters for requests that are traceable. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-traceablefilter",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"headerFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.HeaderFilter"),
+							Description: "HeaderFilter filters based on request headers.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.HeaderFilter"),
 						},
 					},
 					"responseFlagFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ResponseFlagFilter"),
+							Description: "ResponseFlagFilter filters based on response flags.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ResponseFlagFilter"),
 						},
 					},
 					"grpcStatusFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GrpcStatusFilter"),
+							Description: "GrpcStatusFilter filters based on gRPC status code.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GrpcStatusFilter"),
 						},
 					},
 					"celFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CELFilter"),
+							Description: "CELFilter filters based on Common Expression Language (CEL).",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CELFilter"),
 						},
 					},
 					"andFilter": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Performs a logical \"and\" operation on the result of each individual filter. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-andfilter",
+							Description: "AndFilter is a list of filters that will be evaluated as a logical \"and\" operation. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-andfilter",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -710,7 +717,7 @@ func schema_kgateway_v2_api_v1alpha1_AccessLogFilter(ref common.ReferenceCallbac
 					},
 					"orFilter": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Performs a logical \"or\" operation on the result of each individual filter. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-orfilter",
+							Description: "OrFilter is a list of filters that will be evaluated as a logical \"or\" operation. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-orfilter",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -840,21 +847,21 @@ func schema_kgateway_v2_api_v1alpha1_AnthropicConfig(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"authToken": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The authorization token that the AI gateway uses to access the Anthropic API. This token is automatically sent in the `x-api-key` header of the request.",
+							Description: "AuthToken configures the authorization token that the AI gateway uses to access the Anthropic API. This token is automatically sent in the `x-api-key` header of the request.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"),
 						},
 					},
 					"apiVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Optional: A version header to pass to the Anthropic API. For more information, see the [Anthropic API versioning docs](https://docs.anthropic.com/en/api/versioning).",
+							Description: "ApiVersion configures a version header to pass to the Anthropic API. For more information, see the [Anthropic API versioning docs](https://docs.anthropic.com/en/api/versioning).",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"model": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Optional: Override the model name. If unset, the model name is taken from the request. This setting can be useful when testing model failover scenarios.",
+							Description: "Model configures the model name to use. If unset, the model name is taken from the request. This setting can be useful when testing model failover scenarios.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1005,14 +1012,14 @@ func schema_kgateway_v2_api_v1alpha1_AzureOpenAIConfig(ref common.ReferenceCallb
 				Properties: map[string]spec.Schema{
 					"authToken": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The authorization token that the AI gateway uses to access the Azure OpenAI API. This token is automatically sent in the `api-key` header of the request.",
+							Description: "AuthToken configures the authorization token that the AI gateway uses to access the Azure OpenAI API. This token is automatically sent in the `api-key` header of the request.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"),
 						},
 					},
 					"endpoint": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The endpoint for the Azure OpenAI API to use, such as `my-endpoint.openai.azure.com`. If the scheme is included, it is stripped.",
+							Description: "Endpoint configures the endpoint for the Azure OpenAI API to use, such as `my-endpoint.openai.azure.com`. If the scheme is included, it is stripped.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1020,7 +1027,7 @@ func schema_kgateway_v2_api_v1alpha1_AzureOpenAIConfig(ref common.ReferenceCallb
 					},
 					"deploymentName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The name of the Azure OpenAI model deployment to use. For more information, see the [Azure OpenAI model docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models).",
+							Description: "DeploymentName configures the name of the Azure OpenAI model deployment to use. For more information, see the [Azure OpenAI model docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models).",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1028,7 +1035,7 @@ func schema_kgateway_v2_api_v1alpha1_AzureOpenAIConfig(ref common.ReferenceCallb
 					},
 					"apiVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The version of the Azure OpenAI API to use. For more information, see the [Azure OpenAI API version reference](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#api-specs).",
+							Description: "ApiVersion configures the version of the Azure OpenAI API to use. For more information, see the [Azure OpenAI API version reference](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#api-specs).",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1047,7 +1054,8 @@ func schema_kgateway_v2_api_v1alpha1_Backend(ref common.ReferenceCallback) commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "Backend is a resource that defines a backend for a gateway.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -1071,14 +1079,14 @@ func schema_kgateway_v2_api_v1alpha1_Backend(ref common.ReferenceCallback) commo
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.BackendSpec"),
+							Description: "Spec is the specification for the backend.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.BackendSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.BackendStatus"),
+							Description: "Status is the status of the backend.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.BackendStatus"),
 						},
 					},
 				},
@@ -1304,7 +1312,7 @@ func schema_kgateway_v2_api_v1alpha1_CELFilter(ref common.ReferenceCallback) com
 				Properties: map[string]spec.Schema{
 					"match": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The CEL expressions to evaluate. AccessLogs are only emitted when the CEL expressions evaluates to true. see: https://www.envoyproxy.io/docs/envoy/v1.33.0/xds/type/v3/cel.proto.html#common-expression-language-cel-proto",
+							Description: "Match is the CEL expression to evaluate. AccessLogs are only emitted when the CEL expression evaluates to true. see: https://www.envoyproxy.io/docs/envoy/v1.33.0/xds/type/v3/cel.proto.html#common-expression-language-cel-proto",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1326,13 +1334,14 @@ func schema_kgateway_v2_api_v1alpha1_ComparisonFilter(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"op": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Op is the operator to use for the comparison.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"value": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Value to compare against.",
+							Description: "Value is the value to compare against.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
@@ -1395,14 +1404,14 @@ func schema_kgateway_v2_api_v1alpha1_CustomResponse(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"message": {
 						SchemaProps: spec.SchemaProps{
-							Description: "A custom response message to return to the client. If not specified, defaults to \"The request was rejected due to inappropriate content\".",
+							Description: "Message is a custom response message to return to the client. If not specified, defaults to \"The request was rejected due to inappropriate content\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"statusCode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The status code to return to the client. Defaults to 403.",
+							Description: "StatusCode is the status code to return to the client. Defaults to 403.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
@@ -1442,14 +1451,14 @@ func schema_kgateway_v2_api_v1alpha1_DirectResponse(ref common.ReferenceCallback
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DirectResponseSpec"),
+							Description: "Spec is the specification for the direct response.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DirectResponseSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DirectResponseStatus"),
+							Description: "Status is the status of the direct response.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DirectResponseStatus"),
 						},
 					},
 				},
@@ -1557,13 +1566,14 @@ func schema_kgateway_v2_api_v1alpha1_DurationFilter(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"op": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Op is the operator to use for the comparison.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"value": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Value to compare against.",
+							Description: "Value is the value to compare against.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
@@ -1764,7 +1774,8 @@ func schema_kgateway_v2_api_v1alpha1_ExtGrpcService(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "ExtGrpcService is the specification for an ExtGrpcService.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"backendRef": {
 						SchemaProps: spec.SchemaProps{
@@ -1792,7 +1803,8 @@ func schema_kgateway_v2_api_v1alpha1_ExtProcPolicy(ref common.ReferenceCallback)
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "ExtProcPolicy is the specification for the external processing policy.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"extensionRef": {
 						SchemaProps: spec.SchemaProps{
@@ -1802,7 +1814,7 @@ func schema_kgateway_v2_api_v1alpha1_ExtProcPolicy(ref common.ReferenceCallback)
 					},
 					"processingMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ProcessingMode defines how the filter should interact with the request/response streams",
+							Description: "ProcessingMode defines how the filter should interact with the request/response streams.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ProcessingMode"),
 						},
 					},
@@ -1890,7 +1902,7 @@ func schema_kgateway_v2_api_v1alpha1_FileSink(ref common.ReferenceCallback) comm
 				Properties: map[string]spec.Schema{
 					"path": {
 						SchemaProps: spec.SchemaProps{
-							Description: "the file path to which the file access logging service will sink",
+							Description: "Path is the file path to which the file access logging service will sink",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1898,14 +1910,14 @@ func schema_kgateway_v2_api_v1alpha1_FileSink(ref common.ReferenceCallback) comm
 					},
 					"stringFormat": {
 						SchemaProps: spec.SchemaProps{
-							Description: "the format string by which envoy will format the log lines https://www.envoyproxy.io/docs/envoy/v1.33.0/configuration/observability/access_log/usage#format-strings",
+							Description: "StringFormat is the format string by which envoy will format the log lines https://www.envoyproxy.io/docs/envoy/v1.33.0/configuration/observability/access_log/usage#format-strings",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"jsonFormat": {
 						SchemaProps: spec.SchemaProps{
-							Description: "the format object by which to envoy will emit the logs in a structured way. https://www.envoyproxy.io/docs/envoy/v1.33.0/configuration/observability/access_log/usage#format-dictionaries",
+							Description: "JsonFormat is the format object by which to envoy will emit the logs in a structured way. https://www.envoyproxy.io/docs/envoy/v1.33.0/configuration/observability/access_log/usage#format-dictionaries",
 							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 						},
 					},
@@ -1927,46 +1939,52 @@ func schema_kgateway_v2_api_v1alpha1_FilterType(ref common.ReferenceCallback) co
 				Properties: map[string]spec.Schema{
 					"statusCodeFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StatusCodeFilter"),
+							Description: "StatusCodeFilter filters based on HTTP status code.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.StatusCodeFilter"),
 						},
 					},
 					"durationFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DurationFilter"),
+							Description: "DurationFilter filters based on request duration.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.DurationFilter"),
 						},
 					},
 					"notHealthCheckFilter": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Filters for requests that are not health check requests. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-nothealthcheckfilter",
+							Description: "NotHealthCheckFilter filters for requests that are not health check requests. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-nothealthcheckfilter",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"traceableFilter": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Filters for requests that are traceable. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-traceablefilter",
+							Description: "TraceableFilter filters for requests that are traceable. Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-traceablefilter",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"headerFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.HeaderFilter"),
+							Description: "HeaderFilter filters based on request headers.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.HeaderFilter"),
 						},
 					},
 					"responseFlagFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ResponseFlagFilter"),
+							Description: "ResponseFlagFilter filters based on response flags.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.ResponseFlagFilter"),
 						},
 					},
 					"grpcStatusFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GrpcStatusFilter"),
+							Description: "GrpcStatusFilter filters based on gRPC status code.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GrpcStatusFilter"),
 						},
 					},
 					"celFilter": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CELFilter"),
+							Description: "CELFilter filters based on Common Expression Language (CEL).",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CELFilter"),
 						},
 					},
 				},
@@ -1981,7 +1999,8 @@ func schema_kgateway_v2_api_v1alpha1_GatewayExtension(ref common.ReferenceCallba
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "GatewayExtension is a resource that defines a gateway extension.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -2293,7 +2312,7 @@ func schema_kgateway_v2_api_v1alpha1_GeminiConfig(ref common.ReferenceCallback) 
 					},
 					"model": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The Gemini model to use. For more information, see the [Gemini models docs](https://ai.google.dev/gemini-api/docs/models/gemini).",
+							Description: "Model configures the Gemini model to use. For more information, see the [Gemini models docs](https://ai.google.dev/gemini-api/docs/models/gemini).",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -2301,7 +2320,7 @@ func schema_kgateway_v2_api_v1alpha1_GeminiConfig(ref common.ReferenceCallback) 
 					},
 					"apiVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The version of the Gemini API to use. For more information, see the [Gemini API version docs](https://ai.google.dev/gemini-api/docs/api-versions).",
+							Description: "ApiVersion configures the version of the Gemini API to use. For more information, see the [Gemini API version docs](https://ai.google.dev/gemini-api/docs/api-versions).",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -2351,7 +2370,7 @@ func schema_kgateway_v2_api_v1alpha1_GrpcService(ref common.ReferenceCallback) c
 				Properties: map[string]spec.Schema{
 					"logName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "name of log stream",
+							Description: "LogName is the name of the log stream",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -2359,13 +2378,13 @@ func schema_kgateway_v2_api_v1alpha1_GrpcService(ref common.ReferenceCallback) c
 					},
 					"backendRef": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The backend gRPC service. Can be any type of supported backend (Kubernetes Service, kgateway Backend, etc..)",
+							Description: "BackendRef is the backend gRPC service. Can be any type of supported backend (Kubernetes Service, kgateway Backend, etc..)",
 							Ref:         ref("sigs.k8s.io/gateway-api/apis/v1.BackendRef"),
 						},
 					},
 					"additionalRequestHeadersToLog": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Additional request headers to log in the access log",
+							Description: "AdditionalRequestHeadersToLog is a list of additional request headers to log in the access log",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2380,7 +2399,7 @@ func schema_kgateway_v2_api_v1alpha1_GrpcService(ref common.ReferenceCallback) c
 					},
 					"additionalResponseHeadersToLog": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Additional response headers to log in the access log",
+							Description: "AdditionalResponseHeadersToLog is a list of additional response headers to log in the access log",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2395,7 +2414,7 @@ func schema_kgateway_v2_api_v1alpha1_GrpcService(ref common.ReferenceCallback) c
 					},
 					"additionalResponseTrailersToLog": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Additional response trailers to log in the access log",
+							Description: "AdditionalResponseTrailersToLog is a list of additional response trailers to log in the access log",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2426,7 +2445,8 @@ func schema_kgateway_v2_api_v1alpha1_GrpcStatusFilter(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"statuses": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "Statuses is a list of gRPC statuses to filter on.",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -2440,8 +2460,9 @@ func schema_kgateway_v2_api_v1alpha1_GrpcStatusFilter(ref common.ReferenceCallba
 					},
 					"exclude": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
+							Description: "Exclude is a boolean that determines if the filter should exclude the statuses.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
@@ -2454,7 +2475,8 @@ func schema_kgateway_v2_api_v1alpha1_HTTPListenerPolicy(ref common.ReferenceCall
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "HTTPListenerPolicy is a resource that defines a policy for an HTTP listener.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -2552,7 +2574,8 @@ func schema_kgateway_v2_api_v1alpha1_HTTPListenerPolicySpec(ref common.Reference
 				Properties: map[string]spec.Schema{
 					"targetRefs": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "TargetRefs is a list of target references for the policy.",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -2594,8 +2617,9 @@ func schema_kgateway_v2_api_v1alpha1_HeaderFilter(ref common.ReferenceCallback) 
 				Properties: map[string]spec.Schema{
 					"header": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("sigs.k8s.io/gateway-api/apis/v1.HTTPHeaderMatch"),
+							Description: "Header is the header to filter on.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("sigs.k8s.io/gateway-api/apis/v1.HTTPHeaderMatch"),
 						},
 					},
 				},
@@ -2889,18 +2913,19 @@ func schema_kgateway_v2_api_v1alpha1_LLMProvider(ref common.ReferenceCallback) c
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "LLMProvider configures the AI gateway to use a single LLM provider backend.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"provider": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The LLM provider type to configure.",
+							Description: "Provider configures the LLM provider type to use.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SupportedLLMProvider"),
 						},
 					},
 					"hostOverride": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Send requests to a custom host and port, such as to proxy the request, or to use a different backend that is API-compliant with the Backend version.",
+							Description: "HostOverride configures the AI gateway to send requests to a custom host and port, such as to proxy the request, or to use a different backend that is API-compliant with the Backend version.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Host"),
 						},
 					},
@@ -2977,7 +3002,7 @@ func schema_kgateway_v2_api_v1alpha1_Message(ref common.ReferenceCallback) commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "An entry for a message to prepend or append to each prompt.",
+				Description: "Message is an entry for a message to prepend or append to each prompt.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"role": {
@@ -2990,7 +3015,7 @@ func schema_kgateway_v2_api_v1alpha1_Message(ref common.ReferenceCallback) commo
 					},
 					"content": {
 						SchemaProps: spec.SchemaProps{
-							Description: "String content of the message.",
+							Description: "Content of the message.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -3033,7 +3058,7 @@ func schema_kgateway_v2_api_v1alpha1_MultiPoolConfig(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"priorities": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The priority list of backend pools. Each entry represents a set of LLM provider backends. The order defines the priority of the backend endpoints.",
+							Description: "Priorities configures the priority list of backend pools. Each entry represents a set of LLM provider backends. The order defines the priority of the backend endpoints.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -3062,14 +3087,14 @@ func schema_kgateway_v2_api_v1alpha1_OpenAIConfig(ref common.ReferenceCallback) 
 				Properties: map[string]spec.Schema{
 					"authToken": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The authorization token that the AI gateway uses to access the OpenAI API. This token is automatically sent in the `Authorization` header of the request and prefixed with `Bearer`.",
+							Description: "AuthToken configures the authorization token that the AI gateway uses to access the OpenAI API. This token is automatically sent in the `Authorization` header of the request and prefixed with `Bearer`.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"),
 						},
 					},
 					"model": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Optional: Override the model name, such as `gpt-4o-mini`. If unset, the model name is taken from the request. This setting can be useful when setting up model failover within the same LLM provider.",
+							Description: "Model configures the model name to use. Default: The model name is taken from the request. This setting can be useful when setting up model failover within the same LLM provider.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3321,7 +3346,7 @@ func schema_kgateway_v2_api_v1alpha1_Priority(ref common.ReferenceCallback) comm
 				Properties: map[string]spec.Schema{
 					"pool": {
 						SchemaProps: spec.SchemaProps{
-							Description: "A list of LLM provider backends within a single endpoint pool entry.",
+							Description: "Pool configures a list of LLM provider backends within a single endpoint pool entry.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -3345,47 +3370,47 @@ func schema_kgateway_v2_api_v1alpha1_ProcessingMode(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ProcessingMode defines how the filter should interact with the request/response streams",
+				Description: "ProcessingMode defines how the filter should interact with the request/response streams.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"requestHeaderMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RequestHeaderMode determines how to handle the request headers",
+							Description: "RequestHeaderMode determines how to handle the request headers.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"responseHeaderMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ResponseHeaderMode determines how to handle the response headers",
+							Description: "ResponseHeaderMode determines how to handle the response headers.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"requestBodyMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RequestBodyMode determines how to handle the request body",
+							Description: "RequestBodyMode determines how to handle the request body.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"responseBodyMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ResponseBodyMode determines how to handle the response body",
+							Description: "ResponseBodyMode determines how to handle the response body.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"requestTrailerMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RequestTrailerMode determines how to handle the request trailers",
+							Description: "RequestTrailerMode determines how to handle the request trailers.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"responseTrailerMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ResponseTrailerMode determines how to handle the response trailers",
+							Description: "ResponseTrailerMode determines how to handle the response trailers.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3405,25 +3430,25 @@ func schema_kgateway_v2_api_v1alpha1_PromptguardRequest(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"customResponse": {
 						SchemaProps: spec.SchemaProps{
-							Description: "A custom response message to return to the client. If not specified, defaults to \"The request was rejected due to inappropriate content\".",
+							Description: "CustomResponse is a custom response message to return to the client. If not specified, defaults to \"The request was rejected due to inappropriate content\".",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.CustomResponse"),
 						},
 					},
 					"regex": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Regular expression (regex) matching for prompt guards and data masking.",
+							Description: "Regex is a regular expression (regex) matching for prompt guards and data masking.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Regex"),
 						},
 					},
 					"webhook": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure a webhook to forward requests to for prompt guarding.",
+							Description: "Webhook is a webhook to forward requests to for prompt guarding.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Webhook"),
 						},
 					},
 					"moderation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Pass prompt data through an external moderation model endpoint, which compares the request prompt input to predefined content rules.",
+							Description: "Moderation is a moderation model endpoint to pass prompt data through.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Moderation"),
 						},
 					},
@@ -3450,7 +3475,7 @@ func schema_kgateway_v2_api_v1alpha1_PromptguardResponse(ref common.ReferenceCal
 					},
 					"webhook": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure a webhook to forward responses to for prompt guarding.",
+							Description: "Webhook is a webhook to forward responses to for prompt guarding.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Webhook"),
 						},
 					},
@@ -3513,7 +3538,7 @@ func schema_kgateway_v2_api_v1alpha1_Regex(ref common.ReferenceCallback) common.
 				Properties: map[string]spec.Schema{
 					"matches": {
 						SchemaProps: spec.SchemaProps{
-							Description: "A list of regex patterns to match against the request or response. Matches and built-ins are additive.",
+							Description: "Matches is a list of regex patterns to match against the request or response. Matches and built-ins are additive.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -3527,7 +3552,7 @@ func schema_kgateway_v2_api_v1alpha1_Regex(ref common.ReferenceCallback) common.
 					},
 					"builtins": {
 						SchemaProps: spec.SchemaProps{
-							Description: "A list of built-in regex patterns to match against the request or response. Matches and built-ins are additive.",
+							Description: "Builtins is a list of built-in regex patterns to match against the request or response. Matches and built-ins are additive.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -3542,7 +3567,7 @@ func schema_kgateway_v2_api_v1alpha1_Regex(ref common.ReferenceCallback) common.
 					},
 					"action": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The action to take if a regex pattern is matched in a request or response. This setting applies only to request matches. PromptguardResponse matches are always masked by default. Defaults to `MASK`.",
+							Description: "Action is the action to take if a regex pattern is matched in a request or response. This setting applies only to request matches. PromptguardResponse matches are always masked by default. Defaults to `MASK`.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3564,14 +3589,14 @@ func schema_kgateway_v2_api_v1alpha1_RegexMatch(ref common.ReferenceCallback) co
 				Properties: map[string]spec.Schema{
 					"pattern": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The regex pattern to match against the request or response.",
+							Description: "Pattern is the regex pattern to match against the request or response.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "An optional name for this match, which can be used for debugging purposes.",
+							Description: "Name is an optional name for this match, which can be used for debugging purposes.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3591,7 +3616,8 @@ func schema_kgateway_v2_api_v1alpha1_ResponseFlagFilter(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"flags": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "Flags is a list of response flags to filter on.",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -3879,6 +3905,7 @@ func schema_kgateway_v2_api_v1alpha1_StaticBackend(ref common.ReferenceCallback)
 						},
 					},
 				},
+				Required: []string{"hosts"},
 			},
 		},
 		Dependencies: []string{
@@ -3936,13 +3963,14 @@ func schema_kgateway_v2_api_v1alpha1_StatusCodeFilter(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"op": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Op is the operator to use for the comparison.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"value": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Value to compare against.",
+							Description: "Value is the value to compare against.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
@@ -3962,27 +3990,32 @@ func schema_kgateway_v2_api_v1alpha1_SupportedLLMProvider(ref common.ReferenceCa
 				Properties: map[string]spec.Schema{
 					"openai": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.OpenAIConfig"),
+							Description: "OpenAI configures the AI gateway to use the OpenAI LLM provider.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.OpenAIConfig"),
 						},
 					},
 					"azureopenai": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AzureOpenAIConfig"),
+							Description: "AzureOpenAI configures the AI gateway to use the Azure OpenAI LLM provider.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AzureOpenAIConfig"),
 						},
 					},
 					"anthropic": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AnthropicConfig"),
+							Description: "Anthropic configures the AI gateway to use the Anthropic LLM provider.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AnthropicConfig"),
 						},
 					},
 					"gemini": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GeminiConfig"),
+							Description: "Gemini configures the AI gateway to use the Gemini LLM provider.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.GeminiConfig"),
 						},
 					},
 					"vertexai": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.VertexAIConfig"),
+							Description: "VertexAI configures the AI gateway to use the Vertex AI LLM provider.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.VertexAIConfig"),
 						},
 					},
 				},
@@ -4010,7 +4043,7 @@ func schema_kgateway_v2_api_v1alpha1_TokenBucket(ref common.ReferenceCallback) c
 					},
 					"tokensPerFill": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TokensPerFill specifies the number of tokens added to the bucket during each fill interval. If not specified, it defaults to 1. This controls the steady-state rate of token generation. kubebuilder:default:=1",
+							Description: "TokensPerFill specifies the number of tokens added to the bucket during each fill interval. If not specified, it defaults to 1. This controls the steady-state rate of token generation.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
@@ -4128,11 +4161,13 @@ func schema_kgateway_v2_api_v1alpha1_TrafficPolicySpec(ref common.ReferenceCallb
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "TrafficPolicySpec is the specification for a TrafficPolicy.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"targetRefs": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "TargetRefs is a list of target references for the policy.",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -4145,13 +4180,14 @@ func schema_kgateway_v2_api_v1alpha1_TrafficPolicySpec(ref common.ReferenceCallb
 					},
 					"ai": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPolicy"),
+							Description: "AI is used to configure AI-based policies for the policy.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.AIPolicy"),
 						},
 					},
 					"transformation": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.TransformationPolicy"),
+							Description: "Transformation is used to mutate and transform requests and responses before forwarding them to the destination.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.TransformationPolicy"),
 						},
 					},
 					"extProc": {
@@ -4253,7 +4289,7 @@ func schema_kgateway_v2_api_v1alpha1_Transform(ref common.ReferenceCallback) com
 					},
 					"body": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Body controls both how to parse the body and if needed how to set.\n\nIf empty, body will not be buffered.",
+							Description: "Body controls both how to parse the body and if needed how to set. If empty, body will not be buffered.",
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.BodyTransformation"),
 						},
 					},
@@ -4274,12 +4310,14 @@ func schema_kgateway_v2_api_v1alpha1_TransformationPolicy(ref common.ReferenceCa
 				Properties: map[string]spec.Schema{
 					"request": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Transform"),
+							Description: "Request is used to modify the request path.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Transform"),
 						},
 					},
 					"response": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Transform"),
+							Description: "Response is used to modify the response path.",
+							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.Transform"),
 						},
 					},
 				},
@@ -4299,14 +4337,14 @@ func schema_kgateway_v2_api_v1alpha1_VertexAIConfig(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"authToken": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The authorization token that the AI gateway uses to access the Vertex AI API. This token is automatically sent in the `key` header of the request.",
+							Description: "AuthToken configures the authorization token that the AI gateway uses to access the Vertex AI API. This token is automatically sent in the `key` header of the request.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kgateway-dev/kgateway/v2/api/v1alpha1.SingleAuthToken"),
 						},
 					},
 					"model": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The Vertex AI model to use. For more information, see the [Vertex AI model docs](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models).",
+							Description: "Model configures the Vertex AI model to use. For more information, see the [Vertex AI model docs](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models).",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -4314,7 +4352,7 @@ func schema_kgateway_v2_api_v1alpha1_VertexAIConfig(ref common.ReferenceCallback
 					},
 					"apiVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The version of the Vertex AI API to use. For more information, see the [Vertex AI API reference](https://cloud.google.com/vertex-ai/docs/reference#versions).",
+							Description: "ApiVersion configures the version of the Vertex AI API to use. For more information, see the [Vertex AI API reference](https://cloud.google.com/vertex-ai/docs/reference#versions).",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -4322,7 +4360,7 @@ func schema_kgateway_v2_api_v1alpha1_VertexAIConfig(ref common.ReferenceCallback
 					},
 					"projectId": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The ID of the Google Cloud Project that you use for the Vertex AI.",
+							Description: "ProjectId configures the ID of the Google Cloud Project that you use for the Vertex AI.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -4330,7 +4368,7 @@ func schema_kgateway_v2_api_v1alpha1_VertexAIConfig(ref common.ReferenceCallback
 					},
 					"location": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The location of the Google Cloud Project that you use for the Vertex AI.",
+							Description: "Location configures the location of the Google Cloud Project that you use for the Vertex AI.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -4338,14 +4376,14 @@ func schema_kgateway_v2_api_v1alpha1_VertexAIConfig(ref common.ReferenceCallback
 					},
 					"modelPath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Optional: The model path to route to. Defaults to the Gemini model path, `generateContent`.",
+							Description: "ModelPath configures the model path to route to. Defaults to the Gemini model path, `generateContent`.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"publisher": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The type of publisher model to use. Currently, only Google is supported.",
+							Description: "Publisher configures the type of publisher model to use. Currently, only Google is supported.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",

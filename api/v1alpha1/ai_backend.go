@@ -4,22 +4,32 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// AIBackend is a resource that configures the AI gateway to use a single LLM provider backend or multiple backends for multiple hosts or models from the same provider.
+//
 // +kubebuilder:validation:XValidation:message="There must one and only one LLM or MultiPool can be set",rule="(has(self.llm) && !has(self.multipool)) || (!has(self.llm) && has(self.multipool))"
-// +kubebuilder:validation:MaxProperties=1
 // +kubebuilder:validation:MinProperties=1
+// +kubebuilder:validation:MaxProperties=1
 type AIBackend struct {
 	// The LLM configures the AI gateway to use a single LLM provider backend.
+	// +optional
 	LLM *LLMProvider `json:"llm,omitempty"`
-	// The MultiPool configures the backends for multiple hosts or models from the same provider in one Backend resource.
+
+	// The MultiPool configures the backends for multiple hosts or models from the
+	// same provider in one Backend resource.
+	// +optional
 	MultiPool *MultiPoolConfig `json:"multipool,omitempty"`
 }
 
+// LLMProvider configures the AI gateway to use a single LLM provider backend.
 type LLMProvider struct {
-	// The LLM provider type to configure.
+	// Provider configures the LLM provider type to use.
+	// +kubebuilder:validation:Required
 	Provider SupportedLLMProvider `json:"provider"`
 
-	// Send requests to a custom host and port, such as to proxy the request,
-	// or to use a different backend that is API-compliant with the Backend version.
+	// HostOverride configures the AI gateway to send requests to a custom host and port,
+	// such as to proxy the request, or to use a different backend that is API-compliant
+	// with the Backend version.
+	// +optional
 	HostOverride *Host `json:"hostOverride,omitempty"`
 }
 
@@ -27,13 +37,28 @@ type LLMProvider struct {
 // +kubebuilder:validation:MaxProperties=1
 // +kubebuilder:validation:MinProperties=1
 type SupportedLLMProvider struct {
-	OpenAI      *OpenAIConfig      `json:"openai,omitempty"`
+	// OpenAI configures the AI gateway to use the OpenAI LLM provider.
+	// +optional
+	OpenAI *OpenAIConfig `json:"openai,omitempty"`
+
+	// AzureOpenAI configures the AI gateway to use the Azure OpenAI LLM provider.
+	// +optional
 	AzureOpenAI *AzureOpenAIConfig `json:"azureopenai,omitempty"`
-	Anthropic   *AnthropicConfig   `json:"anthropic,omitempty"`
-	Gemini      *GeminiConfig      `json:"gemini,omitempty"`
-	VertexAI    *VertexAIConfig    `json:"vertexai,omitempty"`
+
+	// Anthropic configures the AI gateway to use the Anthropic LLM provider.
+	// +optional
+	Anthropic *AnthropicConfig `json:"anthropic,omitempty"`
+
+	// Gemini configures the AI gateway to use the Gemini LLM provider.
+	// +optional
+	Gemini *GeminiConfig `json:"gemini,omitempty"`
+
+	// VertexAI configures the AI gateway to use the Vertex AI LLM provider.
+	// +optional
+	VertexAI *VertexAIConfig `json:"vertexai,omitempty"`
 }
 
+// SingleAuthTokenKind configures the kind of authorization token to use.
 type SingleAuthTokenKind string
 
 const (
@@ -62,6 +87,7 @@ type SingleAuthToken struct {
 
 	// Provide the token directly in the configuration for the Backend.
 	// This option is the least secure. Only use this option for quick tests such as trying out AI Gateway.
+	// +optional
 	Inline *string `json:"inline,omitempty"`
 
 	// Store the API key in a Kubernetes secret in the same namespace as the Backend.
@@ -69,42 +95,45 @@ type SingleAuthToken struct {
 	// because the API key is encoded and you can restrict access to secrets through RBAC rules.
 	// You might use this option in proofs of concept, controlled development and staging environments,
 	// or well-controlled prod environments that use secrets.
+	// +optional
 	SecretRef *corev1.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // OpenAIConfig settings for the [OpenAI](https://platform.openai.com/docs/api-reference/streaming) LLM provider.
 type OpenAIConfig struct {
-	// The authorization token that the AI gateway uses to access the OpenAI API.
+	// AuthToken configures the authorization token that the AI gateway uses to access the OpenAI API.
 	// This token is automatically sent in the `Authorization` header of the
 	// request and prefixed with `Bearer`.
 	// +kubebuilder:validation:Required
 	AuthToken SingleAuthToken `json:"authToken"`
-	// Optional: Override the model name, such as `gpt-4o-mini`.
-	// If unset, the model name is taken from the request.
+
+	// Model configures the model name to use.
+	// Default: The model name is taken from the request.
 	// This setting can be useful when setting up model failover within the same LLM provider.
+	// +optional
 	Model *string `json:"model,omitempty"`
 }
 
 // AzureOpenAIConfig settings for the [Azure OpenAI](https://learn.microsoft.com/en-us/azure/ai-services/openai/) LLM provider.
 type AzureOpenAIConfig struct {
-	// The authorization token that the AI gateway uses to access the Azure OpenAI API.
+	// AuthToken configures the authorization token that the AI gateway uses to access the Azure OpenAI API.
 	// This token is automatically sent in the `api-key` header of the request.
 	// +kubebuilder:validation:Required
 	AuthToken SingleAuthToken `json:"authToken"`
 
-	// The endpoint for the Azure OpenAI API to use, such as `my-endpoint.openai.azure.com`.
+	// Endpoint configures the endpoint for the Azure OpenAI API to use, such as `my-endpoint.openai.azure.com`.
 	// If the scheme is included, it is stripped.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Endpoint string `json:"endpoint"`
 
-	// The name of the Azure OpenAI model deployment to use.
+	// DeploymentName configures the name of the Azure OpenAI model deployment to use.
 	// For more information, see the [Azure OpenAI model docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models).
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	DeploymentName string `json:"deploymentName"`
 
-	// The version of the Azure OpenAI API to use.
+	// ApiVersion configures the version of the Azure OpenAI API to use.
 	// For more information, see the [Azure OpenAI API version reference](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#api-specs).
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
@@ -118,12 +147,12 @@ type GeminiConfig struct {
 	// +kubebuilder:validation:Required
 	AuthToken SingleAuthToken `json:"authToken"`
 
-	// The Gemini model to use.
+	// Model configures the Gemini model to use.
 	// For more information, see the [Gemini models docs](https://ai.google.dev/gemini-api/docs/models/gemini).
 	// +kubebuilder:validation:Required
 	Model string `json:"model"`
 
-	// The version of the Gemini API to use.
+	// ApiVersion configures the version of the Gemini API to use.
 	// For more information, see the [Gemini API version docs](https://ai.google.dev/gemini-api/docs/api-versions).
 	// +kubebuilder:validation:Required
 	ApiVersion string `json:"apiVersion"`
@@ -132,65 +161,76 @@ type GeminiConfig struct {
 // Publisher configures the type of publisher model to use for VertexAI. Currently, only Google is supported.
 type Publisher string
 
-const GOOGLE Publisher = "GOOGLE"
+const (
+	// GOOGLE configures the AI gateway to use the Google Vertex AI LLM provider.
+	GOOGLE Publisher = "GOOGLE"
+)
 
 // VertexAIConfig settings for the [Vertex AI](https://cloud.google.com/vertex-ai/docs) LLM provider.
 // To find the values for the project ID, project location, and publisher, you can check the fields of an API request, such as
 // `https://{LOCATION}-aiplatform.googleapis.com/{VERSION}/projects/{PROJECT_ID}/locations/{LOCATION}/publishers/{PROVIDER}/<model-path>`.
 type VertexAIConfig struct {
-	// The authorization token that the AI gateway uses to access the Vertex AI API.
+	// AuthToken configures the authorization token that the AI gateway uses to access the Vertex AI API.
 	// This token is automatically sent in the `key` header of the request.
 	// +kubebuilder:validation:Required
 	AuthToken SingleAuthToken `json:"authToken"`
 
-	// The Vertex AI model to use.
+	// Model configures the Vertex AI model to use.
 	// For more information, see the [Vertex AI model docs](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models).
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Model string `json:"model"`
 
-	// The version of the Vertex AI API to use.
+	// ApiVersion configures the version of the Vertex AI API to use.
 	// For more information, see the [Vertex AI API reference](https://cloud.google.com/vertex-ai/docs/reference#versions).
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	ApiVersion string `json:"apiVersion"`
 
-	// The ID of the Google Cloud Project that you use for the Vertex AI.
+	// ProjectId configures the ID of the Google Cloud Project that you use for the Vertex AI.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	ProjectId string `json:"projectId"`
 
-	// The location of the Google Cloud Project that you use for the Vertex AI.
+	// Location configures the location of the Google Cloud Project that you use for the Vertex AI.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Location string `json:"location"`
 
-	// Optional: The model path to route to. Defaults to the Gemini model path, `generateContent`.
+	// ModelPath configures the model path to route to.
+	// Defaults to the Gemini model path, `generateContent`.
+	// +optional
 	ModelPath *string `json:"modelPath,omitempty"`
 
-	// The type of publisher model to use. Currently, only Google is supported.
+	// Publisher configures the type of publisher model to use.
+	// Currently, only Google is supported.
 	// +kubebuilder:validation:Enum=GOOGLE
 	Publisher Publisher `json:"publisher"`
 }
 
 // AnthropicConfig settings for the [Anthropic](https://docs.anthropic.com/en/release-notes/api) LLM provider.
 type AnthropicConfig struct {
-	// The authorization token that the AI gateway uses to access the Anthropic API.
+	// AuthToken configures the authorization token that the AI gateway uses to access the Anthropic API.
 	// This token is automatically sent in the `x-api-key` header of the request.
 	// +kubebuilder:validation:Required
 	AuthToken SingleAuthToken `json:"authToken"`
-	// Optional: A version header to pass to the Anthropic API.
+
+	// ApiVersion configures a version header to pass to the Anthropic API.
 	// For more information, see the [Anthropic API versioning docs](https://docs.anthropic.com/en/api/versioning).
+	// +optional
 	Version string `json:"apiVersion,omitempty"`
-	// Optional: Override the model name.
+
+	// Model configures the model name to use.
 	// If unset, the model name is taken from the request.
 	// This setting can be useful when testing model failover scenarios.
+	// +optional
 	Model *string `json:"model,omitempty"`
 }
 
 // Priority configures the priority of the backend endpoints.
 type Priority struct {
-	// A list of LLM provider backends within a single endpoint pool entry.
+	// Pool configures a list of LLM provider backends within a single endpoint pool entry.
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=20
 	Pool []LLMProvider `json:"pool,omitempty"`
@@ -229,7 +269,8 @@ type Priority struct {
 //
 // ```
 type MultiPoolConfig struct {
-	// The priority list of backend pools. Each entry represents a set of LLM provider backends.
+	// Priorities configures the priority list of backend pools.
+	// Each entry represents a set of LLM provider backends.
 	// The order defines the priority of the backend endpoints.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinItems=1

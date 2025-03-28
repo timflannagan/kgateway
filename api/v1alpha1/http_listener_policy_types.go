@@ -9,6 +9,8 @@ import (
 // +kubebuilder:rbac:groups=gateway.kgateway.dev,resources=httplistenerpolicies,verbs=get;list;watch
 // +kubebuilder:rbac:groups=gateway.kgateway.dev,resources=httplistenerpolicies/status,verbs=get;update;patch
 
+// HTTPListenerPolicy is a resource that defines a policy for an HTTP listener.
+//
 // +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:metadata:labels={app=kgateway,app.kubernetes.io/name=kgateway}
@@ -31,59 +33,71 @@ type HTTPListenerPolicyList struct {
 }
 
 type HTTPListenerPolicySpec struct {
+	// TargetRefs is a list of target references for the policy.
+	// +optional
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=16
 	TargetRefs []LocalPolicyTargetReference `json:"targetRefs,omitempty"`
 
 	// AccessLoggingConfig contains various settings for Envoy's access logging service.
 	// See here for more information: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto
+	// +optional
 	// +kubebuilder:validation:Items={type=object}
 	AccessLog []AccessLog `json:"accessLog,omitempty"`
 }
 
 // AccessLog represents the top-level access log configuration.
 type AccessLog struct {
-	// Output access logs to local file
+	// FileSink is used to output access logs to a local file.
+	// +optional
 	FileSink *FileSink `json:"fileSink,omitempty"`
 
-	// Send access logs to gRPC service
+	// GrpcService is used to send access logs to a gRPC service.
+	// +optional
 	GrpcService *GrpcService `json:"grpcService,omitempty"`
 
 	// Filter access logs configuration
+	// +optional
 	Filter *AccessLogFilter `json:"filter,omitempty"`
 }
 
 // FileSink represents the file sink configuration for access logs.
 // +kubebuilder:validation:XValidation:message="only one of 'StringFormat' or 'JsonFormat' may be set",rule="(has(self.stringFormat) && !has(self.jsonFormat)) || (!has(self.stringFormat) && has(self.jsonFormat))"
 type FileSink struct {
-	// the file path to which the file access logging service will sink
+	// Path is the file path to which the file access logging service will sink
 	// +kubebuilder:validation:Required
 	Path string `json:"path"`
-	// the format string by which envoy will format the log lines
+
+	// StringFormat is the format string by which envoy will format the log lines
 	// https://www.envoyproxy.io/docs/envoy/v1.33.0/configuration/observability/access_log/usage#format-strings
+	// +optional
 	StringFormat string `json:"stringFormat,omitempty"`
-	// the format object by which to envoy will emit the logs in a structured way.
+
+	// JsonFormat is the format object by which to envoy will emit the logs in a structured way.
 	// https://www.envoyproxy.io/docs/envoy/v1.33.0/configuration/observability/access_log/usage#format-dictionaries
+	// +optional
 	JsonFormat *runtime.RawExtension `json:"jsonFormat,omitempty"`
 }
 
 // GrpcService represents the gRPC service configuration for access logs.
 type GrpcService struct {
-	// name of log stream
+	// LogName is the name of the log stream
 	// +kubebuilder:validation:Required
 	LogName string `json:"logName"`
 
-	// The backend gRPC service. Can be any type of supported backend (Kubernetes Service, kgateway Backend, etc..)
+	// BackendRef is the backend gRPC service. Can be any type of supported backend (Kubernetes Service, kgateway Backend, etc..)
 	// +kubebuilder:validation:Required
 	BackendRef *gwv1.BackendRef `json:"backendRef"`
 
-	// Additional request headers to log in the access log
+	// AdditionalRequestHeadersToLog is a list of additional request headers to log in the access log
+	// +optional
 	AdditionalRequestHeadersToLog []string `json:"additionalRequestHeadersToLog,omitempty"`
 
-	// Additional response headers to log in the access log
+	// AdditionalResponseHeadersToLog is a list of additional response headers to log in the access log
+	// +optional
 	AdditionalResponseHeadersToLog []string `json:"additionalResponseHeadersToLog,omitempty"`
 
-	// Additional response trailers to log in the access log
+	// AdditionalResponseTrailersToLog is a list of additional response trailers to log in the access log
 	AdditionalResponseTrailersToLog []string `json:"additionalResponseTrailersToLog,omitempty"`
 }
 
@@ -92,43 +106,69 @@ type GrpcService struct {
 // +kubebuilder:validation:MaxProperties=1
 // +kubebuilder:validation:MinProperties=1
 type AccessLogFilter struct {
-	*FilterType `json:",inline"` // embedded to allow for validation
-	// Performs a logical "and" operation on the result of each individual filter.
+	*FilterType `json:",inline"`
+
+	// AndFilter is a list of filters that will be evaluated as a logical "and" operation.
 	// Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-andfilter
+	// +optional
 	// +kubebuilder:validation:MinItems=2
 	AndFilter []FilterType `json:"andFilter,omitempty"`
-	// Performs a logical "or" operation on the result of each individual filter.
+
+	// OrFilter is a list of filters that will be evaluated as a logical "or" operation.
 	// Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-orfilter
+	// +optional
 	// +kubebuilder:validation:MinItems=2
 	OrFilter []FilterType `json:"orFilter,omitempty"`
 }
 
 // FilterType represents the type of filter to apply (only one of these should be set).
 // Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#envoy-v3-api-msg-config-accesslog-v3-accesslogfilter
-// +kubebuilder:validation:MaxProperties=1
 // +kubebuilder:validation:MinProperties=1
+// +kubebuilder:validation:MaxProperties=1
 type FilterType struct {
+	// StatusCodeFilter filters based on HTTP status code.
+	// +optional
 	StatusCodeFilter *StatusCodeFilter `json:"statusCodeFilter,omitempty"`
-	DurationFilter   *DurationFilter   `json:"durationFilter,omitempty"`
-	// Filters for requests that are not health check requests.
+
+	// DurationFilter filters based on request duration.
+	// +optional
+	DurationFilter *DurationFilter `json:"durationFilter,omitempty"`
+
+	// NotHealthCheckFilter filters for requests that are not health check requests.
 	// Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-nothealthcheckfilter
+	// +optional
 	NotHealthCheckFilter bool `json:"notHealthCheckFilter,omitempty"`
-	// Filters for requests that are traceable.
+
+	// TraceableFilter filters for requests that are traceable.
 	// Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-traceablefilter
-	TraceableFilter    bool                `json:"traceableFilter,omitempty"`
-	HeaderFilter       *HeaderFilter       `json:"headerFilter,omitempty"`
+	// +optional
+	TraceableFilter bool `json:"traceableFilter,omitempty"`
+
+	// HeaderFilter filters based on request headers.
+	// +optional
+	HeaderFilter *HeaderFilter `json:"headerFilter,omitempty"`
+
+	// ResponseFlagFilter filters based on response flags.
+	// +optional
 	ResponseFlagFilter *ResponseFlagFilter `json:"responseFlagFilter,omitempty"`
-	GrpcStatusFilter   *GrpcStatusFilter   `json:"grpcStatusFilter,omitempty"`
-	CELFilter          *CELFilter          `json:"celFilter,omitempty"`
+
+	// GrpcStatusFilter filters based on gRPC status code.
+	// +optional
+	GrpcStatusFilter *GrpcStatusFilter `json:"grpcStatusFilter,omitempty"`
+
+	// CELFilter filters based on Common Expression Language (CEL).
+	// +optional
+	CELFilter *CELFilter `json:"celFilter,omitempty"`
 }
 
 // ComparisonFilter represents a filter based on a comparison.
 // Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-comparisonfilter
 type ComparisonFilter struct {
+	// Op is the operator to use for the comparison.
 	// +kubebuilder:validation:Required
 	Op Op `json:"op,omitempty"`
 
-	// Value to compare against.
+	// Value is the value to compare against.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=4294967295
 	Value uint32 `json:"value,omitempty"`
@@ -139,9 +179,12 @@ type ComparisonFilter struct {
 type Op string
 
 const (
-	EQ Op = "EQ" // Equal
-	GE Op = "GQ" // Greater or equal
-	LE Op = "LE" // Less or equal
+	// EQ is the equal operator.
+	EQ Op = "EQ"
+	// GE is the greater than or equal operator.
+	GE Op = "GQ"
+	// LE is the less than or equal operator.
+	LE Op = "LE"
 )
 
 // StatusCodeFilter filters based on HTTP status code.
@@ -157,15 +200,15 @@ type DurationFilter ComparisonFilter
 type DenominatorType string
 
 const (
-	// 100.
+	// HUNDRED is the denominator for 100.
 	//
 	// **Example**: 1/100 = 1%.
 	HUNDRED DenominatorType = "HUNDRED"
-	// 10,000.
+	// TEN_THOUSAND is the denominator for 10,000.
 	//
 	// **Example**: 1/10000 = 0.01%.
 	TEN_THOUSAND DenominatorType = "TEN_THOUSAND"
-	// 1,000,000.
+	// MILLION is the denominator for 1,000,000.
 	//
 	// **Example**: 1/1000000 = 0.0001%.
 	MILLION DenominatorType = "MILLION"
@@ -174,6 +217,7 @@ const (
 // HeaderFilter filters requests based on headers.
 // Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-headerfilter
 type HeaderFilter struct {
+	// Header is the header to filter on.
 	// +kubebuilder:validation:Required
 	Header gwv1.HTTPHeaderMatch `json:"header"`
 }
@@ -181,13 +225,14 @@ type HeaderFilter struct {
 // ResponseFlagFilter filters based on response flags.
 // Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#config-accesslog-v3-responseflagfilter
 type ResponseFlagFilter struct {
+	// Flags is a list of response flags to filter on.
 	// +kubebuilder:validation:MinItems=1
 	Flags []string `json:"flags"`
 }
 
 // CELFilter filters requests based on Common Expression Language (CEL).
 type CELFilter struct {
-	// The CEL expressions to evaluate. AccessLogs are only emitted when the CEL expressions evaluates to true.
+	// Match is the CEL expression to evaluate. AccessLogs are only emitted when the CEL expression evaluates to true.
 	// see: https://www.envoyproxy.io/docs/envoy/v1.33.0/xds/type/v3/cel.proto.html#common-expression-language-cel-proto
 	Match string `json:"match"`
 }
@@ -195,10 +240,13 @@ type CELFilter struct {
 // GrpcStatusFilter filters gRPC requests based on their response status.
 // Based on: https://www.envoyproxy.io/docs/envoy/v1.33.0/api-v3/config/accesslog/v3/accesslog.proto#enum-config-accesslog-v3-grpcstatusfilter-status
 type GrpcStatusFilter struct {
+	// Statuses is a list of gRPC statuses to filter on.
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:Items={type=object}
 	Statuses []GrpcStatus `json:"statuses,omitempty"`
-	Exclude  bool         `json:"exclude,omitempty"`
+
+	// Exclude is a boolean that determines if the filter should exclude the statuses.
+	Exclude bool `json:"exclude,omitempty"`
 }
 
 // GrpcStatus represents possible gRPC statuses.

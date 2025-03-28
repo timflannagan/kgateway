@@ -230,8 +230,8 @@ func getRegion(in *v1alpha1.AwsBackend) string {
 // getLambdaHostname returns the hostname for the lambda function. When using a custom endpoint
 // has been specified, it will be returned. Otherwise, the default lambda hostname is returned.
 func getLambdaHostname(in *v1alpha1.AwsBackend) string {
-	if in.Lambda.EndpointURL != "" {
-		return in.Lambda.EndpointURL
+	if in.Lambda.EndpointURL != nil && *in.Lambda.EndpointURL != "" {
+		return *in.Lambda.EndpointURL
 	}
 	return fmt.Sprintf("lambda.%s.amazonaws.com", getRegion(in))
 }
@@ -239,7 +239,7 @@ func getLambdaHostname(in *v1alpha1.AwsBackend) string {
 // getLambdaInvocationMode returns the Lambda invocation mode. Default is synchronous.
 func getLambdaInvocationMode(in *v1alpha1.AwsBackend) envoy_lambda_v3.Config_InvocationMode {
 	invokeMode := envoy_lambda_v3.Config_SYNCHRONOUS
-	if in.Lambda.InvocationMode == v1alpha1.AwsLambdaInvocationModeAsynchronous {
+	if in.Lambda.InvocationMode != nil && *in.Lambda.InvocationMode == v1alpha1.AwsLambdaInvocationModeAsynchronous {
 		invokeMode = envoy_lambda_v3.Config_ASYNCHRONOUS
 	}
 	return invokeMode
@@ -250,8 +250,8 @@ func getLambdaInvocationMode(in *v1alpha1.AwsBackend) envoy_lambda_v3.Config_Inv
 // is not a valid lambda arn.
 func buildLambdaARN(in *v1alpha1.AwsBackend, region string) (string, error) {
 	qualifier := "$LATEST"
-	if in.Lambda.Qualifier != "" {
-		qualifier = in.Lambda.Qualifier
+	if in.Lambda.Qualifier != nil && *in.Lambda.Qualifier != "" {
+		qualifier = *in.Lambda.Qualifier
 	}
 	// TODO(tim): url.QueryEscape(...)?
 	arnStr := fmt.Sprintf("arn:aws:lambda:%s:%s:function:%s:%s", region, in.AccountId, in.Lambda.FunctionName, qualifier)
@@ -281,12 +281,12 @@ func configureLambdaEndpoint(in *v1alpha1.AwsBackend) (*lambdaEndpointConfig, er
 		port:     443,
 		useTLS:   true,
 	}
-	if in.Lambda.EndpointURL == "" {
+	if in.Lambda.EndpointURL == nil || *in.Lambda.EndpointURL == "" {
 		// no custom endpoint specified, use the default lambda hostname.
 		return config, nil
 	}
 
-	parsedURL, err := url.Parse(in.Lambda.EndpointURL)
+	parsedURL, err := url.Parse(*in.Lambda.EndpointURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse endpoint URL: %v", err)
 	}

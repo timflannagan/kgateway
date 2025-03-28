@@ -134,7 +134,7 @@ func handleAITrafficPolicy(
 	transformation *envoytransformation.TransformationTemplate,
 	aiSecrets *ir.Secret,
 ) error {
-	if err := applyDefaults(aiConfig.Defaults, transformation); err != nil {
+	if err := applyDefaults(aiConfig.FieldDefaults, transformation); err != nil {
 		return err
 	}
 

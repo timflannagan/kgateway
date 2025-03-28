@@ -45,6 +45,7 @@ spec:
                   grpcService:
                     properties:
                       authority:
+                        minLength: 1
                         type: string
                       backendRef:
                         properties:
@@ -97,6 +98,7 @@ spec:
                   grpcService:
                     properties:
                       authority:
+                        minLength: 1
                         type: string
                       backendRef:
                         properties:

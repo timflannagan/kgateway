@@ -35,7 +35,7 @@ var schemaYAML = typed.YAMLObject(`types:
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.AIPolicy
   map:
     fields:
-    - name: defaults
+    - name: fieldDefaults
       type:
         list:
           elementType:
@@ -259,11 +259,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: spec
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.BackendSpec
-      default: {}
     - name: status
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.BackendStatus
-      default: {}
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.BackendSpec
   map:
     fields:
@@ -372,11 +370,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: spec
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.DirectResponseSpec
-      default: {}
     - name: status
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.DirectResponseStatus
-      default: {}
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.DirectResponseSpec
   map:
     fields:
@@ -1271,7 +1267,6 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: transformation
       type:
         namedType: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.TransformationPolicy
-      default: {}
 - name: com.github.kgateway-dev.kgateway.v2.api.v1alpha1.Transform
   map:
     fields:

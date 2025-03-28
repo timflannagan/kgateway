@@ -4,27 +4,32 @@ import (
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
-// AIPolicy config is used to configure the behavior of the LLM provider
-// on the level of individual routes. These route settings, such as prompt enrichment,
-// retrieval augmented generation (RAG), and semantic caching, are applicable only
-// for routes that send requests to an LLM provider backend.
+// AIPolicy configures the behavior of the LLM provider on the level of individual routes.
+// These route settings, such as prompt enrichment, retrieval augmented generation (RAG),
+// and semantic caching, are applicable only for routes that send requests to an LLM provider backend.
 type AIPolicy struct {
-	// Enrich requests sent to the LLM provider by appending and prepending system prompts.
+	// PromptEnrichment configures the enrichment of requests sent to the LLM provider by appending and prepending system prompts.
 	// This can be configured only for LLM providers that use the `CHAT` or `CHAT_STREAMING` API route type.
+	// +optional
 	PromptEnrichment *AIPromptEnrichment `json:"promptEnrichment,omitempty"`
 
-	// Set up prompt guards to block unwanted requests to the LLM provider and mask sensitive data.
+	// PromptGuard configures the prompt guards to block unwanted requests to the LLM provider and mask sensitive data.
 	// Prompt guards can be used to reject requests based on the content of the prompt, as well as
 	// mask responses based on the content of the response.
+	// +optional
 	PromptGuard *AIPromptGuard `json:"promptGuard,omitempty"`
 
-	// Provide defaults to merge with user input fields.
+	// FieldDefaults configures the defaults to merge with user input fields.
 	// Defaults do _not_ override the user input fields, unless you explicitly set `override` to `true`.
-	Defaults []FieldDefault `json:"defaults,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	FieldDefaults []FieldDefault `json:"fieldDefaults,omitempty"`
 
-	// The type of route to the LLM provider API. Currently, `CHAT` and `CHAT_STREAMING` are supported.
+	// RouteType configures the type of route to the LLM provider API.
+	// Currently, `CHAT` and `CHAT_STREAMING` are supported.
+	// +optional
 	// +kubebuilder:validation:Enum=CHAT;CHAT_STREAMING
-	// +kube:default=CHAT
+	// +kubebuilder:default=CHAT
 	RouteType *RouteType `json:"routeType,omitempty"`
 }
 
@@ -62,9 +67,13 @@ type AIPolicy struct {
 //
 // ```
 type AIPromptEnrichment struct {
-	// A list of messages to be prepended to the prompt sent by the client.
+	// Prepend configures a list of messages to be prepended to the prompt sent by the client.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
 	Prepend []Message `json:"prepend,omitempty"`
-	// A list of messages to be appended to the prompt sent by the client.
+	// Append configures a list of messages to be appended to the prompt sent by the client.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
 	Append []Message `json:"append,omitempty"`
 }
 
@@ -78,16 +87,21 @@ const (
 	CHAT_STREAMING RouteType = "CHAT_STREAMING"
 )
 
-// An entry for a message to prepend or append to each prompt.
+// Message is an entry for a message to prepend or append to each prompt.
 type Message struct {
 	// Role of the message. The available roles depend on the backend
 	// LLM provider model, such as `SYSTEM` or `USER` in the OpenAI API.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Role string `json:"role"`
-	// String content of the message.
+
+	// Content of the message.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Content string `json:"content"`
 }
 
-// BuiltIn regex patterns for specific types of strings in prompts.
+// BuiltIn is a regex pattern for specific types of strings in prompts.
 // For example, if you specify `CREDIT_CARD`, any credit card numbers
 // in the request or response are matched.
 // +kubebuilder:validation:Enum=SSN;CREDIT_CARD;PHONE_NUMBER;EMAIL
@@ -106,13 +120,16 @@ const (
 
 // RegexMatch configures the regular expression (regex) matching for prompt guards and data masking.
 type RegexMatch struct {
-	// The regex pattern to match against the request or response.
+	// Pattern is the regex pattern to match against the request or response.
+	// +optional
 	Pattern *string `json:"pattern,omitempty"`
-	// An optional name for this match, which can be used for debugging purposes.
+
+	// Name is an optional name for this match, which can be used for debugging purposes.
+	// +optional
 	Name *string `json:"name,omitempty"`
 }
 
-// Action to take if a regex pattern is matched in a request or response.
+// Action is the action to take if a regex pattern is matched in a request or response.
 // This setting applies only to request matches. PromptguardResponse matches are always masked by default.
 type Action string
 
@@ -125,15 +142,22 @@ const (
 
 // Regex configures the regular expression (regex) matching for prompt guards and data masking.
 type Regex struct {
-	// A list of regex patterns to match against the request or response.
+	// Matches is a list of regex patterns to match against the request or response.
 	// Matches and built-ins are additive.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
 	Matches []RegexMatch `json:"matches,omitempty"`
-	// A list of built-in regex patterns to match against the request or response.
+
+	// Builtins is a list of built-in regex patterns to match against the request or response.
 	// Matches and built-ins are additive.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
 	Builtins []BuiltIn `json:"builtins,omitempty"`
-	// The action to take if a regex pattern is matched in a request or response.
+
+	// Action is the action to take if a regex pattern is matched in a request or response.
 	// This setting applies only to request matches. PromptguardResponse matches are always masked by default.
 	// Defaults to `MASK`.
+	// +optional
 	// +kubebuilder:default=MASK
 	Action *Action `json:"action,omitempty"`
 }
@@ -145,18 +169,24 @@ type Webhook struct {
 	Host Host `json:"host"`
 
 	// ForwardHeaders define headers to forward with the request to the webhook.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
 	ForwardHeaders []gwv1.HTTPHeaderMatch `json:"forwardHeaders,omitempty"`
 }
 
 // CustomResponse configures a response to return to the client if request content
 // is matched against a regex pattern and the action is `REJECT`.
 type CustomResponse struct {
-	// A custom response message to return to the client. If not specified, defaults to
-	// "The request was rejected due to inappropriate content".
+	// Message is a custom response message to return to the client.
+	// If not specified, defaults to "The request was rejected due to inappropriate content".
 	// +kubebuilder:default="The request was rejected due to inappropriate content"
+	// +optional
+	// +kubebuilder:validation:MinLength=1
 	Message *string `json:"message,omitempty"`
 
-	// The status code to return to the client. Defaults to 403.
+	// StatusCode is the status code to return to the client.
+	// Defaults to 403.
+	// +optional
 	// +kubebuilder:default=403
 	// +kubebuilder:validation:Minimum=200
 	// +kubebuilder:validation:Maximum=599
@@ -177,6 +207,7 @@ type Moderation struct {
 	// Pass prompt data through an external moderation model endpoint,
 	// which compares the request prompt input to predefined content rules.
 	// Configure an OpenAI moderation endpoint.
+	// +optional
 	OpenAIModeration *OpenAIConfig `json:"openAIModeration,omitempty"`
 
 	// TODO: support other moderation models
@@ -186,18 +217,21 @@ type Moderation struct {
 // Multiple prompt guard configurations can be set, and they will be executed in the following order:
 // webhook → regex → moderation for requests, where each step can reject the request and stop further processing.
 type PromptguardRequest struct {
-	// A custom response message to return to the client. If not specified, defaults to
-	// "The request was rejected due to inappropriate content".
+	// CustomResponse is a custom response message to return to the client.
+	// If not specified, defaults to "The request was rejected due to inappropriate content".
+	// +optional
 	CustomResponse *CustomResponse `json:"customResponse,omitempty"`
 
-	// Regular expression (regex) matching for prompt guards and data masking.
+	// Regex is a regular expression (regex) matching for prompt guards and data masking.
+	// +optional
 	Regex *Regex `json:"regex,omitempty"`
 
-	// Configure a webhook to forward requests to for prompt guarding.
+	// Webhook is a webhook to forward requests to for prompt guarding.
+	// +optional
 	Webhook *Webhook `json:"webhook,omitempty"`
 
-	// Pass prompt data through an external moderation model endpoint,
-	// which compares the request prompt input to predefined content rules.
+	// Moderation is a moderation model endpoint to pass prompt data through.
+	// +optional
 	Moderation *Moderation `json:"moderation,omitempty"`
 }
 
@@ -208,7 +242,8 @@ type PromptguardResponse struct {
 	// Regular expression (regex) matching for prompt guards and data masking.
 	Regex *Regex `json:"regex,omitempty"`
 
-	// Configure a webhook to forward responses to for prompt guarding.
+	// Webhook is a webhook to forward responses to for prompt guarding.
+	// +optional
 	Webhook *Webhook `json:"webhook,omitempty"`
 }
 
@@ -236,10 +271,14 @@ type PromptguardResponse struct {
 //	    action: MASK
 //
 // ```
+//
+// TODO(tim): validation here?
 type AIPromptGuard struct {
-	// Prompt guards to apply to requests sent by the client.
+	// Request is the prompt guards to apply to requests sent by the client.
+	// +optional
 	Request *PromptguardRequest `json:"request,omitempty"`
-	// Prompt guards to apply to responses returned by the LLM provider.
+	// Response is the prompt guards to apply to responses returned by the LLM provider.
+	// +optional
 	Response *PromptguardResponse `json:"response,omitempty"`
 }
 
@@ -282,12 +321,15 @@ type FieldDefault struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Field string `json:"field"`
+
 	// The field default value, which can be any JSON Data Type.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Value string `json:"value"`
+
 	// Whether to override the field's value if it already exists.
 	// Defaults to false.
+	// +optional
 	// +kubebuilder:default=false
 	Override *bool `json:"override,omitempty"`
 }

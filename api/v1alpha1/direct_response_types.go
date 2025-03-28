@@ -18,8 +18,12 @@ type DirectResponse struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DirectResponseSpec   `json:"spec,omitempty"`
-	Status DirectResponseStatus `json:"status,omitempty"`
+	// Spec is the specification for the direct response.
+	// +optional
+	Spec *DirectResponseSpec `json:"spec,omitempty"`
+	// Status is the status of the direct response.
+	// +optional
+	Status *DirectResponseStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -42,24 +46,8 @@ type DirectResponseSpec struct {
 	//
 	// +kubebuilder:validation:MaxLength=4096
 	// +kubebuilder:validation:Optional
-	Body string `json:"body,omitempty"`
+	Body *string `json:"body,omitempty"`
 }
 
 // DirectResponseStatus defines the observed state of a DirectResponse.
 type DirectResponseStatus struct{}
-
-// GetStatus returns the HTTP status code to return for this route.
-func (in *DirectResponse) GetStatusCode() uint32 {
-	if in == nil {
-		return 0
-	}
-	return in.Spec.StatusCode
-}
-
-// GetBody returns the content to be returned in the HTTP response body.
-func (in *DirectResponse) GetBody() string {
-	if in == nil {
-		return ""
-	}
-	return in.Spec.Body
-}

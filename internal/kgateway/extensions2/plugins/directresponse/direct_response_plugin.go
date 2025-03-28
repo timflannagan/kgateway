@@ -88,7 +88,7 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 				Name:      i.Name,
 			},
 			Policy:   i,
-			PolicyIR: &directResponse{ct: i.CreationTimestamp.Time, spec: i.Spec},
+			PolicyIR: &directResponse{ct: i.CreationTimestamp.Time, spec: *i.Spec},
 			// no target refs for direct response
 		}
 		return pol
@@ -111,14 +111,12 @@ func NewGatewayTranslationPass(ctx context.Context, tctx ir.GwTranslationCtx) ir
 	return &directResponsePluginGwPass{}
 }
 
-// called 1 time for each listener
 func (p *directResponsePluginGwPass) ApplyListenerPlugin(ctx context.Context, pCtx *ir.ListenerContext, out *envoy_config_listener_v3.Listener) {
 }
 
 func (p *directResponsePluginGwPass) ApplyVhostPlugin(ctx context.Context, pCtx *ir.VirtualHostContext, out *envoy_config_route_v3.VirtualHost) {
 }
 
-// called 0 or more times
 func (p *directResponsePluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *envoy_config_route_v3.Route) error {
 	dr, ok := pCtx.Policy.(*directResponse)
 	if !ok {
@@ -137,12 +135,16 @@ func (p *directResponsePluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir
 		return fmt.Errorf("DirectResponse cannot be applied to route with existing action: %T", outputRoute.GetAction())
 	}
 
+	var body string
+	if dr.spec.Body != nil {
+		body = *dr.spec.Body
+	}
 	outputRoute.Action = &envoy_config_route_v3.Route_DirectResponse{
 		DirectResponse: &envoy_config_route_v3.DirectResponseAction{
 			Status: dr.spec.StatusCode,
 			Body: &corev3.DataSource{
 				Specifier: &corev3.DataSource_InlineString{
-					InlineString: dr.spec.Body,
+					InlineString: body,
 				},
 			},
 		},

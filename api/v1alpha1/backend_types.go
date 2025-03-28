@@ -12,6 +12,8 @@ import (
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=".spec.type",description="Which backend type?"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="The age of the backend."
 
+// Backend is a resource that defines a backend for a gateway.
+//
 // +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:metadata:labels={app=kgateway,app.kubernetes.io/name=kgateway}
@@ -21,8 +23,12 @@ type Backend struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BackendSpec   `json:"spec,omitempty"`
-	Status BackendStatus `json:"status,omitempty"`
+	// Spec is the specification for the backend.
+	// +optional
+	Spec *BackendSpec `json:"spec,omitempty"`
+	// Status is the status of the backend.
+	// +optional
+	Status *BackendStatus `json:"status,omitempty"`
 }
 
 // BackendType indicates the type of the backend.
@@ -134,10 +140,9 @@ type AwsLambda struct {
 	// useful for testing and development purposes. When omitted, the default
 	// lambda hostname will be used.
 	// +optional
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern="^https?://[-a-zA-Z0-9@:%.+~#?&/=]+$"
 	// +kubebuilder:validation:MaxLength=2048
-	EndpointURL string `json:"endpointURL,omitempty"`
+	EndpointURL *string `json:"endpointURL,omitempty"`
 	// FunctionName is the name of the Lambda function to invoke.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern="^[A-Za-z0-9-_]{1,140}$"
@@ -145,17 +150,15 @@ type AwsLambda struct {
 	// InvocationMode defines how to invoke the Lambda function.
 	// Defaults to Sync.
 	// +optional
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=Sync;Async
 	// +kubebuilder:default=Sync
-	InvocationMode string `json:"invocationMode,omitempty"`
+	InvocationMode *string `json:"invocationMode,omitempty"`
 	// Qualifier is the alias or version for the Lambda function.
 	// Valid values include a numeric version (e.g. "1"), an alias name
 	// (alphanumeric plus "-" or "_"), or the special literal "$LATEST".
 	// +optional
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern="^(\\$LATEST|[0-9]+|[A-Za-z0-9-_]{1,128})$"
-	Qualifier string `json:"qualifier,omitempty"`
+	Qualifier *string `json:"qualifier,omitempty"`
 }
 
 // StaticBackend references a static list of hosts.
@@ -163,12 +166,13 @@ type StaticBackend struct {
 	// Hosts is a list of hosts to use for the backend.
 	// +kubebuilder:validation:required
 	// +kubebuilder:validation:MinItems=1
-	Hosts []Host `json:"hosts,omitempty"`
+	Hosts []Host `json:"hosts"`
 }
 
 // Host defines a static backend host.
 type Host struct {
 	// Host is the host name to use for the backend.
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Host string `json:"host"`
 	// Port is the port to use for the backend.

@@ -34,7 +34,7 @@ spec:
             properties:
               ai:
                 properties:
-                  defaults:
+                  fieldDefaults:
                     items:
                       properties:
                         field:
@@ -50,6 +50,7 @@ spec:
                       - field
                       - value
                       type: object
+                    minItems: 1
                     type: array
                   promptEnrichment:
                     properties:
@@ -57,25 +58,31 @@ spec:
                         items:
                           properties:
                             content:
+                              minLength: 1
                               type: string
                             role:
+                              minLength: 1
                               type: string
                           required:
                           - content
                           - role
                           type: object
+                        minItems: 1
                         type: array
                       prepend:
                         items:
                           properties:
                             content:
+                              minLength: 1
                               type: string
                             role:
+                              minLength: 1
                               type: string
                           required:
                           - content
                           - role
                           type: object
+                        minItems: 1
                         type: array
                     type: object
                   promptGuard:
@@ -87,6 +94,7 @@ spec:
                               message:
                                 default: The request was rejected due to inappropriate
                                   content
+                                minLength: 1
                                 type: string
                               statusCode:
                                 default: 403
@@ -138,6 +146,7 @@ spec:
                                   - PHONE_NUMBER
                                   - EMAIL
                                   type: string
+                                minItems: 1
                                 type: array
                               matches:
                                 items:
@@ -147,6 +156,7 @@ spec:
                                     pattern:
                                       type: string
                                   type: object
+                                minItems: 1
                                 type: array
                             type: object
                           webhook:
@@ -173,6 +183,7 @@ spec:
                                   - name
                                   - value
                                   type: object
+                                minItems: 1
                                 type: array
                               host:
                                 properties:
@@ -207,6 +218,7 @@ spec:
                                   - PHONE_NUMBER
                                   - EMAIL
                                   type: string
+                                minItems: 1
                                 type: array
                               matches:
                                 items:
@@ -216,6 +228,7 @@ spec:
                                     pattern:
                                       type: string
                                   type: object
+                                minItems: 1
                                 type: array
                             type: object
                           webhook:
@@ -242,6 +255,7 @@ spec:
                                   - name
                                   - value
                                   type: object
+                                minItems: 1
                                 type: array
                               host:
                                 properties:
@@ -263,6 +277,7 @@ spec:
                         type: object
                     type: object
                   routeType:
+                    default: CHAT
                     enum:
                     - CHAT
                     - CHAT_STREAMING
@@ -393,6 +408,7 @@ spec:
                             minimum: 1
                             type: integer
                           tokensPerFill:
+                            default: 1
                             format: int32
                             type: integer
                         required:

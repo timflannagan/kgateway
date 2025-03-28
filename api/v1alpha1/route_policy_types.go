@@ -29,14 +29,22 @@ type TrafficPolicyList struct {
 	Items           []TrafficPolicy `json:"items"`
 }
 
+// TrafficPolicySpec is the specification for a TrafficPolicy.
 type TrafficPolicySpec struct {
+	// TargetRefs is a list of target references for the policy.
+	// +optional
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=16
 	TargetRefs []LocalPolicyTargetReference `json:"targetRefs,omitempty"`
 
+	// AI is used to configure AI-based policies for the policy.
+	// +optional
 	AI *AIPolicy `json:"ai,omitempty"`
 
-	Transformation TransformationPolicy `json:"transformation,omitempty"`
+	// Transformation is used to mutate and transform requests and responses
+	// before forwarding them to the destination.
+	// +optional
+	Transformation *TransformationPolicy `json:"transformation,omitempty"`
 
 	// ExtProc specifies the external processing configuration for the policy.
 	// +optional
@@ -46,6 +54,7 @@ type TrafficPolicySpec struct {
 	// This controls what external server to send requests to for authentication.
 	// +optional
 	ExtAuth *ExtAuthPolicy `json:"extAuth,omitempty"`
+
 	// RateLimit specifies the rate limiting configuration for the policy.
 	// This controls the rate at which requests are allowed to be processed.
 	// +optional
@@ -55,8 +64,11 @@ type TrafficPolicySpec struct {
 // TransformationPolicy config is used to modify envoy behavior at a route level.
 // These modifications can be performed on the request and response paths.
 type TransformationPolicy struct {
+	// Request is used to modify the request path.
 	// +optional
 	Request *Transform `json:"request,omitempty"`
+
+	// Response is used to modify the response path.
 	// +optional
 	Response *Transform `json:"response,omitempty"`
 }
@@ -87,9 +99,8 @@ type Transform struct {
 	Remove []string `json:"remove,omitempty"`
 
 	// Body controls both how to parse the body and if needed how to set.
-	// +optional
-	//
 	// If empty, body will not be buffered.
+	// +optional
 	Body *BodyTransformation `json:"body,omitempty"`
 }
 
@@ -268,7 +279,7 @@ type TokenBucket struct {
 	// If not specified, it defaults to 1.
 	// This controls the steady-state rate of token generation.
 	// +optional
-	// kubebuilder:default:=1
+	// +kubebuilder:default:=1
 	TokensPerFill *uint32 `json:"tokensPerFill,omitempty"`
 
 	// FillInterval defines the time duration between consecutive token fills.
