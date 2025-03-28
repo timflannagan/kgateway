@@ -10,6 +10,7 @@ import (
 	"istio.io/istio/pkg/kube/krt"
 	istiolog "istio.io/istio/pkg/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -243,10 +244,12 @@ func (c *ControllerBuilder) Start(ctx context.Context) error {
 			Tag:        globalSettings.DefaultImageTag,
 			PullPolicy: globalSettings.DefaultImagePullPolicy,
 		},
+		ClassInfo:         GetDefaultClassInfo(),
+		SupportedVersions: GetSupportedVersions(),
 	}
 
 	setupLog.Info("creating gateway class provisioner")
-	if err := NewGatewayClassProvisioner(c.mgr, c.cfg.ControllerName, GetDefaultClassInfo()); err != nil {
+	if err := NewGatewayClassProvisioner(c.mgr, c.cfg.ControllerName, gwCfg.ClassInfo); err != nil {
 		setupLog.Error(err, "unable to create gateway class provisioner")
 		return err
 	}
@@ -285,16 +288,22 @@ func (c *ControllerBuilder) Start(ctx context.Context) error {
 func GetDefaultClassInfo() map[string]*ClassInfo {
 	return map[string]*ClassInfo{
 		wellknown.GatewayClassName: {
-			Description: "The default GatewayClass for the kgateway controller.",
+			Description: "Standard class for managing Gateway API ingress traffic.",
 			Labels:      map[string]string{},
 			Annotations: map[string]string{},
 		},
 		wellknown.WaypointClassName: {
-			Description: "The default GatewayClass for the kgateway controller.",
+			Description: "Specialized class for Istio ambient mesh waypoint proxies.",
 			Labels:      map[string]string{},
 			Annotations: map[string]string{
 				"ambient.istio.io/waypoint-inbound-binding": "PROXY/15088",
 			},
 		},
 	}
+}
+
+// GetSupportedVersions returns the list of supported Gateway API versions.
+// Exported for testing.
+func GetSupportedVersions() sets.Set[string] {
+	return sets.New[string]("v1.2.0", "v1.2.1")
 }

@@ -12,7 +12,7 @@ import (
 	api "sigs.k8s.io/gateway-api/apis/v1"
 )
 
-var _ = Describe("GwController", func() {
+var _ = Describe("Gateway Controller", func() {
 	const (
 		timeout  = time.Second * 10
 		interval = time.Millisecond * 250
@@ -89,7 +89,9 @@ var _ = Describe("GwController", func() {
 					IP: "127.0.0.1",
 				}},
 			}
-			Expect(k8sClient.Status().Update(ctx, &svc)).NotTo(HaveOccurred())
+			Eventually(func() error {
+				return k8sClient.Status().Update(ctx, &svc)
+			}, timeout, interval).Should(Succeed())
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKey{Name: gwName, Namespace: "default"}, &gw)
@@ -102,6 +104,7 @@ var _ = Describe("GwController", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			// TODO: Verify status conditions.
 			Expect(gw.Status.Addresses).To(HaveLen(1))
 			Expect(*gw.Status.Addresses[0].Type).To(Equal(api.IPAddressType))
 			Expect(gw.Status.Addresses[0].Value).To(Equal("127.0.0.1"))

@@ -176,19 +176,6 @@ func createManager(
 		return nil, err
 	}
 
-	gwCfg := controller.GatewayConfig{
-		Mgr:            mgr,
-		ControllerName: gatewayControllerName,
-		AutoProvision:  true,
-		ImageInfo: &deployer.ImageInfo{
-			Registry: "ghcr.io/kgateway-dev",
-			Tag:      "latest",
-		},
-	}
-	if err := controller.NewBaseGatewayController(parentCtx, gwCfg); err != nil {
-		return nil, err
-	}
-
 	// Use the default & alt GCs when no class configs are provided.
 	if classConfigs == nil {
 		classConfigs = map[string]*controller.ClassInfo{}
@@ -198,6 +185,22 @@ func createManager(
 		classConfigs[gatewayClassName] = &controller.ClassInfo{
 			Description: "default gateway class",
 		}
+	}
+
+	gwCfg := controller.GatewayConfig{
+		Mgr:            mgr,
+		ControllerName: gatewayControllerName,
+		AutoProvision:  true,
+		ImageInfo: &deployer.ImageInfo{
+			Registry: "ghcr.io/kgateway-dev",
+			Tag:      "latest",
+		},
+		ClassInfo:         classConfigs,
+		SupportedVersions: controller.GetSupportedVersions(),
+	}
+
+	if err := controller.NewBaseGatewayController(parentCtx, gwCfg); err != nil {
+		return nil, err
 	}
 
 	if err := controller.NewGatewayClassProvisioner(mgr, gatewayControllerName, classConfigs); err != nil {

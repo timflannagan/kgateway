@@ -19,7 +19,7 @@ const (
 	interval = time.Millisecond * 250
 )
 
-var _ = Describe("GatewayClassProvisioner", func() {
+var _ = Describe("GatewayClass Provisioner", func() {
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc

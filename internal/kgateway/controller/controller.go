@@ -4,15 +4,17 @@ import (
 	"context"
 	"fmt"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -65,6 +67,8 @@ type GatewayConfig struct {
 	ImageInfo *deployer.ImageInfo
 	// ClassInfo sets the default configuration for GatewayClasses managed by this controller.
 	ClassInfo map[string]*ClassInfo
+	// SupportedVersions is the list of supported Gateway API versions.
+	SupportedVersions sets.Set[string]
 }
 
 func NewBaseGatewayController(ctx context.Context, cfg GatewayConfig) error {
@@ -74,8 +78,9 @@ func NewBaseGatewayController(ctx context.Context, cfg GatewayConfig) error {
 	controllerBuilder := &controllerBuilder{
 		cfg: cfg,
 		reconciler: &controllerReconciler{
-			cli:    cfg.Mgr.GetClient(),
-			scheme: cfg.Mgr.GetScheme(),
+			cli:               cfg.Mgr.GetClient(),
+			scheme:            cfg.Mgr.GetScheme(),
+			supportedVersions: cfg.SupportedVersions,
 		},
 	}
 
@@ -405,28 +410,42 @@ func shouldIgnoreStatusChild(gvk schema.GroupVersionKind) bool {
 
 func (c *controllerBuilder) watchGwClass(_ context.Context) error {
 	return ctrl.NewControllerManagedBy(c.cfg.Mgr).
-		For(&apiv1.GatewayClass{}, builder.WithPredicates(predicate.Funcs{
-			CreateFunc:  func(e event.CreateEvent) bool { return true },
-			DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-			UpdateFunc:  func(e event.UpdateEvent) bool { return true },
-			GenericFunc: func(e event.GenericEvent) bool { return false },
-		})).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			// we only care about GatewayClasses that use our controller name
-			gwClass, ok := object.(*apiv1.GatewayClass)
-			return ok && gwClass.Spec.ControllerName == apiv1.GatewayController(c.cfg.ControllerName)
+		For(&apiv1.GatewayClass{}, builder.WithPredicates(
+			predicate.GenerationChangedPredicate{},
+			predicate.AnnotationChangedPredicate{},
+			predicate.NewPredicateFuncs(func(object client.Object) bool {
+				// we only care about GatewayClasses that use our controller name
+				gwClass, ok := object.(*apiv1.GatewayClass)
+				return ok && gwClass.Spec.ControllerName == apiv1.GatewayController(c.cfg.ControllerName)
+			}),
+		)).
+		Watches(&apiextensionsv1.CustomResourceDefinition{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+			if obj.GetName() != "gatewayclasses.gateway.networking.k8s.io" {
+				return nil
+			}
+			var requests []reconcile.Request
+			for name := range c.cfg.ClassInfo {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name: name,
+					},
+				})
+			}
+			return requests
 		})).
 		Complete(c.reconciler)
 }
 
 type controllerReconciler struct {
-	cli    client.Client
-	scheme *runtime.Scheme
+	cli               client.Client
+	scheme            *runtime.Scheme
+	supportedVersions sets.Set[string]
 }
 
 func (r *controllerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("gwclass", req.NamespacedName)
+	log.Info("reconciling gateway class")
+	defer log.Info("finished reconciling gateway class")
 
 	gwclass := &apiv1.GatewayClass{}
 	if err := r.cli.Get(ctx, req.NamespacedName, gwclass); err != nil {
@@ -437,28 +456,70 @@ func (r *controllerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	log.Info("reconciling gateway class")
-
+	log.Info("setting accepted condition")
 	meta.SetStatusCondition(&gwclass.Status.Conditions, metav1.Condition{
 		Type:               string(apiv1.GatewayClassConditionStatusAccepted),
 		Status:             metav1.ConditionTrue,
 		Reason:             string(apiv1.GatewayClassReasonAccepted),
 		ObservedGeneration: gwclass.Generation,
-		// no need to set LastTransitionTime, it will be set automatically by SetStatusCondition
+		Message:            "GatewayClass accepted by kgateway controller",
 	})
 
-	// TODO: This should actually check the version of the CRDs in the cluster to be 100% sure
-	meta.SetStatusCondition(&gwclass.Status.Conditions, metav1.Condition{
-		Type:               string(apiv1.GatewayClassConditionStatusSupportedVersion),
-		Status:             metav1.ConditionTrue,
-		ObservedGeneration: gwclass.Generation,
-		Reason:             string(apiv1.GatewayClassReasonSupportedVersion),
-	})
+	log.Info("setting supported version condition")
+	// Determine whether we support the Gateway API version used by the GatewayClass.
+	crd := &apiextensionsv1.CustomResourceDefinition{}
+	if err := r.cli.Get(ctx, client.ObjectKey{Name: "gatewayclasses.gateway.networking.k8s.io"}, crd); err != nil {
+		return ctrl.Result{}, err
+	}
+	meta.SetStatusCondition(&gwclass.Status.Conditions, r.setSupportedVersionCond(gwclass, crd))
 
+	log.Info("updating gateway class status")
 	if err := r.cli.Status().Update(ctx, gwclass); err != nil {
 		return ctrl.Result{}, err
 	}
 	log.Info("updated gateway class status")
 
 	return ctrl.Result{}, nil
+}
+
+// setSupportedVersionCond sets the supported version condition for the GatewayClass. If
+// the Gateway API version is not found, or the version is not supported, the condition
+// is set to false. Otherwise, the condition is set to true with the CRD version in the
+// condition message.
+func (r *controllerReconciler) setSupportedVersionCond(
+	gwclass *apiv1.GatewayClass,
+	crd *apiextensionsv1.CustomResourceDefinition,
+) metav1.Condition {
+	version, ok := getGatewayAPIVersion(crd)
+	if !ok {
+		return metav1.Condition{
+			Type:               string(apiv1.GatewayClassConditionStatusSupportedVersion),
+			Status:             metav1.ConditionFalse,
+			ObservedGeneration: gwclass.Generation,
+			Reason:             string(apiv1.GatewayClassReasonUnsupportedVersion),
+			Message:            "Gateway API version not found in CRD annotations",
+		}
+	}
+	if !r.supportedVersions.Has(version) {
+		return metav1.Condition{
+			Type:               string(apiv1.GatewayClassConditionStatusSupportedVersion),
+			Status:             metav1.ConditionFalse,
+			ObservedGeneration: gwclass.Generation,
+			Reason:             string(apiv1.GatewayClassReasonUnsupportedVersion),
+			Message:            fmt.Sprintf("Gateway API version %s is not supported by kgateway controller", version),
+		}
+	}
+	return metav1.Condition{
+		Type:               string(apiv1.GatewayClassConditionStatusSupportedVersion),
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: gwclass.Generation,
+		Reason:             string(apiv1.GatewayClassReasonSupportedVersion),
+		Message:            fmt.Sprintf("Gateway API version %s is supported by kgateway controller", version),
+	}
+}
+
+// getGatewayAPIVersion returns the Gateway API version from the CRD annotations.
+func getGatewayAPIVersion(crd *apiextensionsv1.CustomResourceDefinition) (string, bool) {
+	version, ok := crd.Annotations["gateway.networking.k8s.io/bundle-version"]
+	return version, ok
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -85,16 +86,20 @@ func (r *gatewayClassProvisioner) Reconcile(ctx context.Context, _ ctrl.Request)
 
 	var errs []error
 	for name, config := range r.classConfigs {
-		if err := r.createGatewayClass(ctx, name, config); err != nil {
+		if err := r.createGatewayClass(ctx, log, name, config); err != nil {
 			errs = append(errs, err)
 			continue
 		}
-		log.Info("created GatewayClass", "name", name)
 	}
 	return ctrl.Result{}, errors.Join(errs...)
 }
 
-func (r *gatewayClassProvisioner) createGatewayClass(ctx context.Context, name string, config *ClassInfo) error {
+func (r *gatewayClassProvisioner) createGatewayClass(
+	ctx context.Context,
+	log logr.Logger,
+	name string,
+	config *ClassInfo,
+) error {
 	gc := &apiv1.GatewayClass{}
 	err := r.Get(ctx, client.ObjectKey{Name: name}, gc)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -117,9 +122,15 @@ func (r *gatewayClassProvisioner) createGatewayClass(ctx context.Context, name s
 	if config.ParametersRef != nil {
 		gc.Spec.ParametersRef = config.ParametersRef
 	}
-	if err := r.Create(ctx, gc); err != nil && !apierrors.IsAlreadyExists(err) {
+	err = r.Create(ctx, gc)
+	if apierrors.IsAlreadyExists(err) {
+		log.Info("GatewayClass already exists", "name", name)
+		return nil
+	}
+	if err != nil {
 		return err
 	}
+	log.Info("created GatewayClass", "name", name)
 	return nil
 }
 
