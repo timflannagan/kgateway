@@ -11,8 +11,8 @@ spec:
   ai:
     llm:
       hostOverride:
-        host: test-ai-provider.ai-test.svc.cluster.local
-        port: 5001
+        host: https://test-ai-provider.ai-test.svc.cluster.local
+        port: 443
       provider:
         openai:
           authToken:
@@ -32,8 +32,8 @@ spec:
   ai:
     llm:
       hostOverride:
-        host: test-ai-provider.ai-test.svc.cluster.local
-        port: 5001
+        host: https://test-ai-provider.ai-test.svc.cluster.local
+        port: 443
       provider:
         azureopenai:
           endpoint: ai-gateway.openai.azure.com
@@ -56,8 +56,8 @@ spec:
   ai:
     llm:
       hostOverride:
-        host: test-ai-provider.ai-test.svc.cluster.local
-        port: 5001
+        host: https://test-ai-provider.ai-test.svc.cluster.local
+        port: 443
       provider:
         gemini:
           model: gemini-1.5-flash-001
@@ -79,8 +79,8 @@ spec:
   ai:
     llm:
       hostOverride:
-        host: test-ai-provider.ai-test.svc.cluster.local
-        port: 5001
+        host: https://test-ai-provider.ai-test.svc.cluster.local
+        port: 443
       provider:
         vertexai:
           model: gemini-1.5-flash-001
@@ -92,4 +92,3 @@ spec:
             kind: "SecretRef"
             secretRef:
               name: vertex-ai-secret
----

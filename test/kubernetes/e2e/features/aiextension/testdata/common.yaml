@@ -5,6 +5,9 @@ metadata:
   namespace: ai-test
 spec:
   kube:
+    envoyContainer:
+      bootstrap:
+        logLevel: debug
     aiExtension:
       enabled: true
       ports:
