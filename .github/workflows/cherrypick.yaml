@@ -29,14 +29,15 @@ jobs:
         run: |
           comment="${{ github.event.comment.body }}"
           target_branch=$(echo "$comment" | awk '{print $2}')
-          pr_number=${{ github.event.issue.number }}
+          # pr_number=${{ github.event.issue.number }}
+          pr_number=6 # Hardcoded for testing.
+
 
           # Get PR details including merge status
-          pr_data=$(gh pr view $pr_number --json headRefName,title,mergeCommit,state,headRepository,headRef --jq '.')
+          pr_data=$(gh pr view --repo "${{ github.repository_owner }}/${{ github.repository }}" $pr_number --json headRefName,title,mergeCommit,state,headRepository --jq '.')
           pr_title=$(echo "$pr_data" | jq -r '.title')
           pr_state=$(echo "$pr_data" | jq -r '.state')
-          head_repo=$(echo "$pr_data" | jq -r '.headRepository.name')
-          head_ref=$(echo "$pr_data" | jq -r '.headRef')
+          head_ref_name=$(echo "$pr_data" | jq -r '.headRefName')
 
           # For merged PRs, use the merge commit
           # For open PRs, use the head ref
@@ -53,6 +54,7 @@ jobs:
           echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
           echo "pr_title=$pr_title" >> $GITHUB_OUTPUT
           echo "pr_state=$pr_state" >> $GITHUB_OUTPUT
+          echo "head_ref_name=$head_ref_name" >> $GITHUB_OUTPUT
 
           # Validate target branch exists
           if ! git ls-remote --exit-code origin "refs/heads/$target_branch" >/dev/null 2>&1; then
