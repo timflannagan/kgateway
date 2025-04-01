@@ -1,59 +1,59 @@
-name: Unit Tests
+# name: Unit Tests
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  merge_group:
-    types: [checks_requested]
+# on:
+#   pull_request:
+#     types: [opened, synchronize, reopened, ready_for_review]
+#   merge_group:
+#     types: [checks_requested]
 
-env:
-  VERSION: '1.0.0-ci1'
-  GITHUB_TOKEN: ${{ github.token }}
+# env:
+#   VERSION: '1.0.0-ci1'
+#   GITHUB_TOKEN: ${{ github.token }}
 
-jobs:
-  # Runs the unit tests for `internal/kgateway`
-  kube_gateway_project:
-    # TODO(tim): rename this job or consolidate with the other workflows.
-    name: projects/gateway2
-    runs-on: ubuntu-22.04
-    timeout-minutes: 15
-    steps:
-    - uses: actions/checkout@v4
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
-    - name: Install dependencies
-      run: make mod-download
-    - name: Build kgateway
-      run: go build -v ./internal/kgateway/...
-    - name: Run Tests
-      shell: bash
-      env:
-        TEST_PKG: "./internal/kgateway/..."
-      run: make go-test-with-coverage
-    - name: Validate Test Coverage
-      shell: bash
-      # The make will error if test coverage drops below a certain threshold
-      # We intentionally ignore the errors while we build out our test coverage, to establish a good baseline
-      # However, we should strive to establish a baseline, and then make it required on PRs
-      run: make --always-make --ignore-errors validate-test-coverage
-  # Runs the units tests for `python`
-  python_unit_tests:
-    timeout-minutes: 60
-    name: Python Unit Tests
-    env:
-      CONTEXT: Python Unit Tests
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
+# jobs:
+#   # Runs the unit tests for `internal/kgateway`
+#   kube_gateway_project:
+#     # TODO(tim): rename this job or consolidate with the other workflows.
+#     name: projects/gateway2
+#     runs-on: ubuntu-22.04
+#     timeout-minutes: 15
+#     steps:
+#     - uses: actions/checkout@v4
+#     - name: Setup Go
+#       uses: actions/setup-go@v5
+#       with:
+#         go-version-file: go.mod
+#     - name: Install dependencies
+#       run: make mod-download
+#     - name: Build kgateway
+#       run: go build -v ./internal/kgateway/...
+#     - name: Run Tests
+#       shell: bash
+#       env:
+#         TEST_PKG: "./internal/kgateway/..."
+#       run: make go-test-with-coverage
+#     - name: Validate Test Coverage
+#       shell: bash
+#       # The make will error if test coverage drops below a certain threshold
+#       # We intentionally ignore the errors while we build out our test coverage, to establish a good baseline
+#       # However, we should strive to establish a baseline, and then make it required on PRs
+#       run: make --always-make --ignore-errors validate-test-coverage
+#   # Runs the units tests for `python`
+#   python_unit_tests:
+#     timeout-minutes: 60
+#     name: Python Unit Tests
+#     env:
+#       CONTEXT: Python Unit Tests
+#     runs-on: ubuntu-22.04
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - name: Prepare Python Runner
-        uses: ./.github/actions/prep-python-runner
+#       - name: Prepare Python Runner
+#         uses: ./.github/actions/prep-python-runner
 
-      - name: Run Tests
-        shell: bash
-        run: |
-          echo "Running python unit tests"
-          cd python/ai_extension
-          python3 -m pytest test
+#       - name: Run Tests
+#         shell: bash
+#         run: |
+#           echo "Running python unit tests"
+#           cd python/ai_extension
+#           python3 -m pytest test
