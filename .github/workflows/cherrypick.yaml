@@ -34,7 +34,7 @@ jobs:
 
 
           # Get PR details including merge status
-          pr_data=$(gh pr view --repo "${{ github.repository_owner }}/${{ github.repository }}" $pr_number --json headRefName,title,mergeCommit,state,headRepository --jq '.')
+          pr_data=$(gh pr view --repo "${{ github.repository }}" $pr_number --json headRefName,title,mergeCommit,state,headRepository --jq '.')
           pr_title=$(echo "$pr_data" | jq -r '.title')
           pr_state=$(echo "$pr_data" | jq -r '.state')
           head_ref_name=$(echo "$pr_data" | jq -r '.headRefName')
