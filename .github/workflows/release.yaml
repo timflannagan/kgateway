@@ -47,6 +47,7 @@ jobs:
           set -x
           GIT_SHA=$(git rev-parse --short HEAD)
           GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD | sed -e "s/\//-/g")
+          goreleaser_args=""
 
           # Set version based on event type
           if [[ ${{ github.event_name }} == 'workflow_dispatch' ]]; then
@@ -55,22 +56,27 @@ jobs:
             else
               VERSION="v0.0.0-manual-${GIT_SHA}"
             fi
-            echo "goreleaser_args=--clean --skip=validate" >> $GITHUB_OUTPUT
+            goreleaser_args="--clean --skip=validate"
           elif [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
-            echo "goreleaser_args=--clean" >> $GITHUB_OUTPUT
+            goreleaser_args="--clean"
           elif [[ $GITHUB_REF == refs/heads/main ]]; then
             VERSION="${MAIN_VERSION}"
-            echo "goreleaser_args=--clean --skip=validate" >> $GITHUB_OUTPUT
+            goreleaser_args="--clean --skip=validate"
           elif [[ $GITHUB_REF == refs/pull/* ]]; then
             GIT_TAG=$(git describe --tags --abbrev=0)
             PR_NUM=$(echo "${GITHUB_REF}" | sed -E 's|refs/pull/([^/]+)/?.*|\1|')
             VERSION="${GIT_TAG}-pr.${PR_NUM}-${GIT_SHA}"
-            echo "goreleaser_args=--snapshot --clean" >> $GITHUB_OUTPUT
+            goreleaser_args="--snapshot --clean"
           else
             echo "Unknown event type"
             exit 1
           fi
+
+          # Always add the --verbose flag
+          goreleaser_args="${goreleaser_args} --verbose"
+          # Output variables
+          echo "goreleaser_args=${goreleaser_args}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
   helm:
