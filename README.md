@@ -12,6 +12,8 @@
 
 Kgateway is:
 
+asdf
+
 * **An ingress/edge router for Kubernetes**: Powered by [Envoy](https://www.envoyproxy.io) and programmed with the [Gateway API](https://gateway-api.sigs.k8s.io/), kgateway is a world-leading Cloud Native ingress.
 * **An advanced API gateway**: Aggregate web APIs and apply key functions like authentication, authorization and rate limiting in one place
 * **A better waypoint proxy for [ambient mesh](https://ambientmesh.io/)**: Use the same stack for east-west management as you do for north-south.
