@@ -73,9 +73,8 @@ jobs:
             exit 1
           fi
 
-          # Always add the --verbose flag
+          # DMN: Always add the --verbose flag
           goreleaser_args="${goreleaser_args} --verbose"
-          # Output variables
           echo "goreleaser_args=${goreleaser_args}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
@@ -104,6 +103,7 @@ jobs:
         run: |
           helm push _test/kgateway-${{ needs.setup.outputs.version }}.tgz oci://${{ env.IMAGE_REGISTRY }}/charts
           helm push _test/kgateway-crds-${{ needs.setup.outputs.version }}.tgz oci://${{ env.IMAGE_REGISTRY }}/charts
+
   goreleaser:
     name: goreleaser
     needs: [setup, helm]
@@ -112,8 +112,26 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+
       - name: Prep Go Runner
         uses: ./.github/actions/prep-go-runner
+
+      - name: Go Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+        id: buildx
+
+      - name: Setup QEMU
+        uses: "docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392" # v3.6.0
 
       # We publish a rolling main release for every commit to main. Deleting the release
       # ensures that the tagged commit is not stale. Goreleaser will create a new tag
@@ -136,9 +154,6 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: "docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392" # v3.6.0
-      - uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2" # v3.10 .0
-
       - name: Run goreleaser
         run: make release
         env:
@@ -147,6 +162,9 @@ jobs:
           IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
           GORELEASER_ARGS: ${{ needs.setup.outputs.goreleaser_args }}
           GORELEASER_CURRENT_TAG: ${{ needs.setup.outputs.version }}
+          DOCKER_BUILDX_BUILDER: "${{ steps.buildx.outputs.name }}"
+          DOCKER_BUILDX_CACHE_FROM: "type=gha"
+          DOCKER_BUILDX_CACHE_TO: "type=gha,mode=max"
 
   validate:
     name: Validate release artifacts
@@ -155,8 +173,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Prep Go Runner
-        uses: ./.github/actions/prep-go-runner
 
       - name: Login to ghcr.io
         if: ${{ github.event_name != 'pull_request' }}
