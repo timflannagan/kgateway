@@ -166,6 +166,10 @@ jobs:
           DOCKER_BUILDX_CACHE_FROM: "type=gha"
           DOCKER_BUILDX_CACHE_TO: "type=gha,mode=max"
 
+      - name: Inspect BuildKit cache usage (debug)
+        run: |
+          docker buildx du --builder "${{ steps.buildx.outputs.name }}"
+
   validate:
     name: Validate release artifacts
     needs: [setup, helm, goreleaser]
