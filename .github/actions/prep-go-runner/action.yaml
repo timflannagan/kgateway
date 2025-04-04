@@ -21,7 +21,7 @@ runs:
         echo "Before clearing disk space:"
         df -h
         docker system df -v
-        
+
         # https://github.com/actions/runner-images/discussions/3242 github runners are bad at cleanup
         echo "Removing large packages"
         sudo apt-get remove -y '^dotnet-.*' || true
@@ -46,16 +46,16 @@ runs:
         sudo rm -rf $AGENT_TOOLSDIRECTORY || true
 
         # Clean up images
-        docker image rm node:16 || true
-        docker image rm node:16-alpine || true
         docker image rm node:18 || true
         docker image rm node:18-alpine || true
         docker image rm node:20 || true
         docker image rm node:20-alpine || true
+        docker image rm node:22 || true
+        docker image rm node:22-alpine || true
         # remove the dangling images and containers
         docker images | tail -n +2 | awk '$1 == "<none>" {print $3}' | xargs --no-run-if-empty docker rmi
         docker ps -a | tail -n +2 | awk '$2 ~ "^[0-9a-f]+$" {print $1}' | xargs --no-run-if-empty docker rm --volumes=true
-        
+
         echo "After clearing disk space:"
         df -h
         docker system df -v
@@ -74,6 +74,7 @@ runs:
       shell: bash
       run: |
         echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+        echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
     - name: Cache
       uses: actions/cache@v4
       id: cache
@@ -81,6 +82,7 @@ runs:
         # https://github.com/actions/cache/blob/main/examples.md#go---modules
         path: |
           ${{ steps.go-cache-paths.outputs.go-mod }}
+          ${{ steps.go-cache-paths.outputs.go-build }}
         key: ${{ runner.os }}-go-${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('**/go.sum') }}
     - name: Install Dependencies
       if: steps.cache.outputs.cache-hit != 'true'
