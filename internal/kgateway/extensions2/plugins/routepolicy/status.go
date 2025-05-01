@@ -37,7 +37,7 @@ func buildRegisterCallback(
 			}
 
 			in := o.Latest()
-			routePolIr, ok := in.PolicyIR.(*trafficPolicy)
+			routePolIr, ok := in.PolicyIR.(*TrafficPolicy)
 			if !ok {
 				return
 			}

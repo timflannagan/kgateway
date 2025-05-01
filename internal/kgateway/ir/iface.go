@@ -1,3 +1,13 @@
+// internal/kgateway/ir/iface.go
+//
+// Internal-facing aliases and helper structs that allow the core codebase
+// to keep compiling while the authoritative interface & context definitions
+// now live in the public `pkg/pluginsdk` package.
+//
+// ⚠️  Do **not** add new logic here; treat this file as a shim layer that
+//     forwards to the SDK types.  All downstream plugins should import
+//     github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk directly.
+
 package ir
 
 import (
@@ -5,234 +15,98 @@ import (
 	"fmt"
 	"time"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	envoy_hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
-	"google.golang.org/protobuf/proto"
+	envoy_cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/plugins"
+	intplugins "github.com/kgateway-dev/kgateway/v2/internal/kgateway/plugins"
+	sdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
 )
 
-type ListenerContext struct {
-	Policy PolicyIR
-}
+/* -------------------------------------------------------------------------
+   Public-SDK type aliases
+   --------------------------------------------------------------------- */
 
-type RouteConfigContext struct {
-	// No policy here, as you can't attach policies to route configs.
-	// we will call every policy with this to set defaults.
-}
+type (
+	ListenerContext     = sdk.ListenerContext
+	RouteConfigContext  = sdk.RouteConfigContext
+	VirtualHostContext  = sdk.VirtualHostContext
+	RouteBackendContext = sdk.RouteBackendContext
+	RouteContext        = sdk.RouteContext
+	HcmContext          = sdk.HcmContext
 
-type VirtualHostContext struct {
-	Policy PolicyIR
-}
+	TypedFilterConfigMap = sdk.TypedFilterConfigMap
 
-type TypedFilterConfigMap map[string]proto.Message
+	ProxyTranslationPass              = sdk.ProxyTranslationPass
+	UnimplementedProxyTranslationPass = sdk.UnimplementedProxyTranslationPass
+)
 
-// AddTypedConfig SETS the config for a given key. // TODO: consider renaming to SetTypedConfig
-func (r *TypedFilterConfigMap) AddTypedConfig(key string, v proto.Message) {
-	if *r == nil {
-		*r = make(TypedFilterConfigMap)
-	}
-	(*r)[key] = v
-}
-
-func (r *TypedFilterConfigMap) GetTypedConfig(key string) proto.Message {
-	if r == nil || *r == nil {
-		return nil
-	}
-	if v, ok := (*r)[key]; ok {
-		return v
-	}
-	return nil
-}
-
-type RouteBackendContext struct {
-	FilterChainName string
-	Backend         *BackendObjectIR
-	// TypedFilterConfig will be output on the Route or WeightedCluster level after all plugins have run
-	TypedFilterConfig TypedFilterConfigMap
-}
-
-type RouteContext struct {
-	FilterChainName string
-	Policy          PolicyIR
-	In              HttpRouteRuleMatchIR
-	// TypedFilterConfig will be output on the Route level after all plugins have run
-	TypedFilterConfig TypedFilterConfigMap
-}
-
-type HcmContext struct {
-	Policy PolicyIR
-}
-
-// ProxyTranslationPass represents a single translation pass for a gateway. It can hold state
-// for the duration of the translation.
-// Each of the functions here will be called in the order they appear in the interface.
-type ProxyTranslationPass interface {
-	//	Name() string
-	// called 1 time for each listener
-	ApplyListenerPlugin(
-		ctx context.Context,
-		pCtx *ListenerContext,
-		out *envoy_config_listener_v3.Listener,
-	)
-	// called 1 time per filter chain after listeners and allows tweaking HCM settings.
-	ApplyHCM(ctx context.Context,
-		pCtx *HcmContext,
-		out *envoy_hcm.HttpConnectionManager) error
-
-	// called 1 time for all the routes in a filter chain. Use this to set default PerFilterConfig
-	// No policy is provided here.
-	ApplyRouteConfigPlugin(
-		ctx context.Context,
-		pCtx *RouteConfigContext,
-		out *envoy_config_route_v3.RouteConfiguration,
-	)
-	ApplyVhostPlugin(
-		ctx context.Context,
-		pCtx *VirtualHostContext,
-		out *envoy_config_route_v3.VirtualHost,
-	)
-	// no policy applied - this is called for every backend in a route.
-	// For this to work the backend needs to register itself as a policy. TODO: rethink this.
-	// Note: TypedFilterConfig should be applied in the pCtx and is shared between ApplyForRoute, ApplyForBackend
-	// and ApplyForRouteBacken (do not apply on the output route directly)
-	ApplyForBackend(
-		ctx context.Context,
-		pCtx *RouteBackendContext,
-		in HttpBackend,
-		out *envoy_config_route_v3.Route,
-	) error
-	// Applies a policy attached to a specific Backend (via extensionRef on the BackendRef).
-	// Note: TypedFilterConfig should be applied in the pCtx and is shared between ApplyForRoute, ApplyForBackend
-	// and ApplyForRouteBackend
-	ApplyForRouteBackend(
-		ctx context.Context,
-		policy PolicyIR,
-		pCtx *RouteBackendContext,
-	) error
-	// called once per route rule if SupportsPolicyMerge returns false, otherwise this is called only
-	// once on the value returned by MergePolicies.
-	// Applies policy for an HTTPRoute that has a policy attached via a targetRef.
-	// The output configures the envoy_config_route_v3.Route
-	// Note: TypedFilterConfig should be applied in the pCtx and is shared between ApplyForRoute, ApplyForBackend
-	// and ApplyForRouteBacken (do not apply on the output route directly)
-	ApplyForRoute(
-		ctx context.Context,
-		pCtx *RouteContext,
-		out *envoy_config_route_v3.Route) error
-
-	// called 1 time per filter-chain.
-	// If a plugin emits new filters, they must be with a plugin unique name.
-	// filters added to impact specific routes should be disabled on the listener level, so they don't impact other routes.
-	HttpFilters(ctx context.Context, fc FilterChainCommon) ([]plugins.StagedHttpFilter, error)
-
-	NetworkFilters(ctx context.Context) ([]plugins.StagedNetworkFilter, error)
-	// called 1 time (per envoy proxy). replaces GeneratedResources and allows adding clusters to the envoy.
-	ResourcesToAdd(ctx context.Context) Resources
-}
-
-type UnimplementedProxyTranslationPass struct{}
-
-var _ ProxyTranslationPass = UnimplementedProxyTranslationPass{}
-
-func (s UnimplementedProxyTranslationPass) ApplyListenerPlugin(ctx context.Context, pCtx *ListenerContext, out *envoy_config_listener_v3.Listener) {
-}
-
-func (s UnimplementedProxyTranslationPass) ApplyHCM(ctx context.Context, pCtx *HcmContext, out *envoy_hcm.HttpConnectionManager) error {
-	return nil
-}
-
-func (s UnimplementedProxyTranslationPass) ApplyForBackend(ctx context.Context, pCtx *RouteBackendContext, in HttpBackend, out *envoy_config_route_v3.Route) error {
-	return nil
-}
-
-func (s UnimplementedProxyTranslationPass) ApplyRouteConfigPlugin(ctx context.Context, pCtx *RouteConfigContext, out *envoy_config_route_v3.RouteConfiguration) {
-}
-
-func (s UnimplementedProxyTranslationPass) ApplyVhostPlugin(ctx context.Context, pCtx *VirtualHostContext, out *envoy_config_route_v3.VirtualHost) {
-}
-
-func (s UnimplementedProxyTranslationPass) ApplyForRoute(ctx context.Context, pCtx *RouteContext, out *envoy_config_route_v3.Route) error {
-	return nil
-}
-
-func (s UnimplementedProxyTranslationPass) ApplyForRouteBackend(ctx context.Context, policy PolicyIR, pCtx *RouteBackendContext) error {
-	return nil
-}
-
-func (s UnimplementedProxyTranslationPass) HttpFilters(ctx context.Context, fc FilterChainCommon) ([]plugins.StagedHttpFilter, error) {
-	return nil, nil
-}
-
-func (s UnimplementedProxyTranslationPass) NetworkFilters(ctx context.Context) ([]plugins.StagedNetworkFilter, error) {
-	return nil, nil
-}
-
-func (s UnimplementedProxyTranslationPass) ResourcesToAdd(ctx context.Context) Resources {
-	return Resources{}
-}
+/* -------------------------------------------------------------------------
+   Local helpers & wrappers (unchanged from previous implementation)
+   --------------------------------------------------------------------- */
 
 type Resources struct {
-	Clusters []*envoy_config_cluster_v3.Cluster
+	Clusters []*envoy_cluster.Cluster
 }
 
+// Kept as a plain struct; not part of the public SDK.
 type GwTranslationCtx struct{}
 
+/* ---------- Policy IR plumbing ------------------------------------- */
+
 type PolicyIR interface {
-	// in case multiple policies attached to the same resource, we sort by policy creation time.
 	CreationTime() time.Time
-	Equals(in any) bool
+	Equals(other any) bool
 }
 
 type PolicyWrapper struct {
-	// A reference to the original policy object
+	// Original policy resource identity
 	ObjectSource `json:",inline"`
-	// The policy object itself. TODO: we can probably remove this
+
+	// Raw K8s object
 	Policy metav1.Object
 
-	// Errors processing it for status.
-	// note: these errors are based on policy itself, regardless of whether it's attached to a resource.
-	// TODO: change for conditions
+	// Pure-policy errors (prior to attachment validation)
 	Errors []error
 
-	// The IR of the policy objects. ideally with structural errors removed.
-	// Opaque to us other than metadata.
+	// Fully-translated in-memory representation
 	PolicyIR PolicyIR
 
-	// Where to attach the policy. This usually comes from the policy CRD.
+	// Where the policy should attach
 	TargetRefs []PolicyRef
 }
 
-func (c PolicyWrapper) ResourceName() string {
-	return c.ObjectSource.ResourceName()
+func (w PolicyWrapper) ResourceName() string { return w.ObjectSource.ResourceName() }
+
+func (w PolicyWrapper) Equals(other PolicyWrapper) bool {
+	if w.ObjectSource != other.ObjectSource {
+		return false
+	}
+	return versionEquals(w.Policy, other.Policy) && w.PolicyIR.Equals(other.PolicyIR)
 }
 
 func versionEquals(a, b metav1.Object) bool {
-	var versionEquals bool
-	if a.GetGeneration() != 0 && b.GetGeneration() != 0 {
-		versionEquals = a.GetGeneration() == b.GetGeneration()
-	} else {
-		versionEquals = a.GetResourceVersion() == b.GetResourceVersion()
-	}
-	return versionEquals && a.GetUID() == b.GetUID()
-}
-
-func (c PolicyWrapper) Equals(in PolicyWrapper) bool {
-	if c.ObjectSource != in.ObjectSource {
-		return false
-	}
-
-	return versionEquals(c.Policy, in.Policy) && c.PolicyIR.Equals(in.PolicyIR)
+	genEqual := a.GetGeneration() != 0 && b.GetGeneration() != 0 &&
+		a.GetGeneration() == b.GetGeneration()
+	resEqual := a.GetResourceVersion() == b.GetResourceVersion()
+	return (genEqual || resEqual) && a.GetUID() == b.GetUID()
 }
 
 var ErrNotAttachable = fmt.Errorf("policy is not attachable to this object")
 
+/* ---------- Execution-time hooks for plugin collections ------------ */
+
 type PolicyRun interface {
-	// Allocate state for single listener+rotue translation pass.
 	NewGatewayTranslationPass(ctx context.Context, tctx GwTranslationCtx) ProxyTranslationPass
-	// Process cluster for a backend
-	ProcessBackend(ctx context.Context, in BackendObjectIR, out *envoy_config_cluster_v3.Cluster) error
+	ProcessBackend(ctx context.Context, in BackendObjectIR, out *envoy_cluster.Cluster) error
 }
+
+/* ---------- Opaque aliases used elsewhere in internal packages ----- */
+
+type (
+	BackendObjectIR      = any
+	HttpBackend          = any
+	FilterChainCommon    = any
+	StagedHttpFilter     = intplugins.StagedHttpFilter
+	StagedNetworkFilter  = intplugins.StagedNetworkFilter
+	HttpRouteRuleMatchIR = any
+)

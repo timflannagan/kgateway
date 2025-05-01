@@ -24,7 +24,8 @@ func main() {
 			}
 			ctx := context.Background()
 			probes.StartLivenessProbeServer(ctx)
-			if err := setup.Main(ctx); err != nil {
+			s := setup.New()
+			if err := s.Start(ctx); err != nil {
 				return fmt.Errorf("err in main: %w", err)
 			}
 			return nil

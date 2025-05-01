@@ -12,7 +12,6 @@ import (
 	dynamicmodulesv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/dynamic_modules/v3"
 	envoy_ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
 	localratelimitv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/local_ratelimit/v3"
-	envoyhttp "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/proto"
 	skubeclient "istio.io/istio/pkg/config/schema/kubeclient"
 	"istio.io/istio/pkg/kube/kclient"
@@ -72,7 +71,7 @@ func extProcFilterName(name string) string {
 	return fmt.Sprintf("%s/%s", "ext_proc", name)
 }
 
-type trafficPolicy struct {
+type TrafficPolicy struct {
 	ct   time.Time
 	spec trafficPolicySpecIr
 }
@@ -118,12 +117,12 @@ type trafficPolicySpecIr struct {
 	errors                     []error
 }
 
-func (d *trafficPolicy) CreationTime() time.Time {
+func (d *TrafficPolicy) CreationTime() time.Time {
 	return d.ct
 }
 
-func (d *trafficPolicy) Equals(in any) bool {
-	d2, ok := in.(*trafficPolicy)
+func (d *TrafficPolicy) Equals(in any) bool {
+	d2, ok := in.(*TrafficPolicy)
 	if !ok {
 		return false
 	}
@@ -223,10 +222,6 @@ type trafficPolicyPluginGwPass struct {
 	localRateLimitInChain *localratelimitv3.LocalRateLimit
 	extAuthPerProvider    map[string]providerWithFromListener
 	extProcPerProvider    map[string]providerWithFromListener
-}
-
-func (p *trafficPolicyPluginGwPass) ApplyHCM(ctx context.Context, pCtx *ir.HcmContext, out *envoyhttp.HttpConnectionManager) error {
-	return nil
 }
 
 var useRustformations bool
@@ -387,13 +382,13 @@ func NewGatewayTranslationPass(ctx context.Context, tctx ir.GwTranslationCtx) ir
 	return &trafficPolicyPluginGwPass{}
 }
 
-func (p *trafficPolicy) Name() string {
+func (p *trafficPolicyPluginGwPass) Name() string {
 	return "routepolicies"
 }
 
 // called 1 time for each listener
 func (p *trafficPolicyPluginGwPass) ApplyListenerPlugin(ctx context.Context, pCtx *ir.ListenerContext, out *envoy_config_listener_v3.Listener) {
-	policy, ok := pCtx.Policy.(*trafficPolicy)
+	policy, ok := pCtx.Policy.(*TrafficPolicy)
 	if !ok {
 		return
 	}
@@ -435,7 +430,7 @@ func (p *trafficPolicyPluginGwPass) ApplyVhostPlugin(ctx context.Context, pCtx *
 
 // called 0 or more times
 func (p *trafficPolicyPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *routev3.Route) error {
-	policy, ok := pCtx.Policy.(*trafficPolicy)
+	policy, ok := pCtx.Policy.(*TrafficPolicy)
 	if !ok {
 		return nil
 	}
@@ -567,7 +562,7 @@ func (p *trafficPolicyPluginGwPass) ApplyForRouteBackend(
 	policy ir.PolicyIR,
 	pCtx *ir.RouteBackendContext,
 ) error {
-	rtPolicy, ok := policy.(*trafficPolicy)
+	rtPolicy, ok := policy.(*TrafficPolicy)
 	if !ok {
 		return nil
 	}
@@ -807,7 +802,7 @@ func mergePolicies(policies []ir.PolicyAtt) ir.PolicyAtt {
 	if len(policies) == 0 {
 		return out
 	}
-	_, ok := policies[0].PolicyIr.(*trafficPolicy)
+	_, ok := policies[0].PolicyIr.(*TrafficPolicy)
 	// ignore unknown types
 	if !ok {
 		return out
@@ -818,9 +813,9 @@ func mergePolicies(policies []ir.PolicyAtt) ir.PolicyAtt {
 		GroupKind:    policies[0].GroupKind,
 		PolicyRef:    policies[0].PolicyRef,
 		MergeOrigins: map[string]*ir.AttachedPolicyRef{},
-		PolicyIr:     &trafficPolicy{},
+		PolicyIr:     &TrafficPolicy{},
 	}
-	merged := out.PolicyIr.(*trafficPolicy)
+	merged := out.PolicyIr.(*TrafficPolicy)
 
 	for i := len(policies) - 1; i >= 0; i-- {
 		mergeOpts := policy.MergeOptions{
@@ -837,7 +832,7 @@ func mergePolicies(policies []ir.PolicyAtt) ir.PolicyAtt {
 			mergeOpts.Strategy = policy.AugmentedMerge
 		}
 
-		p2 := policies[i].PolicyIr.(*trafficPolicy)
+		p2 := policies[i].PolicyIr.(*TrafficPolicy)
 		p2Ref := policies[i].PolicyRef
 
 		if policy.IsMergeable(merged.spec.AI, p2.spec.AI, mergeOpts) {
@@ -875,9 +870,9 @@ func mergePolicies(policies []ir.PolicyAtt) ir.PolicyAtt {
 func buildTranslateFunc(
 	ctx context.Context,
 	commoncol *common.CommonCollections, gatewayExtensions krt.Collection[trafficPolicyGatewayExtensionIR],
-) func(krtctx krt.HandlerContext, i *v1alpha1.TrafficPolicy) *trafficPolicy {
-	return func(krtctx krt.HandlerContext, policyCR *v1alpha1.TrafficPolicy) *trafficPolicy {
-		policyIr := trafficPolicy{
+) func(krtctx krt.HandlerContext, i *v1alpha1.TrafficPolicy) *TrafficPolicy {
+	return func(krtctx krt.HandlerContext, policyCR *v1alpha1.TrafficPolicy) *TrafficPolicy {
+		policyIr := TrafficPolicy{
 			ct: policyCR.CreationTimestamp.Time,
 		}
 		outSpec := trafficPolicySpecIr{}

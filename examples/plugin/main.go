@@ -13,14 +13,14 @@ import (
 	"istio.io/istio/pkg/kube/kclient"
 	"istio.io/istio/pkg/kube/krt"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
-	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/plugins"
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/setup"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
+	sdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
+	"github.com/kgateway-dev/kgateway/v2/pkg/setup"
 )
 
 /******
@@ -64,7 +64,7 @@ spec:
 
 *****/
 
-var configMapGK = schema.GroupKind{
+var configMapGK = sdk.GroupKind{
 	Group: "",
 	Kind:  "ConfigMap",
 }
@@ -154,14 +154,14 @@ func ourPolicies(commoncol *common.CommonCollections) krt.Collection[ir.PolicyWr
 // In our case, we check if our policy was applied to a route and if so, we add a filter.
 type ourPolicyPass struct {
 	// Add the unimplemented pass so we don't have to implement all the methods.
-	ir.UnimplementedProxyTranslationPass
+	pluginsdk.UnimplementedProxyTranslationPass
 
 	// We keep track of which filter chains need our filter.
 	filterNeeded map[string]bool
 }
 
 // ApplyForRoute is called when a an HTTPRouteRule is being translated to an envoy route.
-func (s *ourPolicyPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, out *envoy_config_route_v3.Route) error {
+func (s *ourPolicyPass) ApplyForRoute(ctx context.Context, pCtx *pluginsdk.RouteContext, out *envoy_config_route_v3.Route) error {
 	// get our policy IR. Kgateway used the targetRef to attach the policy to the HTTPRoute. and now as it
 	// translates the HTTPRoute to xDS, it calls our plugin and passes the policy for the plugin's translation pass to do the
 	// policy to xDS translation.
@@ -185,13 +185,13 @@ func (s *ourPolicyPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext
 	return nil
 }
 
-func (s *ourPolicyPass) HttpFilters(ctx context.Context, fc ir.FilterChainCommon) ([]plugins.StagedHttpFilter, error) {
+func (s *ourPolicyPass) HttpFilters(ctx context.Context, fc pluginsdk.FilterChainCommon) ([]pluginsdk.StagedHttpFilter, error) {
 	if !s.filterNeeded[fc.FilterChainName] {
 		return nil, nil
 	}
 	// Add an http filter to the chain that adds a header indicating metadata was added.
-	return []plugins.StagedHttpFilter{
-		plugins.MustNewStagedFilter("example_plugin",
+	return []pluginsdk.StagedHttpFilter{
+		pluginsdk.MustNewStagedFilter("example_plugin",
 			&header_mutationv3.HeaderMutation{
 				Mutations: &header_mutationv3.Mutations{
 					ResponseMutations: []*mutation_v3.HeaderMutation{
@@ -213,19 +213,17 @@ func (s *ourPolicyPass) HttpFilters(ctx context.Context, fc ir.FilterChainCommon
 }
 
 // A function that initializes our plugins.
-func pluginFactory(ctx context.Context, commoncol *common.CommonCollections) []extensionsplug.Plugin {
-	return []extensionsplug.Plugin{
-		{
-			ContributesPolicies: extensionsplug.ContributesPolicies{
-				configMapGK: extensionsplug.PolicyPlugin{
-					Name: "metadataPolicy",
-					NewGatewayTranslationPass: func(ctx context.Context, tctx ir.GwTranslationCtx) ir.ProxyTranslationPass {
-						// Return a fresh new translation pass
-						return &ourPolicyPass{}
-					},
-					// Provide a collection of our policies in IR form.
-					Policies: ourPolicies(commoncol),
+func pluginFactory(ctx context.Context, commoncol *common.CommonCollections) sdk.Plugin {
+	return sdk.Plugin{
+		ContributesPolicies: sdk.ContributesPolicies{
+			configMapGK: sdk.PolicyPlugin{
+				Name: "metadataPolicy",
+				NewGatewayTranslationPass: func(ctx context.Context, tctx pluginsdk.GwTranslationCtx) pluginsdk.ProxyTranslationPass {
+					// Return a fresh new translation pass
+					return &ourPolicyPass{}
 				},
+				// Provide a collection of our policies in IR form.
+				Policies: ourPolicies(commoncol),
 			},
 		},
 	}
@@ -237,5 +235,8 @@ func main() {
 	// This demonstrates how to start Kgateway with a custom plugin.
 	// This binary is the control plane. normally it would be packaged in a docker image and run
 	// in a k8s cluster.
-	setup.StartKgateway(context.Background(), pluginFactory)
+	server := setup.New(setup.Options{
+		ExtraPlugins: []sdk.Plugin{pluginFactory(context.Background(), nil)},
+	})
+	server.Start(context.Background())
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils/krtutil"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
+	sdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
 	kgtwschemes "github.com/kgateway-dev/kgateway/v2/pkg/schemes"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/kubeutils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/namespaces"
@@ -68,7 +69,7 @@ type StartConfig struct {
 	RestConfig *rest.Config
 	// ExtensionsFactory is the factory function which will return an extensions.K8sGatewayExtensions
 	// This is responsible for producing the extension points that this controller requires
-	ExtraPlugins func(ctx context.Context, commoncol *common.CommonCollections) []extensionsplug.Plugin
+	ExtraPlugins []sdk.Plugin
 
 	Client istiokube.Client
 
@@ -142,19 +143,16 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 			setupLog.Info("adding endpoint-picker inference extension")
 
 			existingExtraPlugins := cfg.ExtraPlugins
-			cfg.ExtraPlugins = func(ctx context.Context, commoncol *common.CommonCollections) []extensionsplug.Plugin {
-				var plugins []extensionsplug.Plugin
-
+			cfg.ExtraPlugins = func(ctx context.Context, commoncol *common.CommonCollections) []sdk.Plugin {
+				var plugins []sdk.Plugin
 				// Add the inference extension plugin.
 				if plug := endpointpicker.NewPlugin(ctx, commoncol); plug != nil {
 					plugins = append(plugins, *plug)
 				}
-
 				// If there was an existing ExtraPlugins function, append its plugins too.
 				if existingExtraPlugins != nil {
-					plugins = append(plugins, existingExtraPlugins(ctx, commoncol)...)
+					plugins = append(plugins, existingExtraPlugins...)
 				}
-
 				return plugins
 			}
 		}
@@ -217,12 +215,12 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 	return cb, nil
 }
 
-func pluginFactoryWithBuiltin(extraPlugins func(ctx context.Context, commoncol *common.CommonCollections) []extensionsplug.Plugin) extensions2.K8sGatewayExtensionsFactory {
+func pluginFactoryWithBuiltin(extraPlugins []sdk.Plugin) extensions2.K8sGatewayExtensionsFactory {
 	return func(ctx context.Context, commoncol *common.CommonCollections) extensionsplug.Plugin {
 		plugins := registry.Plugins(ctx, commoncol)
 		plugins = append(plugins, krtcollections.NewBuiltinPlugin(ctx))
 		if extraPlugins != nil {
-			plugins = append(plugins, extraPlugins(ctx, commoncol)...)
+			plugins = append(plugins, extraPlugins...)
 		}
 		return registry.MergePlugins(plugins...)
 	}
