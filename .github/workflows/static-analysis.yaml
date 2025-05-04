@@ -19,6 +19,8 @@ jobs:
       uses: actions/checkout@v4
     - name: Prep Go Runner
       uses: ./.github/actions/prep-go-runner
+    - name: Check Gateway API versions in go mod graph
+      run: go mod graph | grep gateway-api || true
     - name: Generate Code
       run: make verify
 
