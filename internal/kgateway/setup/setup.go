@@ -7,7 +7,6 @@ import (
 	"os"
 
 	envoycache "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	xdsserver "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/go-logr/zapr"
 	"github.com/solo-io/go-utils/contextutils"
 	"go.uber.org/zap"
@@ -26,6 +25,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/krtcollections"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils/krtutil"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/xds"
 	"github.com/kgateway-dev/kgateway/v2/internal/version"
 	sdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/envutils"
@@ -35,22 +35,30 @@ const (
 	componentName = "kgateway"
 )
 
+// Server is the interface for the kgateway server.
 type Server interface {
+	// Start starts the kgateway server.
 	Start(ctx context.Context) error
 }
 
-func WithExtraPlugins(extraPlugins func(ctx context.Context, commoncol *common.CommonCollections) []sdk.Plugin) func(*setup) {
-	return func(s *setup) {
-		s.extraPlugins = extraPlugins
-	}
-}
-
+// setup is the internal implementation of the kgateway server.
 type setup struct {
+	logger       *zap.Logger
 	extraPlugins func(ctx context.Context, commoncol *common.CommonCollections) []sdk.Plugin
+
+	// previously hardcoded in the implementation. TODO add to CLI.
+	metricsAddr     string
+	healthProbeAddr string
+	pprofAddr       string
+	restConfig      *rest.Config // useful in integration tests
+	logLevel        string       // let CLI decide env vs flag
+	controllerName  string
+	xdsOptions      *xds.Config
 }
 
 var _ Server = &setup{}
 
+// New creates a new kgateway server.
 func New(opts ...func(*setup)) *setup {
 	s := &setup{}
 	for _, opt := range opts {
@@ -59,134 +67,234 @@ func New(opts ...func(*setup)) *setup {
 	return s
 }
 
-func (s *setup) Start(ctx context.Context) error {
-	setupLogging(ctx, componentName)
-	return StartKgateway(ctx, s.extraPlugins)
+// WithExtraPlugins extends the kgateway server with extra plugins.
+func WithExtraPlugins(extraPlugins func(ctx context.Context, commoncol *common.CommonCollections) []sdk.Plugin) func(*setup) {
+	return func(s *setup) {
+		s.extraPlugins = extraPlugins
+	}
 }
 
-func StartKgateway(
-	ctx context.Context,
-	extraPlugins func(ctx context.Context, commoncol *common.CommonCollections) []sdk.Plugin,
-) error {
-	logger := contextutils.LoggerFrom(ctx)
+// WithMetricsAddr sets the metrics address.
+func WithMetricsAddr(metricsAddr string) func(*setup) {
+	return func(s *setup) {
+		s.metricsAddr = metricsAddr
+	}
+}
+
+// WithHealthProbeAddr sets the health probe address.
+func WithHealthProbeAddr(healthProbeAddr string) func(*setup) {
+	return func(s *setup) {
+		s.healthProbeAddr = healthProbeAddr
+	}
+}
+
+// WithPprofAddr sets the pprof address.
+func WithPprofAddr(pprofAddr string) func(*setup) {
+	return func(s *setup) {
+		s.pprofAddr = pprofAddr
+	}
+}
+
+// WithRestConfig sets the rest config.
+func WithRestConfig(restConfig *rest.Config) func(*setup) {
+	return func(s *setup) {
+		s.restConfig = restConfig
+	}
+}
+
+// WithLogLevel sets the log level.
+func WithLogLevel(logLevel string) func(*setup) {
+	return func(s *setup) {
+		s.logLevel = logLevel
+	}
+}
+
+// WithControllerName sets the controller name.
+func WithControllerName(controllerName string) func(*setup) {
+	return func(s *setup) {
+		s.controllerName = controllerName
+	}
+}
+
+// WithXdsOptions sets the xDS options.
+func WithXdsOptions(xdsOptions *xds.Config) func(*setup) {
+	return func(s *setup) {
+		s.xdsOptions = xdsOptions
+	}
+}
+
+// Start starts the kgateway server. It will block until the server is stopped.
+func (s *setup) Start(ctx context.Context) error {
+	logger, err := setupLogging(ctx, componentName)
+	if err != nil {
+		return fmt.Errorf("failed to setup logging: %w", err)
+	}
+	s.logger = logger
 
 	// load global settings
-	st, err := settings.BuildSettings()
+	st, err := loadGlobalSettings(ctx)
 	if err != nil {
-		logger.Error(err, "got err while parsing Settings from env")
+		return fmt.Errorf("failed to load global settings: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got settings from env: %+v", *st))
+	s.logger.Info("loaded global settings", zap.Any("settings", st))
 
-	uniqueClientCallbacks, uccBuilder := krtcollections.NewUniquelyConnectedClients()
-	cache, err := startControlPlane(ctx, st.XdsServicePort, uniqueClientCallbacks)
+	// start the xDS server
+	cache, uccBuilder, err := startXds(ctx, logger, st)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to start xDS server: %w", err)
 	}
 
-	setupOpts := &controller.SetupOpts{
+	// setup the controller and run it
+	return s.run(ctx, uccBuilder, &controller.SetupOpts{
 		Cache:                  cache,
 		KrtDebugger:            new(krt.DebugHandler),
 		GlobalSettings:         st,
-		PprofBindAddress:       "127.0.0.1:9099",
-		HealthProbeBindAddress: ":9093",
-		MetricsBindAddress:     ":9092",
+		PprofBindAddress:       s.pprofAddr,
+		HealthProbeBindAddress: s.healthProbeAddr,
+		MetricsBindAddress:     s.metricsAddr,
+	})
+}
+
+// loadGlobalSettings loads the global settings from the environment. Any
+// environment variable prefixed with "KGW_" will be used to set a setting.
+func loadGlobalSettings(ctx context.Context) (*settings.Settings, error) {
+	st, err := settings.BuildSettings()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build settings: %w", err)
+	}
+	return st, nil
+}
+
+// startXds starts the xDS server. It returns a cache and a builder for the
+// uniquely connected clients that will be used by the controller.
+func startXds(
+	ctx context.Context,
+	logger *zap.Logger,
+	st *settings.Settings,
+) (cache envoycache.SnapshotCache, uccBuilder krtcollections.UniquelyConnectedClientsBulider, err error) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", st.XdsServicePort))
+	if err != nil {
+		return nil, nil, err
 	}
 
-	restConfig := ctrl.GetConfigOrDie()
-	return StartKgatewayWithConfig(ctx, setupOpts, restConfig, uccBuilder, extraPlugins)
+	cb, uccBuilder := krtcollections.NewUniquelyConnectedClients()
+	cp, err := xds.New(ctx, &xds.Config{
+		Listener:  lis,
+		Callbacks: cb,
+		Delta:     true,
+		Logger:    logger,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cache, errCh := cp.Start(ctx)
+	go func() {
+		if err := <-errCh; err != nil {
+			logger.Error("xDS serve failed", zap.Error(err))
+		}
+	}()
+	return cache, uccBuilder, nil
 }
 
-func startControlPlane(
+// run is responsible for running the kgateway server. It will block until the
+// server is stopped. This will setup the controller-runtime manager, it's
+// controllers, KRT collections, and the admin server.
+//
+// TODO(tim): this still seems very awkward.
+func (s *setup) run(
 	ctx context.Context,
-	port uint32,
-	callbacks xdsserver.Callbacks,
-) (envoycache.SnapshotCache, error) {
-	return NewControlPlane(ctx, &net.TCPAddr{IP: net.IPv4zero, Port: int(port)}, callbacks)
-}
-
-func StartKgatewayWithConfig(
-	ctx context.Context,
-	setupOpts *controller.SetupOpts,
-	restConfig *rest.Config,
 	uccBuilder krtcollections.UniquelyConnectedClientsBulider,
-	extraPlugins func(ctx context.Context, commoncol *common.CommonCollections) []sdk.Plugin,
+	setupOpts *controller.SetupOpts,
 ) error {
-	ctx = contextutils.WithLogger(ctx, "k8s")
-	logger := contextutils.LoggerFrom(ctx)
-	logger.Infof("starting %s", componentName)
+	s.logger.Info("starting the kgateway server")
 
-	kubeClient, err := createKubeClient(restConfig)
+	restConfig := ctrl.GetConfigOrDie()
+	if s.restConfig == nil {
+		s.restConfig = restConfig
+	}
+
+	kubeClient, err := createKubeClient(s.restConfig)
 	if err != nil {
 		return err
 	}
 
-	logger.Info("creating krt collections")
+	s.logger.Info("creating krt collections")
 	krtOpts := krtutil.NewKrtOptions(ctx.Done(), setupOpts.KrtDebugger)
 
 	augmentedPods := krtcollections.NewPodsCollection(kubeClient, krtOpts)
 	augmentedPodsForUcc := augmentedPods
+	// Should this be a Setting or CLI flag?
 	if envutils.IsEnvTruthy("DISABLE_POD_LOCALITY_XDS") {
 		augmentedPodsForUcc = nil
 	}
 
-	ucc := uccBuilder(ctx, krtOpts, augmentedPodsForUcc)
+	// use the controller name from the CLI flag if provided, otherwise use the
+	// default wellknown controller name.
+	controllerName := s.controllerName
+	if controllerName == "" {
+		controllerName = wellknown.GatewayControllerName
+	}
 
-	logger.Info("initializing controller")
+	s.logger.Info("initializing controller")
 	c, err := controller.NewControllerBuilder(ctx, controller.StartConfig{
-		// TODO: why do we plumb this through if it's wellknown?
-		ControllerName: wellknown.GatewayControllerName,
-		ExtraPlugins:   extraPlugins,
-		RestConfig:     restConfig,
+		ControllerName: controllerName,
+		ExtraPlugins:   s.extraPlugins,
+		RestConfig:     s.restConfig,
 		SetupOpts:      setupOpts,
 		Client:         kubeClient,
 		AugmentedPods:  augmentedPods,
-		UniqueClients:  ucc,
-
-		// Dev flag may be useful for development purposes; not currently tied to any user-facing API
-		Dev:        os.Getenv("LOG_LEVEL") == "debug",
-		KrtOptions: krtOpts,
+		UniqueClients:  uccBuilder(ctx, krtOpts, augmentedPodsForUcc),
+		Dev:            s.logLevel == "debug",
+		KrtOptions:     krtOpts,
 	})
 	if err != nil {
-		logger.Error("failed initializing controller: ", err)
+		s.logger.Error("failed initializing controller: ", zap.Error(err))
 		return err
 	}
 	/// no collections after this point
 
-	logger.Info("waiting for cache sync")
+	s.logger.Info("waiting for cache sync")
 	kubeClient.RunAndWait(ctx.Done())
 
-	logger.Info("starting admin server")
+	s.logger.Info("starting admin server")
 	go admin.RunAdminServer(ctx, setupOpts)
 
-	logger.Info("starting controller")
+	s.logger.Info("starting controller")
 	return c.Start(ctx)
 }
 
-// setupLogging sets up controller-runtime logging
-func setupLogging(ctx context.Context, loggerName string) {
+func buildLogger(logLevel string) (*zap.Logger, error) {
 	level := zapcore.InfoLevel
-	// if log level is set in env, use that
-	if envLogLevel := os.Getenv(contextutils.LogLevelEnvName); envLogLevel != "" {
-		if err := (&level).Set(envLogLevel); err != nil {
-			contextutils.LoggerFrom(ctx).Infof("Could not set log level from env %s=%s, available levels "+
-				"can be found here: https://pkg.go.dev/go.uber.org/zap/zapcore?tab=doc#Level",
+	if logLevel != "" {
+		if err := (&level).Set(logLevel); err != nil {
+			return nil, fmt.Errorf("failed to set log level from env %s=%s: %w",
 				contextutils.LogLevelEnvName,
-				envLogLevel,
-				zap.Error(err),
+				logLevel,
+				err,
 			)
 		}
 	}
 	atomicLevel := zap.NewAtomicLevelAt(level)
 
-	baseLogger := zaputil.NewRaw(
+	return zaputil.NewRaw(
 		zaputil.Level(&atomicLevel),
 		zaputil.RawZapOpts(zap.Fields(zap.String("version", version.Version))),
-	).Named(loggerName)
-
-	// controller-runtime
-	log.SetLogger(zapr.NewLogger(baseLogger))
+	).Named(componentName), nil
 }
 
+// setupLogging sets up controller-runtime logging
+func setupLogging(ctx context.Context, loggerName string) (*zap.Logger, error) {
+	baseLogger, err := buildLogger(os.Getenv(contextutils.LogLevelEnvName))
+	if err != nil {
+		return nil, fmt.Errorf("failed to build logger: %w", err)
+	}
+	// controller-runtime
+	log.SetLogger(zapr.NewLogger(baseLogger))
+	return baseLogger, nil
+}
+
+// createKubeClient creates a new Istio Kubernetes client.
 func createKubeClient(restConfig *rest.Config) (istiokube.Client, error) {
 	restCfg := istiokube.NewClientConfigForRestConfig(restConfig)
 	client, err := istiokube.NewClient(restCfg, "")

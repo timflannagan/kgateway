@@ -12,7 +12,13 @@ import (
 )
 
 func main() {
-	var kgatewayVersion bool
+	var (
+		kgatewayVersion bool
+		metricsAddr     string
+		healthProbeAddr string
+		pprofAddr       string
+		logLevel        string
+	)
 	cmd := &cobra.Command{
 		Use:   "kgateway",
 		Short: "Runs the kgateway controller",
@@ -22,15 +28,20 @@ func main() {
 				return nil
 			}
 			probes.StartLivenessProbeServer(cmd.Context())
-			s := setup.New()
-			if err := s.Start(cmd.Context()); err != nil {
-				return fmt.Errorf("err in main: %w", err)
-			}
-
-			return nil
+			s := setup.New(
+				setup.WithMetricsAddr(metricsAddr),
+				setup.WithHealthProbeAddr(healthProbeAddr),
+				setup.WithPprofAddr(pprofAddr),
+				setup.WithLogLevel(logLevel),
+			)
+			return s.Start(cmd.Context())
 		},
 	}
 	cmd.Flags().BoolVarP(&kgatewayVersion, "version", "v", false, "Print the version of kgateway")
+	cmd.Flags().StringVarP(&metricsAddr, "metrics-addr", "m", ":9092", "The address to listen on for metrics")
+	cmd.Flags().StringVarP(&healthProbeAddr, "health-probe-addr", "p", ":9093", "The address to listen on for health probes")
+	cmd.Flags().StringVarP(&pprofAddr, "pprof-addr", "p", "127.0.0.1:9099", "The address to listen on for pprof")
+	cmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "The log level to use")
 
 	if err := cmd.Execute(); err != nil {
 		log.Fatal(err)

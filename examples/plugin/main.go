@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"time"
 
 	mutation_v3 "github.com/envoyproxy/go-control-plane/envoy/config/common/mutation_rules/v3"
@@ -233,10 +235,10 @@ func pluginFactory(ctx context.Context, commoncol *common.CommonCollections) []e
 }
 
 func main() {
-	// TODO: move setup.StartGGv2 from internal to public.
-	// Start Kgateway and provide our plugin.
-	// This demonstrates how to start Kgateway with a custom plugin.
-	// This binary is the control plane. normally it would be packaged in a docker image and run
-	// in a k8s cluster.
-	setup.StartKgateway(context.Background(), pluginFactory)
+	// Start Kgateway and extend it with our custom plugin.
+	s := setup.New(setup.WithExtraPlugins(pluginFactory))
+	if err := s.Start(context.Background()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

@@ -21,10 +21,12 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/xds"
 )
 
+// Deprecated: Use xds.New() instead.
 func NewControlPlane(
 	ctx context.Context,
 	bindAddr net.Addr,
-	callbacks xdsserver.Callbacks) (envoycache.SnapshotCache, error) {
+	callbacks xdsserver.Callbacks,
+) (envoycache.SnapshotCache, error) {
 	lis, err := net.Listen(bindAddr.Network(), bindAddr.String())
 	if err != nil {
 		return nil, err
@@ -37,6 +39,7 @@ func NewControlPlane(
 	return snapshotCache, err
 }
 
+// Deprecated: Use xds.New() instead.
 func NewControlPlaneWithListener(ctx context.Context,
 	lis net.Listener,
 	callbacks xdsserver.Callbacks) (envoycache.SnapshotCache, *grpc.Server) {

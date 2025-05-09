@@ -27,9 +27,14 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/krtcollections"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/setup"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/xds"
 )
 
-func RunController(t *testing.T, logger *zap.Logger, globalSettings *settings.Settings, testEnv *envtest.Environment,
+func RunController(
+	t *testing.T,
+	logger *zap.Logger,
+	globalSettings *settings.Settings,
+	testEnv *envtest.Environment,
 	yamlFilesToApply [][]string,
 	run func(t *testing.T,
 		ctx context.Context,
@@ -91,8 +96,22 @@ func RunController(t *testing.T, logger *zap.Logger, globalSettings *settings.Se
 		t.Fatalf("can't listen %v", err)
 	}
 	xdsPort := lis.Addr().(*net.TCPAddr).Port
-	snapCache, grpcServer := setup.NewControlPlaneWithListener(ctx, lis, uniqueClientCallbacks)
-	t.Cleanup(func() { grpcServer.Stop() })
+	cp, err := xds.New(ctx, &xds.Config{
+		Listener:  lis,
+		Callbacks: uniqueClientCallbacks,
+		Logger:    zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("failed to create xDS server: %v", err)
+	}
+
+	snapCache, errCh := cp.Start(ctx)
+	t.Cleanup(func() {
+		cp.Stop()
+		if err := <-errCh; err != nil {
+			t.Fatalf("xDS failed: %v", err)
+		}
+	})
 
 	setupOpts := &controller.SetupOpts{
 		Cache:          snapCache,
