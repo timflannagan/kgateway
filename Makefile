@@ -557,6 +557,7 @@ GORELEASER ?= go tool github.com/goreleaser/goreleaser/v2
 GORELEASER_ARGS ?= --snapshot --clean
 GORELEASER_TIMEOUT ?= 60m
 GORELEASER_CURRENT_TAG ?= $(VERSION)
+GORELEASER_CHANGELOG_DISABLED ?= true
 
 .PHONY: release
 release: ## Create a release using goreleaser
