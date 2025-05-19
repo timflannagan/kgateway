@@ -1,4 +1,6 @@
 version: 2
+env:
+  - GORELEASER_CHANGELOG_DISABLED={{ if isEnvSet "GORELEASER_CHANGELOG_DISABLED" }}{{ .Env.GORELEASER_CHANGELOG_DISABLED }}{{ else }}true{{ end }}
 before:
   hooks:
     - go mod tidy
@@ -171,7 +173,7 @@ docker_manifests:
       - *ai_extensions_arm_image
       - *ai_extensions_amd_image
 changelog:
-  disable: true
+  disable: "{{ .Env.GORELEASER_CHANGELOG_DISABLED }}"
 release:
   prerelease: "auto"
   mode: "replace"
