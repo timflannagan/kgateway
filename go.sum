@@ -1147,6 +1147,8 @@ github.com/kelseyhightower/envconfig v1.4.0/go.mod h1:cccZRl6mQpaq41TPp5QxidR+Sa
 github.com/kevinburke/ssh_config v0.0.0-20180830205328-81db2a75821e/go.mod h1:CT57kijsi8u/K/BOFA39wgDQJ9CxiF4nAY/ojJ6r6mM=
 github.com/kevinburke/ssh_config v1.2.0 h1:x584FjTGwHzMwvHx18PXxbBVzfnxogHaAReU4gf13a4=
 github.com/kevinburke/ssh_config v1.2.0/go.mod h1:CT57kijsi8u/K/BOFA39wgDQJ9CxiF4nAY/ojJ6r6mM=
+github.com/kgateway-dev/changelog-generator v0.0.0-20250519181728-45ebe519aeed h1:SkBcXrUsIlRBiFYhPvPallUlgJCzTgio/9ZNShr6V4U=
+github.com/kgateway-dev/changelog-generator v0.0.0-20250519181728-45ebe519aeed/go.mod h1:t6v8S3lnN1JB7n7JviZncPTYSOZdRV2FQ1fjQlAfup8=
 github.com/kgateway-dev/gengo/v2 v2.0.0-20250512195215-4fa0a9df2978 h1:UHfLeZ4Sj1OBRE4V4nSlanqC1FQnT2bg1vnu4N24Scw=
 github.com/kgateway-dev/gengo/v2 v2.0.0-20250512195215-4fa0a9df2978/go.mod h1:EJykeLsmFC60UQbYJezXkEsG2FLrt0GPNkU5iK5GWxU=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=

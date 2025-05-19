@@ -360,6 +360,7 @@ require (
 	github.com/k0kubun/pp v3.0.1+incompatible // indirect
 	github.com/karamaru-alpha/copyloopvar v1.2.1 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
+	github.com/kgateway-dev/changelog-generator v0.0.0-20250519181728-45ebe519aeed // indirect
 	github.com/kisielk/errcheck v1.9.0 // indirect
 	github.com/kkHAIKE/contextcheck v1.1.6 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
@@ -608,6 +609,7 @@ tool (
 	github.com/golang/mock/mockgen
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 	github.com/goreleaser/goreleaser/v2
+	github.com/kgateway-dev/changelog-generator
 	github.com/onsi/ginkgo/v2/ginkgo
 	github.com/saiskee/gettercheck
 	golang.org/x/tools/cmd/goimports
