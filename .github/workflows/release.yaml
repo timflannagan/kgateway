@@ -110,6 +110,7 @@ jobs:
   changelog:
     name: Generate changelog
     needs: setup
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-22.04
     outputs:
       changelog_enabled: ${{ steps.changelog_enabled.outputs.changelog_enabled }}
@@ -119,7 +120,6 @@ jobs:
           fetch-depth: 0
       - name: Determine the start and end shas
         id: changelog_enabled
-        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           echo "Checking if a changelog is needed for ${{ needs.setup.outputs.version }}"
           VERSION="${{ needs.setup.outputs.version }}"
