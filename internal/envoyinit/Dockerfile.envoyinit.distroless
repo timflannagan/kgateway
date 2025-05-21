@@ -2,7 +2,7 @@ ARG ENVOY_IMAGE
 ARG BASE_IMAGE
 
 
-FROM ghcr.io/rust-cross/cargo-zigbuild:0.19.88@sha256:a00024c136a365171892a186b1ee5552812a8f91f2ba9f5fe609c0d352238cca AS rust_builder
+FROM ghcr.io/rust-cross/cargo-zigbuild:0.20.0@sha256:a23677e0d80ae532cc6a132dcd73a85949a909fd4efe13d642ccf32106532cee AS rust_builder
 
 WORKDIR /build
 
