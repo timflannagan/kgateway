@@ -1,6 +1,6 @@
 # agentgateway syncer
 
-This syncer configures xds updates for the [agentgateway](https://agentgateway.dev/) data plane. 
+This syncer configures xds updates for the [agentgateway](https://agentgateway.dev/) data plane.
 
 ### APIs
 

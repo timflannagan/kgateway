@@ -16,11 +16,14 @@ import (
 	envoytransformation "github.com/solo-io/envoy-gloo/go/config/filter/http/transformation/v2"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+	"istio.io/istio/pkg/kube/krt"
 	"k8s.io/utils/ptr"
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
 	aiutils "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/krtcollections"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 )
 
@@ -28,32 +31,59 @@ const (
 	contextString = `{"content":"%s","role":"%s"}`
 )
 
-// AIPolicyIR is the internal representation of an AI policy.
-type AIPolicyIR struct {
-	AISecret *ir.Secret
+// aiPolicyIR is the internal representation of an AI policy.
+type aiPolicyIR struct {
+	secret *ir.Secret
 	// Extproc config can come from the AI backend and AI policy
-	Extproc *envoy_ext_proc_v3.ExtProcPerRoute
+	extProc *envoy_ext_proc_v3.ExtProcPerRoute
 	// Transformations coming from the AI policy
-	Transformation *envoytransformation.RouteTransformations
+	transformation *envoytransformation.RouteTransformations
+}
+
+func (r *aiPolicyIR) Equals(other *aiPolicyIR) bool {
+	if r == nil && other == nil {
+		return true
+	}
+	if r == nil || other == nil {
+		return false
+	}
+	if r.secret != nil && other.secret != nil && !r.secret.Equals(*other.secret) {
+		return false
+	}
+	if (r.secret != nil) != (other.secret != nil) {
+		return false
+	}
+	if !proto.Equal(r.extProc, other.extProc) {
+		return false
+	}
+	if !proto.Equal(r.transformation, other.transformation) {
+		return false
+	}
+	return true
+}
+
+func (r *aiPolicyIR) Validate() error {
+	// Implement me.
+	return nil
 }
 
 func (p *trafficPolicyPluginGwPass) processAITrafficPolicy(
 	configMap *ir.TypedFilterConfigMap,
-	inIr *AIPolicyIR,
+	inIr *aiPolicyIR,
 ) {
-	if inIr.Transformation != nil {
-		configMap.AddTypedConfig(wellknown.AIPolicyTransformationFilterName, inIr.Transformation)
+	if inIr.transformation != nil {
+		configMap.AddTypedConfig(wellknown.AIPolicyTransformationFilterName, inIr.transformation)
 	}
 
-	if inIr.Extproc != nil {
-		clonedExtProcFromIR := proto.Clone(inIr.Extproc).(*envoy_ext_proc_v3.ExtProcPerRoute)
+	if inIr.extProc != nil {
+		clonedExtProcFromIR := proto.Clone(inIr.extProc).(*envoy_ext_proc_v3.ExtProcPerRoute)
 		// Envoy merges GrpcInitialMetadata config from the route, but we need to manually merge if Backend has configured extproc already
 		extProcProtoFromPCtx := configMap.GetTypedConfig(wellknown.AIExtProcFilterName)
 		if extProcProtoFromPCtx != nil {
 			// route policy extproc only configures GrpcInitialMetadata
 			clonedExtProcFromIR = extProcProtoFromPCtx.(*envoy_ext_proc_v3.ExtProcPerRoute)
 			grpcInitMd := clonedExtProcFromIR.GetOverrides().GetGrpcInitialMetadata()
-			grpcInitMd = append(grpcInitMd, inIr.Extproc.GetOverrides().GetGrpcInitialMetadata()...)
+			grpcInitMd = append(grpcInitMd, inIr.extProc.GetOverrides().GetGrpcInitialMetadata()...)
 			clonedExtProcFromIR.GetOverrides().GrpcInitialMetadata = grpcInitMd
 		}
 		configMap.AddTypedConfig(wellknown.AIExtProcFilterName, clonedExtProcFromIR)
@@ -62,7 +92,7 @@ func (p *trafficPolicyPluginGwPass) processAITrafficPolicy(
 
 func preProcessAITrafficPolicy(
 	aiConfig *v1alpha1.AIPolicy,
-	ir *AIPolicyIR,
+	ir *aiPolicyIR,
 ) error {
 	// Setup initial transformation template and extproc settings. The extproc is configured by the route policy and backend.
 	transformationTemplate := initTransformationTemplate()
@@ -85,7 +115,7 @@ func preProcessAITrafficPolicy(
 		})
 	}
 
-	err := handleAITrafficPolicy(aiConfig, extprocSettings, transformationTemplate, ir.AISecret)
+	err := handleAITrafficPolicy(aiConfig, extprocSettings, transformationTemplate, ir.secret)
 	if err != nil {
 		return err
 	}
@@ -107,8 +137,8 @@ func preProcessAITrafficPolicy(
 			},
 		},
 	}
-	ir.Transformation = routeTransformations
-	ir.Extproc = extprocSettings
+	ir.transformation = routeTransformations
+	ir.extProc = extprocSettings
 
 	return nil
 }
@@ -356,4 +386,33 @@ func emptyBodyTransformation() *envoytransformation.TransformationTemplate_Merge
 			JsonKeys: map[string]*envoytransformation.MergeJsonKeys_OverridableTemplate{},
 		},
 	}
+}
+
+// aiSecret checks for the presence of the OpenAI Moderation which may require a secret reference
+// will log an error if the secret is needed but not found
+func aiSecretForSpec(
+	krtctx krt.HandlerContext,
+	secrets *krtcollections.SecretIndex,
+	policyCR *v1alpha1.TrafficPolicy,
+) (*ir.Secret, error) {
+	if policyCR.Spec.AI == nil ||
+		policyCR.Spec.AI.PromptGuard == nil ||
+		policyCR.Spec.AI.PromptGuard.Request == nil ||
+		policyCR.Spec.AI.PromptGuard.Request.Moderation == nil {
+		return nil, nil
+	}
+
+	secretRef := policyCR.Spec.AI.PromptGuard.Request.Moderation.OpenAIModeration.AuthToken.SecretRef
+	if secretRef == nil {
+		// no secret ref is set
+		return nil, nil
+	}
+
+	// Retrieve and assign the secret
+	secret, err := pluginutils.GetSecretIr(secrets, krtctx, secretRef.Name, policyCR.GetNamespace())
+	if err != nil {
+		logger.Error("failed to get secret for AI policy", "secret_name", secretRef.Name, "namespace", policyCR.GetNamespace(), "error", err)
+		return nil, err
+	}
+	return secret, nil
 }

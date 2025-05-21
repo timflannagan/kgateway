@@ -18,35 +18,46 @@ import (
 
 var logger = logging.New("translator/ir")
 
+// Translator translates an IR to the corresponding xDS resources.
+//
+// TODO(tim): This is awkward if the struct is exposing a function. Should
+// be an interface defining this.
 type Translator struct {
 	ContributedPolicies map[schema.GroupKind]extensionsplug.PolicyPlugin
 }
 
+// TranslationPassPlugins is a map of group/kind to a translation pass.
+// This is used to apply policies to the IR before translation.
 type TranslationPassPlugins map[schema.GroupKind]*TranslationPass
 
+// TranslationResult is the result of translating an IR to xDS resources.
+// Envoy clusters are calculated
 type TranslationResult struct {
 	Routes        []*envoy_config_route_v3.RouteConfiguration
 	Listeners     []*envoy_config_listener_v3.Listener
 	ExtraClusters []*envoy_config_cluster_v3.Cluster
 }
 
-// Translate IR to gateway. IR is self contained, so no need for krt context
+// Translate translates an IR to the corresponding xDS resources.
+// Note: The IR is self contained, so no need for krt context.
 func (t *Translator) Translate(gw ir.GatewayIR, reporter reports.Reporter) TranslationResult {
 	pass := t.newPass(reporter)
-	var res TranslationResult
+	ctx := context.TODO()
 
+	var res TranslationResult
 	for _, l := range gw.Listeners {
 		// TODO: propagate errors so we can allow the retain last config mode
-		l, routes := t.ComputeListener(context.TODO(), pass, gw, l, reporter)
-		res.Listeners = append(res.Listeners, l)
+		listener, routes := t.ComputeListener(ctx, pass, gw, l, reporter)
+		res.Listeners = append(res.Listeners, listener)
 		res.Routes = append(res.Routes, routes...)
 	}
 
 	for _, c := range pass {
-		if c != nil {
-			r := c.ResourcesToAdd(context.TODO())
-			res.ExtraClusters = append(res.ExtraClusters, r.Clusters...)
+		if c == nil {
+			continue
 		}
+		r := c.ResourcesToAdd(ctx)
+		res.ExtraClusters = append(res.ExtraClusters, r.Clusters...)
 	}
 
 	return res

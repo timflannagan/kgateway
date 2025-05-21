@@ -6,8 +6,12 @@ import (
 	"time"
 
 	routeconfv3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	"google.golang.org/protobuf/proto"
+	"istio.io/istio/pkg/kube/krt"
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
 )
 
 const (
@@ -17,9 +21,84 @@ const (
 )
 
 // RateLimitIR represents the intermediate representation of a rate limit policy
-type RateLimitIR struct {
+type globalRateLimitIR struct {
 	provider         *TrafficPolicyGatewayExtensionIR
 	rateLimitActions []*routeconfv3.RateLimit
+}
+
+// Equals checks if two globalRateLimitIR objects are equal
+func (r *globalRateLimitIR) Equals(other *globalRateLimitIR) bool {
+	if r == nil && other == nil {
+		return true
+	}
+	if r == nil || other == nil {
+		return false
+	}
+
+	if len(r.rateLimitActions) != len(other.rateLimitActions) {
+		return false
+	}
+	for i, action := range r.rateLimitActions {
+		if !proto.Equal(action, other.rateLimitActions[i]) {
+			return false
+		}
+	}
+	if (r.provider == nil) != (other.provider == nil) {
+		return false
+	}
+	if r.provider != nil && !r.provider.Equals(*other.provider) {
+		return false
+	}
+
+	return true
+}
+
+func (r *globalRateLimitIR) Validate() error {
+	// Implement me.
+	return nil
+}
+
+// Add this function to handle the global rate limit configuration
+func (b *TrafficPolicyBuilder) rateLimitForSpec(
+	krtctx krt.HandlerContext,
+	policy *v1alpha1.TrafficPolicy,
+	out *trafficPolicySpecIr,
+) []error {
+	if policy.Spec.RateLimit == nil || policy.Spec.RateLimit.Global == nil {
+		return nil
+	}
+	var errors []error
+	globalPolicy := policy.Spec.RateLimit.Global
+
+	// Create rate limit actions for the route or vhost
+	actions, err := createRateLimitActions(globalPolicy.Descriptors)
+	if err != nil {
+		errors = append(errors, fmt.Errorf("failed to create rate limit actions: %w", err))
+	}
+
+	gwExtIR, err := b.FetchGatewayExtension(krtctx, globalPolicy.ExtensionRef, policy.GetNamespace())
+	if err != nil {
+		errors = append(errors, fmt.Errorf("ratelimit: %w", err))
+		return errors
+	}
+	if gwExtIR.ExtType != v1alpha1.GatewayExtensionTypeRateLimit || gwExtIR.RateLimit == nil {
+		errors = append(errors, pluginutils.ErrInvalidExtensionType(v1alpha1.GatewayExtensionTypeExtAuth, gwExtIR.ExtType))
+	}
+
+	if len(errors) > 0 {
+		return errors
+	}
+
+	// Create route rate limits and store in the RateLimitIR struct
+	out.globalRateLimit = &globalRateLimitIR{
+		provider: gwExtIR,
+		rateLimitActions: []*routev3.RateLimit{
+			{
+				Actions: actions,
+			},
+		},
+	}
+	return nil
 }
 
 // createRateLimitActions translates the API descriptors to Envoy route config rate limit actions
@@ -92,4 +171,11 @@ func createRateLimitActions(descriptors []v1alpha1.RateLimitDescriptor) ([]*rout
 	}
 
 	return result, nil
+}
+
+func getRateLimitFilterName(name string) string {
+	if name == "" {
+		return rateLimitFilterNamePrefix
+	}
+	return fmt.Sprintf("%s/%s", rateLimitFilterNamePrefix, name)
 }

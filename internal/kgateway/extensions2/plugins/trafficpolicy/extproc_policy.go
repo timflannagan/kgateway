@@ -4,17 +4,48 @@ import (
 	"fmt"
 
 	envoy_ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
+	"google.golang.org/protobuf/proto"
 	"istio.io/istio/pkg/kube/krt"
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
 )
 
+type extProcIR struct {
+	provider        *TrafficPolicyGatewayExtensionIR
+	extProcPerRoute *envoy_ext_proc_v3.ExtProcPerRoute
+}
+
+func (e *extProcIR) Equals(other *extProcIR) bool {
+	if e == nil && other == nil {
+		return true
+	}
+	if e == nil || other == nil {
+		return false
+	}
+
+	if !proto.Equal(e.extProcPerRoute, other.extProcPerRoute) {
+		return false
+	}
+	if (e.provider == nil) != (other.provider == nil) {
+		return false
+	}
+	if e.provider != nil && !e.provider.Equals(*other.provider) {
+		return false
+	}
+	return true
+}
+
+func (e *extProcIR) Validate() error {
+	// Implement me.
+	return nil
+}
+
 // toEnvoyExtProc converts an ExtProcPolicy to an ExternalProcessor
 func (b *TrafficPolicyBuilder) toEnvoyExtProc(
 	krtctx krt.HandlerContext,
 	trafficPolicy *v1alpha1.TrafficPolicy,
-) (*ExtprocIR, error) {
+) (*extProcIR, error) {
 	spec := trafficPolicy.Spec.ExtProc
 	gatewayExtension, err := b.FetchGatewayExtension(krtctx, spec.ExtensionRef, trafficPolicy.GetNamespace())
 	if err != nil {
@@ -24,9 +55,9 @@ func (b *TrafficPolicyBuilder) toEnvoyExtProc(
 		return nil, pluginutils.ErrInvalidExtensionType(v1alpha1.GatewayExtensionTypeExtAuth, gatewayExtension.ExtType)
 	}
 
-	return &ExtprocIR{
+	return &extProcIR{
 		provider:        gatewayExtension,
-		ExtProcPerRoute: translateExtProcPerFilterConfig(spec),
+		extProcPerRoute: translateExtProcPerFilterConfig(spec),
 	}, nil
 }
 
@@ -91,4 +122,11 @@ func toEnvoyProcessingMode(p *v1alpha1.ProcessingMode) *envoy_ext_proc_v3.Proces
 		RequestTrailerMode:  headerSendModeFromString(p.RequestTrailerMode),
 		ResponseTrailerMode: headerSendModeFromString(p.ResponseTrailerMode),
 	}
+}
+
+func extProcFilterName(name string) string {
+	if name == "" {
+		return extauthFilterNamePrefix
+	}
+	return fmt.Sprintf("%s/%s", "ext_proc", name)
 }

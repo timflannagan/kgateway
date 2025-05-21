@@ -67,6 +67,11 @@ func (e *extAuthIR) Equals(other *extAuthIR) bool {
 	return true
 }
 
+func (e *extAuthIR) Validate() error {
+	// Implement me.
+	return nil
+}
+
 // extAuthForSpec translates the ExtAuthz spec into the Envoy configuration
 
 func (b *TrafficPolicyBuilder) extAuthForSpec(
@@ -132,4 +137,11 @@ func translatePerFilterConfig(spec *v1alpha1.ExtAuthPolicy) *envoy_ext_authz_v3.
 		}
 	}
 	return nil
+}
+
+func extAuthFilterName(name string) string {
+	if name == "" {
+		return extauthFilterNamePrefix
+	}
+	return fmt.Sprintf("%s/%s", extauthFilterNamePrefix, name)
 }

@@ -23,6 +23,7 @@ var (
 	BackendGVK            = buildKgatewayGvk("Backend")
 	TrafficPolicyGVK      = buildKgatewayGvk("TrafficPolicy")
 	HTTPListenerPolicyGVK = buildKgatewayGvk("HTTPListenerPolicy")
+	InvalidRouteGVK       = buildKgatewayGvk("InvalidRoute")
 
 	GatewayParametersGVR  = GatewayParametersGVK.GroupVersion().WithResource("gatewayparameters")
 	GatewayExtensionGVR   = GatewayExtensionGVK.GroupVersion().WithResource("gatewayextensions")

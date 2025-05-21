@@ -36,12 +36,10 @@ type addFilters struct {
 }
 
 func (a addFilters) NetworkFilters(ctx context.Context) ([]plugins.StagedNetworkFilter, error) {
-	return []plugins.StagedNetworkFilter{
-		{
-			Filter: &listenerv3.Filter{Name: testPluginFilterName},
-			Stage:  plugins.BeforeStage(plugins.AuthZStage),
-		},
-	}, nil
+	return []plugins.StagedNetworkFilter{{
+		Filter: &listenerv3.Filter{Name: testPluginFilterName},
+		Stage:  plugins.BeforeStage(plugins.AuthZStage),
+	}}, nil
 }
 
 func TestFilterChains(t *testing.T) {

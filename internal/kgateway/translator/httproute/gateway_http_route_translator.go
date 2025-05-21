@@ -2,8 +2,13 @@ package httproute
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
+	"regexp"
+	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -12,6 +17,20 @@ import (
 
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/query"
 	reports "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/reporter"
+)
+
+// Path validation constants
+var (
+	validPathRegex       = regexp.MustCompile(`^[a-zA-Z0-9\-._~:/?#[\]@!$&'()*+,;=]*$`)
+	invalidPathSequences = []string{
+		"//",
+		"/./",
+		"/../",
+	}
+	invalidPathSuffixes = []string{
+		"/.",
+		"/..",
+	}
 )
 
 // TODO: Uncomment when the gateway_http_route_translator_test.go is uncommented.
@@ -61,7 +80,7 @@ func translateGatewayHTTPRouteRulesUtil(
 	for ruleIdx, rule := range route.Rules {
 		if len(rule.Matches) == 0 {
 			// from the spec:
-			// If no matches are specified, the default is a prefix path match on “/”, which has the effect of matching every HTTP request.
+			// If no matches are specified, the default is a prefix path match on "/*", which has the effect of matching every HTTP request.
 			rule.Matches = []gwv1.HTTPRouteMatch{{}}
 		}
 
@@ -138,24 +157,18 @@ func translateGatewayHTTPRouteRule(
 			)
 		}
 
-		// TODO: this is not true; plugins can add actions later.
-		// It is possible for a parent route to not produce an output route action
-		// if it only delegates and does not directly route to a backend.
-		// We should only set a direct response action when there is no output action
-		// for a parent rule and when there are no delegated routes because this would
-		// otherwise result in a top level matcher with a direct response action for the
-		// path that the parent is delegating for.
+		// Validate the route
+		if err := validateRoute(outputRoute); err != nil {
+			reporter.SetCondition(reports.RouteCondition{
+				Type:    gwv1.RouteConditionAccepted,
+				Status:  metav1.ConditionFalse,
+				Reason:  gwv1.RouteReasonUnsupportedValue,
+				Message: fmt.Sprintf("Route validation failed: %v", err),
+			})
+			continue
+		}
 
-		// A parent route that delegates to a child route should not have an output route
-		// action (outputRoute.Action) as the routes are derived from the child route.
-		// So this conditional ensures that we do not create a top level route matcher
-		// for the parent route when it delegates to a child route.
-
-		// TODO: need to be sure we can remove this if, and that we handle it later. routes with now backends might still have extensions
-		// on them that make them useful, but we processes these later
-		// if len(outputRoute.Backends) > 0 {
 		routes = append(routes, outputRoute)
-		// }
 	}
 	return routes
 }
@@ -226,3 +239,62 @@ func applyBackendPlugins(
 	return nil, false
 }
 */
+
+// validateRoute validates a route and its components
+func validateRoute(route ir.HttpRouteRuleMatchIR) error {
+	var errs []error
+
+	// Validate path match
+	if route.Match.Path != nil && route.Match.Path.Value != nil {
+		if err := validatePath(*route.Match.Path.Value); err != nil {
+			errs = append(errs, fmt.Errorf("invalid path match: %w", err))
+		}
+	}
+
+	// Validate backends
+	if len(route.Backends) == 0 && !route.Delegates {
+		errs = append(errs, errors.New("route must have at least one backend or delegate"))
+	}
+
+	// Validate policy attachments
+	for gk, policies := range route.AttachedPolicies.Policies {
+		for _, policy := range policies {
+			if len(policy.Errors) > 0 {
+				errs = append(errs, fmt.Errorf("policy %s/%s errors: %s", gk.Group, gk.Kind, policy.FormatErrors()))
+			}
+		}
+	}
+
+	if len(errs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("route validation failed: %w", errors.Join(errs...))
+}
+
+// validatePath validates a path according to RFC 3986
+func validatePath(path string) error {
+	if path == "" {
+		return nil
+	}
+
+	// Validate path characters
+	if !validPathRegex.Match([]byte(path)) {
+		return fmt.Errorf("path contains invalid characters: %s", path)
+	}
+
+	// Check for invalid sequences
+	for _, invalid := range invalidPathSequences {
+		if strings.Contains(path, invalid) {
+			return fmt.Errorf("path contains invalid sequence %s: %s", invalid, path)
+		}
+	}
+
+	// Check for invalid suffixes
+	for _, invalid := range invalidPathSuffixes {
+		if strings.HasSuffix(path, invalid) {
+			return fmt.Errorf("path ends with invalid suffix %s: %s", invalid, path)
+		}
+	}
+
+	return nil
+}

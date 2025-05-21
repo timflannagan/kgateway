@@ -1155,3 +1155,7 @@ func emptyIfCore(s string) string {
 	}
 	return s
 }
+
+func (h *RoutesIndex) HttpRoutes() krt.Collection[ir.HttpRouteIR] {
+	return h.httpRoutes
+}
