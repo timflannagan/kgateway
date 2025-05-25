@@ -14,7 +14,7 @@ export KUBECONFIG=/home/user/.kube/config
 export KGW_LOG_LEVEL=info
 export KGW_XDS_SERVICE_HOST=172.17.0.1
 export KGW_DEFAULT_IMAGE_REGISTRY=ghcr.io/kgateway-dev
-export KGW_DEFAULT_IMAGE_TAG=2.0.0-dev
+export KGW_DEFAULT_IMAGE_TAG=2.1.0-main
 export KGW_DEFAULT_IMAGE_PULL_POLICY=IfNotPresent
 
 go run cmd/kgateway/main.go

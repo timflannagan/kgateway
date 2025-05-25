@@ -50,6 +50,8 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
+	policyerrors "github.com/kgateway-dev/kgateway/v2/pkg/policy"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
 const (
@@ -377,6 +379,7 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 	), commoncol.KrtOpts.ToOptions("TrafficPolicy")...)
 	gk := wellknown.TrafficPolicyGVK.GroupKind()
 
+	validator := validator.New()
 	translator := NewTrafficPolicyBuilder(ctx, commoncol)
 
 	// TrafficPolicy IR will have TypedConfig -> implement backendroute method to add prompt guard, etc.
@@ -389,6 +392,10 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 		}
 
 		policyIR, errors := translator.Translate(krtctx, policyCR)
+		if err := policyIR.Validate(ctx, validator); err != nil {
+			logger.Error("policy validation failed", "policy", policyCR.Name, "errors", err)
+			errors = append(errors, policyerrors.NewTerminalError("PolicyValidationFailed", err))
+		}
 		pol := &ir.PolicyWrapper{
 			ObjectSource: objSrc,
 			Policy:       policyCR,
@@ -402,7 +409,6 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 	return extensionsplug.Plugin{
 		ContributesPolicies: map[schema.GroupKind]extensionsplug.PolicyPlugin{
 			wellknown.TrafficPolicyGVK.GroupKind(): {
-				// AttachmentPoints: []ir.AttachmentPoints{ir.HttpAttachmentPoint},
 				NewGatewayTranslationPass: NewGatewayTranslationPass,
 				Policies:                  policyCol,
 				MergePolicies:             mergePolicies,
@@ -916,12 +922,19 @@ func mergePolicies(policies []ir.PolicyAtt) ir.PolicyAtt {
 		return out
 	}
 
+	// Collect all errors from the policies being merged
+	var allErrors []error
+	for _, p := range policies {
+		allErrors = append(allErrors, p.Errors...)
+	}
+
 	// base policy to merge into has an empty PolicyIr so it can always be merged into
 	out = ir.PolicyAtt{
 		GroupKind:    policies[0].GroupKind,
 		PolicyRef:    policies[0].PolicyRef,
 		MergeOrigins: map[string]*ir.AttachedPolicyRef{},
 		PolicyIr:     &TrafficPolicy{},
+		Errors:       allErrors,
 	}
 	merged := out.PolicyIr.(*TrafficPolicy)
 
@@ -1014,6 +1027,9 @@ func (b *TrafficPolicyBuilder) Translate(
 	}
 	outSpec := trafficPolicySpecIr{}
 
+	// TODO: Handle warning vs terminal errors? Introduces some complexity having to do
+	// this properly. We risk fail open behavior if we treat everything as a warning unless
+	// it fails envoy mode validate and NACKs the partial bootstrap config.
 	var errors []error
 	if policyCR.Spec.AI != nil {
 		outSpec.AI = &AIPolicyIR{}
@@ -1062,6 +1078,7 @@ func (b *TrafficPolicyBuilder) Translate(
 	errs := b.rateLimitForSpec(krtctx, policyCR, &outSpec)
 	errors = append(errors, errs...)
 
+	// TODO: This log message doesn't seem accurate?
 	for _, err := range errors {
 		logger.Error("error translating gateway extension", "namespace", policyCR.GetNamespace(), "name", policyCR.GetName(), "error", err)
 	}

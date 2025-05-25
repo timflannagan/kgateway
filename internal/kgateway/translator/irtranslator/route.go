@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"regexp"
 
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"google.golang.org/protobuf/proto"
@@ -20,6 +22,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator/routeutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 	reportssdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/reporter"
+	policyerrors "github.com/kgateway-dev/kgateway/v2/pkg/policy"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/regexutils"
 )
 
@@ -54,6 +57,10 @@ func (h *httpRouteConfigurationTranslator) ComputeRouteConfiguration(ctx context
 			continue
 		}
 		for _, pol := range mergePolicies(pass, pols) {
+			// FIXME.
+			if len(pol.Errors) > 0 {
+				continue
+			}
 			reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
 			pass.ApplyRouteConfigPlugin(ctx, &ir.RouteConfigContext{
 				FilterChainName:   h.fc.FilterChainName,
@@ -64,7 +71,7 @@ func (h *httpRouteConfigurationTranslator) ComputeRouteConfiguration(ctx context
 	}
 
 	cfg.VirtualHosts = h.computeVirtualHosts(ctx, vhosts)
-	cfg.TypedPerFilterConfig = toPerFilterConfigMap(typedPerFilterConfigRoute)
+	cfg.TypedPerFilterConfig = typedPerFilterConfigRoute.ToAnyMap()
 
 	// Gateway API spec requires that port values in HTTP Host headers be ignored when performing a match
 	// See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteSpec - hostnames field
@@ -127,12 +134,13 @@ func (h *httpRouteConfigurationTranslator) computeVirtualHost(
 	typedPerFilterConfigRoute := ir.TypedFilterConfigMap(map[string]proto.Message{})
 	// run the http plugins that are attached to the listener or gateway on the virtual host
 	h.runVhostPlugins(ctx, virtualHost, out, typedPerFilterConfigRoute)
-	out.TypedPerFilterConfig = toPerFilterConfigMap(typedPerFilterConfigRoute)
+	out.TypedPerFilterConfig = typedPerFilterConfigRoute.ToAnyMap()
 
 	return out
 }
 
-func (h *httpRouteConfigurationTranslator) envoyRoutes(ctx context.Context,
+func (h *httpRouteConfigurationTranslator) envoyRoutes(
+	ctx context.Context,
 	routeReport reportssdk.ParentRefReporter,
 	in ir.HttpRouteRuleMatchIR,
 	generatedName string,
@@ -154,53 +162,44 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(ctx context.Context,
 	if err == nil {
 		err = validateEnvoyRoute(out)
 	}
-
-	// apply typed per filter config from translating route action and route plugins
-	out.TypedPerFilterConfig = toPerFilterConfigMap(typedPerFilterConfigRoute)
-
-	if err == nil && out.GetAction() == nil {
-		if in.Delegates {
-			return nil
-		} else {
-			err = errors.New("no action specified")
-		}
-	}
 	if err != nil {
-		h.logger.Debug("invalid route", "error", err)
-		// TODO: we may want to aggregate all these errors per http route object and report one message?
+		// TODO(tim): what's the right conditions to set here? if runRoutePlugins returns an error, then
+		// we always treat that as terminal, set the condition on the route, and replace with a 500.
+		h.logger.Error("invalid route", "error", err)
 		routeReport.SetCondition(reportssdk.RouteCondition{
-			Type:   gwv1.RouteConditionPartiallyInvalid,
-			Status: metav1.ConditionTrue,
-			Reason: gwv1.RouteConditionReason(err.Error()),
-			// The message for this condition MUST start with the prefix "Dropped Rule"
-			Message: fmt.Sprintf("Dropped Rule: %v", err),
+			Type:    gwv1.RouteConditionPartiallyInvalid,
+			Status:  metav1.ConditionTrue,
+			Reason:  "PolicyValidationFailed",
+			Message: err.Error(),
 		})
-		//  TODO: we currently drop the route which is not good;
-		//    we should implement route replacement.
-		// out.Reset()
-		// out.Action = &envoy_config_route_v3.Route_DirectResponse{
-		// 	DirectResponse: &envoy_config_route_v3.DirectResponseAction{
-		// 		Status: http.StatusInternalServerError,
-		// 	},
-		// }
-		out = nil
+		out.Action = &envoy_config_route_v3.Route_DirectResponse{
+			DirectResponse: &envoy_config_route_v3.DirectResponseAction{
+				Status: http.StatusInternalServerError,
+				Body: &corev3.DataSource{
+					Specifier: &corev3.DataSource_InlineString{
+						InlineString: "Kgateway has detected an invalid route configuration",
+					},
+				},
+			},
+		}
+		return out
 	}
+
+	// If we get here, the route is valid, so clear any previous error conditions
+	routeReport.SetCondition(reportssdk.RouteCondition{
+		Type:    gwv1.RouteConditionAccepted,
+		Status:  metav1.ConditionTrue,
+		Reason:  gwv1.RouteReasonAccepted,
+		Message: "Route was accepted",
+	})
+	routeReport.SetCondition(reportssdk.RouteCondition{
+		Type:    gwv1.RouteConditionPartiallyInvalid,
+		Status:  metav1.ConditionFalse,
+		Reason:  gwv1.RouteReasonAccepted,
+		Message: "Route validation succeeded",
+	})
 
 	return out
-}
-
-func toPerFilterConfigMap(typedPerFilterConfig ir.TypedFilterConfigMap) map[string]*anypb.Any {
-	typedPerFilterConfigAny := map[string]*anypb.Any{}
-	for k, v := range typedPerFilterConfig {
-		config, err := utils.MessageToAny(v)
-		if err != nil {
-			// TODO: error on status? this should never happen..
-			logger.Error("unexpected marshalling error", "error", err)
-			continue
-		}
-		typedPerFilterConfigAny[k] = config
-	}
-	return typedPerFilterConfigAny
 }
 
 func (h *httpRouteConfigurationTranslator) runVhostPlugins(ctx context.Context, virtualHost *ir.VirtualHost, out *envoy_config_route_v3.VirtualHost,
@@ -214,6 +213,7 @@ func (h *httpRouteConfigurationTranslator) runVhostPlugins(ctx context.Context, 
 			continue
 		}
 		for _, pol := range mergePolicies(pass, pols) {
+			// FIXME.
 			reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
 			pctx := &ir.VirtualHostContext{
 				Policy:            pol.PolicyIr,
@@ -233,11 +233,6 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 	out *envoy_config_route_v3.Route,
 	typedPerFilterConfig ir.TypedFilterConfigMap,
 ) error {
-	// all policies up to listener have been applied as vhost polices; we need to apply the httproute policies and below
-	//
-	// NOTE: AttachedPolicies must have policies in the ordered by hierarchy from root to leaf in the delegation chain where
-	// each level has policies ordered by rule level policies before entire route level policies.
-
 	var attachedPolicies ir.AttachedPolicies
 	delegatingParent := in.DelegatingParent
 	var hierarchicalPriority int
@@ -257,18 +252,14 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 	}
 
 	var errs []error
-
-	applyForPolicy := func(ctx context.Context, pass *TranslationPass, pctx *ir.RouteContext, out *envoy_config_route_v3.Route) {
-		err := pass.ApplyForRoute(ctx, pctx, out)
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
+	// TODO(tim): need to figure out how status works here. we're setting it in two different places
+	// TODO(tim): add logic where terminal errors are treated as warnings, which won't trigger route
+	// replacement but likely need to be surfaced to the user.
 	for _, gk := range attachedPolicies.ApplyOrderedGroupKinds() {
 		pols := attachedPolicies.Policies[gk]
 		pass := h.PluginPass[gk]
 		if pass == nil {
-			// TODO: should never happen, log error and report condition
+			logger.Debug("no pass found for policy", "policy", gk)
 			continue
 		}
 		reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
@@ -278,26 +269,39 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 			TypedFilterConfig: typedPerFilterConfig,
 		}
 		for _, pol := range mergePolicies(pass, pols) {
-			// TODO: should we append pol.Error to errs?
-			// i.e. errs = append(errs, pol.Error)
+			// TODO(tim): Is this right, or should we translate as much as possible and then aggregate
+			// later.
+			if hasTerminalError := h.processPolicyErrors(pol.Errors); hasTerminalError {
+				return policyerrors.NewTerminalError("policy reported terminal errors", errors.Join(pol.Errors...))
+			}
 			pctx.Policy = pol.PolicyIr
-			applyForPolicy(ctx, pass, pctx, out)
+			if err := pass.ApplyForRoute(ctx, pctx, out); err != nil {
+				errs = append(errs, err)
+			}
 		}
-
-		// TODO: check return value, if error returned, log error and report condition
 	}
+	return errors.Join(errs...)
+}
 
-	err := errors.Join(errs...)
-	if err != nil {
-		routeReport.SetCondition(reportssdk.RouteCondition{
-			Type:    gwv1.RouteConditionAccepted,
-			Status:  metav1.ConditionFalse,
-			Reason:  gwv1.RouteReasonIncompatibleFilters,
-			Message: err.Error(),
-		})
+// processPolicyErrors checks if there are any terminal errors in the policy errors.
+// Returns true if there are terminal errors, false otherwise.
+func (h *httpRouteConfigurationTranslator) processPolicyErrors(policyErrors []error) bool {
+	if len(policyErrors) == 0 {
+		return false
 	}
-
-	return err
+	for _, err := range policyErrors {
+		var policyErr *policyerrors.PolicyError
+		if !errors.As(err, &policyErr) {
+			continue
+		}
+		if !policyErr.IsTerminal() {
+			logger.Info("policy reported warning errors", "error", policyErr.Message)
+			continue
+		}
+		logger.Error("policy reported terminal errors", "error", policyErr.Message)
+		return true
+	}
+	return false
 }
 
 func mergePolicies(pass *TranslationPass, policies []ir.PolicyAtt) []ir.PolicyAtt {
