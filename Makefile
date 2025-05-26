@@ -27,8 +27,8 @@ help: ## Output the self-documenting make targets
 ROOTDIR := $(shell pwd)
 OUTPUT_DIR ?= $(ROOTDIR)/_output
 
-# TODO: fix this
-export IMAGE_REGISTRY ?= ghcr.io/kgateway-dev
+# Use the same registry as defined in values.yaml for consistency
+export IMAGE_REGISTRY ?= cr.kgateway.dev/kgateway-dev
 
 # Kind of a hack to make sure _output exists
 z := $(shell mkdir -p $(OUTPUT_DIR))
@@ -661,6 +661,8 @@ endif # distroless images
 KIND ?= go tool kind
 CLUSTER_NAME ?= kind
 INSTALL_NAMESPACE ?= kgateway-system
+GATEWAY_API_VERSION ?= $(shell go list -m sigs.k8s.io/gateway-api | awk '{print $$2}')
+GATEWAY_API_CHANNEL ?= experimental
 
 .PHONY: kind-create
 kind-create: ## Create a KinD cluster
@@ -670,11 +672,15 @@ kind-create: ## Create a KinD cluster
 metallb: ## Install the MetalLB load balancer
 	./hack/kind/setup-metalllb-on-kind.sh
 
+.PHONY: install-gateway-api-crds
+install-gateway-api-crds: ## Install Gateway API CRDs
+	kubectl apply -k "https://github.com/kubernetes-sigs/gateway-api/config/crd/$(GATEWAY_API_CHANNEL)?ref=$(GATEWAY_API_VERSION)"
+
 .PHONY: deploy-kgateway
 deploy-kgateway: package-kgateway-charts deploy-kgateway-crd-chart deploy-kgateway-chart ## Deploy the kgateway chart and CRDs
 
 .PHONY: run
-run: kind-create kind-build-and-load-standard metallb deploy-kgateway  ## Set up complete development environment
+run: kind-create install-gateway-api-crds kind-build-and-load-all metallb deploy-kgateway  ## Set up complete development environment
 
 #----------------------------------------------------------------------------------
 # Build assets for kubernetes e2e tests
@@ -735,6 +741,12 @@ kind-build-and-load-distroless: kind-build-and-load-envoy-wrapper-distroless
 kind-build-and-load-distroless: kind-build-and-load-sds-distroless
 kind-build-and-load-distroless: kind-build-and-load-kgateway-ai-extension # single image variant
 
+.PHONY: kind-build-and-load-all ## Build and load all images (standard, distroless, and test images) into kind
+kind-build-and-load-all: IMAGE_VARIANT=all
+kind-build-and-load-all: kind-build-and-load
+kind-build-and-load-all: kind-build-and-load-test-ai-provider
+kind-build-and-load-all: kind-build-and-load-test-a2a-agent
+
 .PHONY: kind-build-and-load ## Use to build all images and load them into kind
 kind-build-and-load: # Standard images
 ifeq ($(IMAGE_VARIANT),$(filter $(IMAGE_VARIANT),all standard))
@@ -754,7 +766,7 @@ kind-load-standard: kind-load-envoy-wrapper
 kind-load-standard: kind-load-sds
 kind-load-standard: kind-load-kgateway-ai-extension # single image variant
 
-.PHONY: kind-build-and-load-distroless
+.PHONY: kind-load-distroless
 kind-load-distroless: kind-load-kgateway-distroless
 kind-load-distroless: kind-load-envoy-wrapper-distroless
 kind-load-distroless: kind-load-sds-distroless
@@ -803,6 +815,12 @@ test-a2a-agent-docker:
 	docker buildx build $(LOAD_OR_PUSH) $(PLATFORM_MULTIARCH) -f $(TEST_A2A_AGENT_SERVER_DIR)/Dockerfile $(TEST_A2A_AGENT_SERVER_DIR) \
 		-t $(IMAGE_REGISTRY)/test-a2a-agent:$(VERSION)
 
+.PHONY: kind-build-and-load-test-a2a-agent
+kind-build-and-load-test-a2a-agent: test-a2a-agent-docker kind-load-test-a2a-agent ## Build and load test A2A agent image into kind
+
+.PHONY: kind-load-test-a2a-agent
+kind-load-test-a2a-agent: ## Load test A2A agent image into kind
+	$(KIND) load docker-image $(IMAGE_REGISTRY)/test-a2a-agent:$(VERSION) --name $(CLUSTER_NAME)
 
 #----------------------------------------------------------------------------------
 # AI Extensions Test Server (for mocking AI Providers in e2e tests)
@@ -814,8 +832,15 @@ test-ai-provider-docker:
 	docker buildx build $(LOAD_OR_PUSH) $(PLATFORM_MULTIARCH) -f $(TEST_AI_PROVIDER_SERVER_DIR)/Dockerfile $(TEST_AI_PROVIDER_SERVER_DIR) \
 		-t $(IMAGE_REGISTRY)/test-ai-provider:$(VERSION)
 
+.PHONY: kind-build-and-load-test-ai-provider
+kind-build-and-load-test-ai-provider: test-ai-provider-docker kind-load-test-ai-provider ## Build and load test AI provider image into kind
+
+.PHONY: kind-load-test-ai-provider
+kind-load-test-ai-provider: ## Load test AI provider image into kind
+	$(KIND) load docker-image $(IMAGE_REGISTRY)/test-ai-provider:$(VERSION) --name $(CLUSTER_NAME)
+
 #----------------------------------------------------------------------------------
-# Targets for running Kubernetes Gateway API conformance tests
+# Test Targets
 #----------------------------------------------------------------------------------
 
 # Pull the conformance test suite from the k8s gateway api repo and copy it into the test dir.
@@ -831,15 +856,41 @@ CONFORMANCE_GATEWAY_CLASS ?= kgateway
 CONFORMANCE_REPORT_ARGS ?= -report-output=$(TEST_ASSET_DIR)/conformance/$(VERSION)-report.yaml -organization=kgateway-dev -project=kgateway -version=$(VERSION) -url=github.com/kgateway-dev/kgateway -contact=github.com/kgateway-dev/kgateway/issues/new/choose
 CONFORMANCE_ARGS := -gateway-class=$(CONFORMANCE_GATEWAY_CLASS) $(CONFORMANCE_SUPPORTED_FEATURES) $(CONFORMANCE_SUPPORTED_PROFILES) $(CONFORMANCE_REPORT_ARGS)
 
-.PHONY: conformance ## Run the conformance test suite
-conformance: $(TEST_ASSET_DIR)/conformance/conformance_test.go
+.PHONY: test-conformance
+test-conformance: $(TEST_ASSET_DIR)/conformance/conformance_test.go ## Run the conformance test suite
 	go test -mod=mod -ldflags='$(LDFLAGS)' -tags conformance -test.v $(TEST_ASSET_DIR)/conformance/... -args $(CONFORMANCE_ARGS)
+
+.PHONY: conformance
+conformance: run test-conformance ## Set up environment and run conformance tests
 
 # Run only the specified conformance test. The name must correspond to the ShortName of one of the k8s gateway api
 # conformance tests.
-conformance-%: $(TEST_ASSET_DIR)/conformance/conformance_test.go
+test-conformance-%: $(TEST_ASSET_DIR)/conformance/conformance_test.go
 	go test -mod=mod -ldflags='$(LDFLAGS)' -tags conformance -test.v $(TEST_ASSET_DIR)/conformance/... -args $(CONFORMANCE_ARGS) \
 	-run-test=$*
+
+conformance-%: run test-conformance-% ## Set up environment and run specific conformance test
+
+.PHONY: test-e2e
+test-e2e: ## Run E2E tests
+	TEST_PKG=./test/e2e/... make run-e2e-tests
+
+.PHONY: e2e
+e2e: run test-e2e ## Set up environment and run E2E tests
+
+.PHONY: test-e2e-ai
+test-e2e-ai: ## Run AI extension tests
+	TEST_PKG=./test/e2e/ai_extension/... make run-e2e-tests
+
+.PHONY: e2e-ai
+e2e-ai: run kind-build-and-load-test-ai-provider test-e2e-ai ## Set up environment and run AI extension tests
+
+.PHONY: test-e2e-a2a
+test-e2e-a2a: ## Run A2A agent tests
+	TEST_PKG=./test/e2e/agentgateway/... make run-e2e-tests
+
+.PHONY: e2e-a2a
+e2e-a2a: run kind-build-and-load-test-a2a-agent test-e2e-a2a ## Set up environment and run A2A agent tests
 
 #----------------------------------------------------------------------------------
 # Third Party License Management

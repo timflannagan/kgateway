@@ -1,5 +1,9 @@
 #!/bin/bash -ex
 
+# DEPRECATED: This script is deprecated in favor of using `make run`.
+# Please use `make run` instead for setting up the development environment.
+# This script will be removed in a future release.
+
 # 0. Assign default values to some of our environment variables
 # Get directory this script is located in to access script local files
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
