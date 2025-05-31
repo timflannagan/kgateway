@@ -68,6 +68,8 @@ type ProxySyncer struct {
 
 	waitForSync []cache.InformerSynced
 	ready       atomic.Bool
+
+	routeReplacement bool
 }
 
 type GatewayXdsResources struct {
@@ -138,16 +140,18 @@ func NewProxySyncer(
 	mergedPlugins plug.Plugin,
 	commonCols *common.CommonCollections,
 	xdsCache envoycache.SnapshotCache,
+	routeReplacement bool,
 ) *ProxySyncer {
 	return &ProxySyncer{
-		controllerName:  controllerName,
-		commonCols:      commonCols,
-		mgr:             mgr,
-		istioClient:     client,
-		proxyTranslator: NewProxyTranslator(xdsCache),
-		uniqueClients:   uniqueClients,
-		translator:      translator.NewCombinedTranslator(ctx, mergedPlugins, commonCols),
-		plugins:         mergedPlugins,
+		controllerName:   controllerName,
+		commonCols:       commonCols,
+		mgr:              mgr,
+		istioClient:      client,
+		proxyTranslator:  NewProxyTranslator(xdsCache),
+		uniqueClients:    uniqueClients,
+		translator:       translator.NewCombinedTranslator(ctx, mergedPlugins, commonCols, routeReplacement),
+		plugins:          mergedPlugins,
+		routeReplacement: routeReplacement,
 	}
 }
 

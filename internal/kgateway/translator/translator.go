@@ -36,14 +36,15 @@ type CombinedTranslator struct {
 	irtranslator      *irtranslator.Translator
 	backendTranslator *irtranslator.BackendTranslator
 	endpointPlugins   []extensionsplug.EndpointPlugin
-
-	logger *slog.Logger
+	routeReplacement  bool
+	logger            *slog.Logger
 }
 
 func NewCombinedTranslator(
 	ctx context.Context,
 	extensions extensionsplug.Plugin,
 	commonCols *common.CommonCollections,
+	routeReplacement bool,
 ) *CombinedTranslator {
 	var endpointPlugins []extensionsplug.EndpointPlugin
 	for _, ext := range extensions.ContributesPolicies {
@@ -52,11 +53,12 @@ func NewCombinedTranslator(
 		}
 	}
 	return &CombinedTranslator{
-		commonCols:      commonCols,
-		extensions:      extensions,
-		endpointPlugins: endpointPlugins,
-		logger:          logger,
-		waitForSync:     []cache.InformerSynced{extensions.HasSynced},
+		commonCols:       commonCols,
+		extensions:       extensions,
+		endpointPlugins:  endpointPlugins,
+		logger:           logger,
+		waitForSync:      []cache.InformerSynced{extensions.HasSynced},
+		routeReplacement: routeReplacement,
 	}
 }
 
@@ -69,6 +71,7 @@ func (s *CombinedTranslator) Init(ctx context.Context) {
 	s.gwtranslator = gwtranslator.NewTranslator(queries, listenerTranslatorConfig)
 	s.irtranslator = &irtranslator.Translator{
 		ContributedPolicies: s.extensions.ContributesPolicies,
+		RouteReplacement:    s.routeReplacement,
 	}
 	s.backendTranslator = &irtranslator.BackendTranslator{
 		ContributedBackends: make(map[schema.GroupKind]ir.BackendInit),

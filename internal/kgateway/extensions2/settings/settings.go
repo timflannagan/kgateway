@@ -36,7 +36,16 @@ type Settings struct {
 	// This corresponds to the value of the `grpc-xds` port in the service.
 	XdsServicePort uint32 `split_words:"true" default:"9977"`
 
-	UseRustFormations bool `split_words:"true" default:"false"`
+	// UseRustFormations enables the use of rust-based transformations instead of the classic transformation filter.
+	UseRustFormations bool `envconfig:"USE_RUST_FORMATIONS" default:"false"`
+
+	// EnableRouteReplacement enables the route replacement feature. Defaults to false.
+	// When enabled, kgateway will replace invalid routes with a direct response to the
+	// client. Route replacement is triggered when an invalid route or policy attached to
+	// it would lead to configuration fundamentally invalid from Envoy's perspective. Other types
+	// of errors, e.g. referential or runtime, are handled through different mechanisms
+	// and are not subject to route replacement.
+	EnableRouteReplacement bool `envconfig:"ENABLE_ROUTE_REPLACEMENT" default:"false"`
 
 	// EnableInferExt defines whether to enable/disable support for Gateway API inference extension.
 	EnableInferExt bool `split_words:"true"`

@@ -190,6 +190,7 @@ func NewControllerBuilder(ctx context.Context, cfg StartConfig) (*ControllerBuil
 		mergedPlugins,
 		commoncol,
 		cfg.SetupOpts.Cache,
+		cfg.SetupOpts.GlobalSettings.EnableRouteReplacement,
 	)
 	proxySyncer.Init(ctx, cfg.KrtOptions)
 
