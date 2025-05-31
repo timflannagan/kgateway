@@ -27,6 +27,12 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/regexutils"
 )
 
+const (
+	webSocketUpgradeType = "websocket"
+	// TODO(tim): determine if this is the correct reason and move to the api package.
+	routeTranslationFailedReason = "RouteTranslationFailed"
+)
+
 type httpRouteConfigurationTranslator struct {
 	gw               ir.GatewayIR
 	listener         ir.ListenerIR
@@ -40,8 +46,6 @@ type httpRouteConfigurationTranslator struct {
 	PluginPass               TranslationPassPlugins
 	logger                   *slog.Logger
 }
-
-const WebSocketUpgradeType = "websocket"
 
 func (h *httpRouteConfigurationTranslator) ComputeRouteConfiguration(ctx context.Context, vhosts []*ir.VirtualHost) *envoy_config_route_v3.RouteConfiguration {
 	var attachedPolicies ir.AttachedPolicies
@@ -135,6 +139,8 @@ func (h *httpRouteConfigurationTranslator) computeVirtualHost(
 		envoyRequireTls = envoy_config_route_v3.VirtualHost_ALL
 	}
 	if len(errs) == 0 {
+		// Implement this correctly or remove this logic.
+		logger.Info("route validation succeeded", "route", virtualHost.Name)
 		// clear stale partially invalid condition. not sure how to implement this correctly.
 		// h.reporter.Route(virtualHost.Name).SetCondition(reportssdk.RouteCondition{
 		// 	Type:    gwv1.RouteConditionPartiallyInvalid,
@@ -168,86 +174,109 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 	out := h.initRoutes(in, generatedName)
 
 	typedPerFilterConfigRoute := ir.TypedFilterConfigMap(map[string]proto.Message{})
+	if err := h.configureRouteAction(ctx, in, out, typedPerFilterConfigRoute); err != nil {
+		return h.handleRouteError(err, in, out, routeReport)
+	}
+	// run plugins here that may set action
+	if err := h.runRoutePlugins(ctx, routeReport, in, out, typedPerFilterConfigRoute); err != nil {
+		return h.handleRouteError(err, in, out, routeReport)
+	}
+	// validate envoy route
+	if err := validateEnvoyRoute(out); err != nil {
+		return h.handleRouteError(err, in, out, routeReport)
+	}
+	// apply typed per filter config from translating route action and route plugins
+	if err := h.applyTypedFilterConfig(out, typedPerFilterConfigRoute); err != nil {
+		return h.handleRouteError(err, in, out, routeReport)
+	}
+	// check if action is required but missing
+	if out.GetAction() == nil && !in.Delegates {
+		return h.handleRouteError(errors.New("no action specified"), in, out, routeReport)
+	}
+
+	return out, nil
+}
+
+func (h *httpRouteConfigurationTranslator) configureRouteAction(
+	ctx context.Context,
+	in ir.HttpRouteRuleMatchIR,
+	out *envoy_config_route_v3.Route,
+	typedPerFilterConfigRoute ir.TypedFilterConfigMap,
+) error {
 	if len(in.Backends) == 1 {
 		// if there's only one backend, we need to reuse typedPerFilterConfigRoute in both translateRouteAction and runRoutePlugins
 		out.Action = h.translateRouteAction(ctx, in, out, typedPerFilterConfigRoute)
-	} else if len(in.Backends) > 0 {
+		return nil
+	}
+	if len(in.Backends) > 0 {
 		// If there is more than one backend, we translate the backends as WeightedClusters and each weighted cluster
 		// will have a TypedPerFilterConfig that overrides the parent route-level config.
 		out.Action = h.translateRouteAction(ctx, in, out, nil)
+		return nil
 	}
+	return nil
+}
 
-	// run plugins here that may set action
-	err := h.runRoutePlugins(ctx, routeReport, in, out, typedPerFilterConfigRoute)
-	if err == nil {
-		err = validateEnvoyRoute(out)
-	}
-
-	// apply typed per filter config from translating route action and route plugins
+func (h *httpRouteConfigurationTranslator) applyTypedFilterConfig(
+	out *envoy_config_route_v3.Route,
+	typedPerFilterConfigRoute ir.TypedFilterConfigMap,
+) error {
 	typedPerFilterConfig := typedPerFilterConfigRoute.ToAnyMap()
 	if out.GetTypedPerFilterConfig() == nil {
 		out.TypedPerFilterConfig = typedPerFilterConfig
-	} else {
-		for k, v := range typedPerFilterConfig {
-			if _, exists := out.GetTypedPerFilterConfig()[k]; !exists {
-				out.GetTypedPerFilterConfig()[k] = v
-			}
+		return nil
+	}
+	for k, v := range typedPerFilterConfig {
+		if _, exists := out.GetTypedPerFilterConfig()[k]; !exists {
+			out.GetTypedPerFilterConfig()[k] = v
 		}
 	}
+	return nil
+}
 
-	if err == nil && out.GetAction() == nil {
-		if in.Delegates {
-			return out, nil
-		} else {
-			err = errors.New("no action specified")
-		}
+func (h *httpRouteConfigurationTranslator) handleRouteError(
+	err error,
+	in ir.HttpRouteRuleMatchIR,
+	out *envoy_config_route_v3.Route,
+	routeReport reportssdk.ParentRefReporter,
+) (*envoy_config_route_v3.Route, error) {
+	if h.enableRouteReplacement {
+		return h.replaceInvalidRoute(err, in, out, routeReport), err
 	}
+	h.logger.Debug("invalid route", "error", err)
+	routeReport.SetCondition(reportssdk.RouteCondition{
+		Type:    gwv1.RouteConditionPartiallyInvalid,
+		Status:  metav1.ConditionTrue,
+		Reason:  routeTranslationFailedReason,
+		Message: fmt.Sprintf("Dropped Rule %d: %v", in.MatchIndex, err),
+	})
+	return nil, err
+}
 
-	if err != nil {
-		if h.enableRouteReplacement {
-			// When route replacement is enabled, replace invalid routes with a direct response
-			h.logger.Error("invalid route", "error", err)
-			routeReport.SetCondition(reportssdk.RouteCondition{
-				Type:    gwv1.RouteConditionPartiallyInvalid,
-				Status:  metav1.ConditionTrue,
-				Reason:  "RouteTranslationFailed",
-				Message: fmt.Sprintf("Dropped Rule %d: %v", in.MatchIndex, err),
-			})
-			out.Action = &envoy_config_route_v3.Route_DirectResponse{
-				DirectResponse: &envoy_config_route_v3.DirectResponseAction{
-					Status: http.StatusInternalServerError,
-					Body: &corev3.DataSource{
-						Specifier: &corev3.DataSource_InlineString{
-							InlineString: "Kgateway has detected an invalid route configuration",
-						},
-					},
+func (h *httpRouteConfigurationTranslator) replaceInvalidRoute(
+	err error,
+	in ir.HttpRouteRuleMatchIR,
+	out *envoy_config_route_v3.Route,
+	routeReport reportssdk.ParentRefReporter,
+) *envoy_config_route_v3.Route {
+	h.logger.Error("invalid route", "error", err)
+	routeReport.SetCondition(reportssdk.RouteCondition{
+		Type:    gwv1.RouteConditionPartiallyInvalid,
+		Status:  metav1.ConditionTrue,
+		Reason:  routeTranslationFailedReason,
+		Message: fmt.Sprintf("Dropped Rule %d: %v", in.MatchIndex, err),
+	})
+	out.Action = &envoy_config_route_v3.Route_DirectResponse{
+		DirectResponse: &envoy_config_route_v3.DirectResponseAction{
+			Status: http.StatusInternalServerError,
+			Body: &corev3.DataSource{
+				Specifier: &corev3.DataSource_InlineString{
+					InlineString: `Kgateway has detected an invalid route configuration`,
 				},
-			}
-			return out, err
-		} else {
-			h.logger.Debug("invalid route", "error", err)
-			// TODO: we may want to aggregate all these errors per http route object and report one message?
-			routeReport.SetCondition(reportssdk.RouteCondition{
-				Type:   gwv1.RouteConditionPartiallyInvalid,
-				Status: metav1.ConditionTrue,
-				Reason: "RouteTranslationFailed",
-				// The message for this condition MUST start with the prefix "Dropped Rule"
-				Message: fmt.Sprintf("Dropped Rule %d: %v", in.MatchIndex, err),
-			})
-			//  TODO: we currently drop the route which is not good;
-			//    we should implement route replacement.
-			// out.Reset()
-			// out.Action = &envoy_config_route_v3.Route_DirectResponse{
-			// 	DirectResponse: &envoy_config_route_v3.DirectResponseAction{
-			// 		Status: http.StatusInternalServerError,
-			// 	},
-			// }
-			out = nil
-		}
+			},
+		},
 	}
-
-	// If we get here, the route is valid
-	return out, nil
+	return out
 }
 
 func (h *httpRouteConfigurationTranslator) runVhostPlugins(ctx context.Context, virtualHost *ir.VirtualHost, out *envoy_config_route_v3.VirtualHost,
@@ -299,9 +328,6 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 	}
 
 	var errs []error
-	// TODO(tim): need to figure out how status works here. we're setting it in two different places
-	// TODO(tim): add logic where terminal errors are treated as warnings, which won't trigger route
-	// replacement but likely need to be surfaced to the user.
 	for _, gk := range attachedPolicies.ApplyOrderedGroupKinds() {
 		pols := attachedPolicies.Policies[gk]
 		pass := h.PluginPass[gk]
@@ -316,8 +342,8 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 			TypedFilterConfig: typedPerFilterConfig,
 		}
 		for _, pol := range mergePolicies(pass, pols) {
-			// TODO(tim): Is this right, or should we translate as much as possible and then aggregate
-			// later.
+			// TODO(tim): Is this right, or should we translate as much as possible and then
+			// aggregate later.
 			if hasTerminalError := h.processPolicyErrors(pol.Errors); hasTerminalError {
 				return policyerrors.NewTerminalError("policy reported terminal errors", errors.Join(pol.Errors...))
 			}
@@ -501,10 +527,10 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 		if back := backend.Backend.BackendObject; back != nil && back.AppProtocol == ir.WebSocketAppProtocol {
 			// add websocket upgrade if not already present
 			if !slices.ContainsFunc(action.GetUpgradeConfigs(), func(uc *envoy_config_route_v3.RouteAction_UpgradeConfig) bool {
-				return uc.GetUpgradeType() == WebSocketUpgradeType
+				return uc.GetUpgradeType() == webSocketUpgradeType
 			}) {
 				action.UpgradeConfigs = append(action.GetUpgradeConfigs(), &envoy_config_route_v3.RouteAction_UpgradeConfig{
-					UpgradeType: WebSocketUpgradeType,
+					UpgradeType: webSocketUpgradeType,
 				})
 			}
 		}

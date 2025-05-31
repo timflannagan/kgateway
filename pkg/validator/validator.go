@@ -5,9 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 
@@ -20,10 +18,6 @@ const (
 var ErrInvalidXDS = errors.New("invalid xds configuration")
 
 // Validator validates an Envoy bootstrap/partial YAML.
-//
-//	nil            → accepted
-//	ErrInvalidXDS  → rejected by Envoy
-//	other error    → validation mechanism failed
 type Validator interface {
 	Validate(context.Context, string) error
 }
@@ -38,6 +32,7 @@ func New() Validator {
 	return &dockerValidator{img: envoyImage}
 }
 
+// binaryValidator validates envoy using the binary.
 type binaryValidator struct {
 	path string
 }
@@ -62,49 +57,30 @@ type dockerValidator struct {
 var _ Validator = &dockerValidator{}
 
 func (d *dockerValidator) Validate(ctx context.Context, yaml string) error {
-	// first try with default platform
-	if err := d.run(ctx, yaml, platFlag()); err == nil || errors.Is(err, ErrInvalidXDS) {
-		return err
-	}
-	// fallback for arm64 hosts to amd64 manifest
-	if runtime.GOARCH == "arm64" {
-		return d.run(ctx, yaml, "--platform=linux/amd64")
-	}
-	return fmt.Errorf("docker validator failed after retries")
-}
-
-func (d *dockerValidator) run(parent context.Context, yaml, flag string) error {
-	args := []string{"docker", "run", "--rm", "-i"}
-	if flag != "" {
-		args = append(args, flag)
-	}
-	args = append(args, d.img, "--mode", "validate", "--config-yaml", yaml, "-l", "critical", "--log-format", "%v")
-	cmd := exec.CommandContext(parent, args[0], args[1:]...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = strings.NewReader(yaml), nil, nil
+	cmd := exec.CommandContext(ctx,
+		"docker", "run",
+		"--rm",
+		"-i",
+		d.img,
+		"--mode",
+		"validate",
+		"--config-yaml", yaml,
+		"-l", "critical",
+		"--log-format", "%v",
+	)
 	var buf bytes.Buffer
-	cmd.Stderr = &buf
-	cmd.Stdout = &buf
-	err := cmd.Run()
-	out := stripWarn(buf.String())
-	if os.Getenv("ENVOY_VALIDATOR_DEBUG") != "" {
-		fmt.Fprintln(os.Stderr, "docker validator output:\n"+out)
-	}
-	if err != nil {
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = strings.NewReader(yaml), &buf, &buf
+	if err := cmd.Run(); err != nil {
+		out := stripWarn(buf.String())
 		if strings.Contains(out, "error initializing configuration") || strings.Contains(out, "[error] envoy") {
 			return fmt.Errorf("%w: %s", ErrInvalidXDS, trim(out))
 		}
-		return fmt.Errorf(trim(out))
+		return errors.New(trim(out))
 	}
 	return nil
 }
 
-func platFlag() string {
-	if runtime.GOARCH == "arm64" {
-		return "--platform=linux/amd64"
-	}
-	return ""
-}
-
+// trim removes some common prefixes from the output.
 func trim(s string) string {
 	s = strings.ReplaceAll(s, "''", "'")
 	s = strings.TrimPrefix(s, "error initializing configuration '': ")
@@ -115,6 +91,8 @@ func trim(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
+// stripWarn removes the warning about the image platform from the output. This was
+// causing cmd.Run to fail with an error.
 func stripWarn(s string) string {
 	var r []string
 	for _, l := range strings.Split(s, "\n") {
