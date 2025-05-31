@@ -25,6 +25,7 @@ var logger = logging.New("translator/ir")
 
 type Translator struct {
 	ContributedPolicies map[schema.GroupKind]extensionsplug.PolicyPlugin
+	RouteReplacement    bool
 }
 
 type TranslationPassPlugins map[schema.GroupKind]*TranslationPass
@@ -101,6 +102,7 @@ func (t *Translator) ComputeListener(
 			attachedPolicies:         hfc.AttachedPolicies,
 			reporter:                 reporter,
 			requireTlsOnVirtualHosts: hfc.FilterChainCommon.TLS != nil,
+			enableRouteReplacement:   t.RouteReplacement,
 			PluginPass:               pass,
 			logger:                   logger.With("route_config_name", hfc.FilterChainName),
 		}
