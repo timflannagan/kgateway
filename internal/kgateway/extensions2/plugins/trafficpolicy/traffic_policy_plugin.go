@@ -211,7 +211,6 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 			// rely on the last known good state if it was previously valid.
 			logger.Error("policy validation failed", "policy", policyCR.Name, "errors", err)
 			errors = append(errors, policyerrors.NewTerminalError("PolicyValidationFailed", err))
-			krtctx.DiscardResult()
 		}
 		pol := &ir.PolicyWrapper{
 			ObjectSource: objSrc,
