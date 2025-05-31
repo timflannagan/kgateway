@@ -41,6 +41,8 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
+	policyerrors "github.com/kgateway-dev/kgateway/v2/pkg/policy"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
 const (
@@ -190,6 +192,7 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 	), commoncol.KrtOpts.ToOptions("TrafficPolicy")...)
 	gk := wellknown.TrafficPolicyGVK.GroupKind()
 
+	validator := validator.New()
 	translator := NewTrafficPolicyBuilder(ctx, commoncol)
 
 	// TrafficPolicy IR will have TypedConfig -> implement backendroute method to add prompt guard, etc.
@@ -202,6 +205,14 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 		}
 
 		policyIR, errors := translator.Translate(krtctx, policyCR)
+		if err := policyIR.Validate(ctx, validator); err != nil {
+			// prevent invalid config from being pushed to the snapshot cache and
+			// trigger route replacement. additionally, disregard this IR so we can
+			// rely on the last known good state if it was previously valid.
+			logger.Error("policy validation failed", "policy", policyCR.Name, "errors", err)
+			errors = append(errors, policyerrors.NewTerminalError("PolicyValidationFailed", err))
+			krtctx.DiscardResult()
+		}
 		pol := &ir.PolicyWrapper{
 			ObjectSource: objSrc,
 			Policy:       policyCR,
