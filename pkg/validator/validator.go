@@ -23,23 +23,27 @@ type Validator interface {
 }
 
 // New chooses the best validator available.
-func New() Validator {
+func New(enableRouteReplacement bool) Validator {
 	// check if envoy is in the path
 	if _, err := exec.LookPath(envoyPath); err == nil {
-		return &binaryValidator{path: envoyPath}
+		return &binaryValidator{path: envoyPath, enableRouteReplacement: enableRouteReplacement}
 	}
 	// otherwise, fallback to docker
-	return &dockerValidator{img: envoyImage}
+	return &dockerValidator{img: envoyImage, enableRouteReplacement: enableRouteReplacement}
 }
 
 // binaryValidator validates envoy using the binary.
 type binaryValidator struct {
-	path string
+	path                   string
+	enableRouteReplacement bool
 }
 
 var _ Validator = &binaryValidator{}
 
 func (b *binaryValidator) Validate(ctx context.Context, yaml string) error {
+	if !b.enableRouteReplacement {
+		return nil
+	}
 	cmd := exec.CommandContext(ctx, b.path, "--mode", "validate", "--config-yaml", yaml, "-l", "critical", "--log-format", "%v")
 	cmd.Stdin = strings.NewReader(yaml)
 	var e bytes.Buffer
@@ -51,12 +55,16 @@ func (b *binaryValidator) Validate(ctx context.Context, yaml string) error {
 }
 
 type dockerValidator struct {
-	img string
+	img                    string
+	enableRouteReplacement bool
 }
 
 var _ Validator = &dockerValidator{}
 
 func (d *dockerValidator) Validate(ctx context.Context, yaml string) error {
+	if !d.enableRouteReplacement {
+		return nil
+	}
 	cmd := exec.CommandContext(ctx,
 		"docker", "run",
 		"--rm",

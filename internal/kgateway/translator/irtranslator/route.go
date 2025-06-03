@@ -13,7 +13,6 @@ import (
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -66,11 +65,6 @@ func (h *httpRouteConfigurationTranslator) ComputeRouteConfiguration(ctx context
 		}
 		reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
 		for _, pol := range mergePolicies(pass, pols) {
-			// FIXME.
-			if len(pol.Errors) > 0 {
-				continue
-			}
-			reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
 			pass.ApplyRouteConfigPlugin(ctx, &ir.RouteConfigContext{
 				FilterChainName:   h.fc.FilterChainName,
 				TypedFilterConfig: typedPerFilterConfigRoute,
@@ -174,14 +168,15 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 	out := h.initRoutes(in, generatedName)
 
 	typedPerFilterConfigRoute := ir.TypedFilterConfigMap(map[string]proto.Message{})
+	// configure the route action
 	if err := h.configureRouteAction(ctx, in, out, typedPerFilterConfigRoute); err != nil {
 		return h.handleRouteError(err, in, out, routeReport)
 	}
-	// run plugins here that may set action
+	// run route plugins that may set action or typed per filter config
 	if err := h.runRoutePlugins(ctx, routeReport, in, out, typedPerFilterConfigRoute); err != nil {
 		return h.handleRouteError(err, in, out, routeReport)
 	}
-	// validate envoy route
+	// validate envoy route for structural errors
 	if err := validateEnvoyRoute(out); err != nil {
 		return h.handleRouteError(err, in, out, routeReport)
 	}
@@ -189,8 +184,11 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 	if err := h.applyTypedFilterConfig(out, typedPerFilterConfigRoute); err != nil {
 		return h.handleRouteError(err, in, out, routeReport)
 	}
-	// check if action is required but missing
-	if out.GetAction() == nil && !in.Delegates {
+	// check if action is required but missing. skip for delegates.
+	if out.GetAction() == nil {
+		if in.Delegates {
+			return nil, nil
+		}
 		return h.handleRouteError(errors.New("no action specified"), in, out, routeReport)
 	}
 
@@ -309,6 +307,11 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 	out *envoy_config_route_v3.Route,
 	typedPerFilterConfig ir.TypedFilterConfigMap,
 ) error {
+	// all policies up to listener have been applied as vhost polices; we need to apply the httproute policies and below
+	//
+	// NOTE: AttachedPolicies must have policies in the ordered by hierarchy from root to leaf in the delegation chain where
+	// each level has policies ordered by rule level policies before entire route level policies.
+
 	var attachedPolicies ir.AttachedPolicies
 	delegatingParent := in.DelegatingParent
 	var hierarchicalPriority int
@@ -328,6 +331,13 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 	}
 
 	var errs []error
+	applyForPolicy := func(ctx context.Context, pass *TranslationPass, pctx *ir.RouteContext, out *envoy_config_route_v3.Route) {
+		err := pass.ApplyForRoute(ctx, pctx, out)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	for _, gk := range attachedPolicies.ApplyOrderedGroupKinds() {
 		pols := attachedPolicies.Policies[gk]
 		pass := h.PluginPass[gk]
@@ -342,16 +352,13 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 			TypedFilterConfig: typedPerFilterConfig,
 		}
 		for _, pol := range mergePolicies(pass, pols) {
-			// TODO(tim): Is this right, or should we translate as much as possible and then
-			// aggregate later.
 			if hasTerminalError := h.processPolicyErrors(pol.Errors); hasTerminalError {
 				return policyerrors.NewTerminalError("policy reported terminal errors", errors.Join(pol.Errors...))
 			}
 			pctx.Policy = pol.PolicyIr
-			if err := pass.ApplyForRoute(ctx, pctx, out); err != nil {
-				errs = append(errs, err)
-			}
+			applyForPolicy(ctx, pass, pctx, out)
 		}
+		// TODO: check return value, if error returned, log error and report condition
 	}
 	return errors.Join(errs...)
 }
@@ -475,17 +482,7 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 		}
 
 		// Translating weighted clusters needs the typed per filter config on each cluster
-		typedPerFilterConfigAny := map[string]*anypb.Any{}
-		for k, v := range typedPerFilterConfig {
-			config, err := utils.MessageToAny(v)
-			if err != nil {
-				// TODO: error on status
-				h.logger.Error("unexpected marshalling error", "error", err)
-				continue
-			}
-			typedPerFilterConfigAny[k] = config
-		}
-		cw.TypedPerFilterConfig = typedPerFilterConfigAny
+		cw.TypedPerFilterConfig = typedPerFilterConfig.ToAnyMap()
 		clusters = append(clusters, cw)
 	}
 
