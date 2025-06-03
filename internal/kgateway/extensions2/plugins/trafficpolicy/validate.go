@@ -18,10 +18,70 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
-// TODO: Does this belong on the builder?
-// TODO: Break this up into smaller functions. Just for POC purposes right now. Would
-// be nice to re-use the p.handle* functions, but they're under a different type.
 func (p *TrafficPolicy) Validate(ctx context.Context, v validator.Validator) error {
+	if err := p.validateProto(ctx, v); err != nil {
+		return err
+	}
+	if err := p.validateXDS(ctx, v); err != nil {
+		return err
+	}
+	return nil
+}
+
+// TODO: this is a bit of a mess.
+func (p *TrafficPolicy) validateProto(ctx context.Context, v validator.Validator) error {
+	if p.spec.transform != nil {
+		if err := p.spec.transform.Validate(); err != nil {
+			return err
+		}
+	}
+	// TODO: rustformations?
+	if p.spec.localRateLimit != nil {
+		if err := p.spec.localRateLimit.Validate(); err != nil {
+			return err
+		}
+	}
+	if p.spec.rateLimit != nil {
+		if p.spec.rateLimit.provider != nil {
+			if err := p.spec.rateLimit.provider.Validate(); err != nil {
+				return err
+			}
+		}
+		for _, rateLimit := range p.spec.rateLimit.rateLimitActions {
+			if err := rateLimit.Validate(); err != nil {
+				return err
+			}
+		}
+	}
+	if p.spec.ExtProc != nil {
+		if p.spec.ExtProc.ExtProcPerRoute != nil {
+			if err := p.spec.ExtProc.ExtProcPerRoute.Validate(); err != nil {
+				return err
+			}
+		}
+		if p.spec.ExtProc.provider != nil {
+			if err := p.spec.ExtProc.provider.Validate(); err != nil {
+				return err
+			}
+		}
+	}
+	if p.spec.extAuth != nil {
+		if p.spec.extAuth.extauthPerRoute != nil {
+			if err := p.spec.extAuth.extauthPerRoute.Validate(); err != nil {
+				return err
+			}
+		}
+		if p.spec.extAuth.provider != nil {
+			if err := p.spec.extAuth.provider.Validate(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validateXDS is responsible for validating the xDS configuration.
+func (p *TrafficPolicy) validateXDS(ctx context.Context, v validator.Validator) error {
 	typedFilterConfig := make(ir.TypedFilterConfigMap)
 	if p.spec.transform != nil {
 		typedFilterConfig.AddTypedConfig(transformationFilterNamePrefix, p.spec.transform)
@@ -88,11 +148,7 @@ func (p *TrafficPolicy) Validate(ctx context.Context, v validator.Validator) err
 	if err != nil {
 		return err
 	}
-	if err := v.Validate(ctx, string(data)); err != nil {
-		return err
-	}
-
-	return nil
+	return v.Validate(ctx, string(data))
 }
 
 type envoyResources struct {

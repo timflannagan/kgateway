@@ -60,6 +60,19 @@ func (e TrafficPolicyGatewayExtensionIR) Equals(other TrafficPolicyGatewayExtens
 	return e.Err.Error() == other.Err.Error()
 }
 
+func (e TrafficPolicyGatewayExtensionIR) Validate() error {
+	if e.ExtAuth != nil {
+		return e.ExtAuth.Validate()
+	}
+	if e.ExtProc != nil {
+		return e.ExtProc.Validate()
+	}
+	if e.RateLimit != nil {
+		return e.RateLimit.Validate()
+	}
+	return nil
+}
+
 func TranslateGatewayExtensionBuilder(commoncol *common.CommonCollections) func(krtctx krt.HandlerContext, gExt ir.GatewayExtension) *TrafficPolicyGatewayExtensionIR {
 	return func(krtctx krt.HandlerContext, gExt ir.GatewayExtension) *TrafficPolicyGatewayExtensionIR {
 		p := &TrafficPolicyGatewayExtensionIR{
