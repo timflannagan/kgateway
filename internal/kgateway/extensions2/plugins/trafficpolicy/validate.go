@@ -12,14 +12,23 @@ import (
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoywellknown "github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"google.golang.org/protobuf/encoding/protojson"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	gwv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
+	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
-func (p *TrafficPolicy) Validate(ctx context.Context, v validator.Validator) error {
-	if err := p.validateProto(ctx, v); err != nil {
+func (p *TrafficPolicy) Validate(ctx context.Context, v validator.Validator, policy *v1alpha1.TrafficPolicy) error {
+	if shouldSkipValidation(policy) {
+		logger.Info("skipping validation for policy", "policy", policy.Name)
+		return nil
+	}
+	if err := p.validateProto(ctx); err != nil {
 		return err
 	}
 	if err := p.validateXDS(ctx, v); err != nil {
@@ -29,7 +38,7 @@ func (p *TrafficPolicy) Validate(ctx context.Context, v validator.Validator) err
 }
 
 // TODO: this is a bit of a mess.
-func (p *TrafficPolicy) validateProto(ctx context.Context, v validator.Validator) error {
+func (p *TrafficPolicy) validateProto(ctx context.Context) error {
 	if p.spec.transform != nil {
 		if err := p.spec.transform.Validate(); err != nil {
 			return err
@@ -170,4 +179,33 @@ func buildFakeBootstrap(resources *envoyResources) (*envoy_config_bootstrap_v3.B
 		},
 	}
 	return bootstrap, nil
+}
+
+func shouldSkipValidation(policy *v1alpha1.TrafficPolicy) bool {
+	// TODO(tim): verify whether this is the right approach. less familiar with ancestors and
+	// the implications of this approach if a policy attaches to multiple Gateways
+	// TODO(tim): verify whether hardcoding the wellknown controller name is a safe assumption.
+	for _, ancestor := range policy.Status.Ancestors {
+		// not our controller, skip
+		if ancestor.ControllerName != wellknown.GatewayControllerName {
+			continue
+		}
+		// check for the Invalid condition reason at the current generation to
+		// determine if we need to skip validation.
+		cond := meta.FindStatusCondition(ancestor.Conditions, string(gwv1alpha2.PolicyConditionAccepted))
+		if cond == nil {
+			continue
+		}
+		if cond.Status != metav1.ConditionFalse {
+			continue
+		}
+		if cond.Reason != string(gwv1alpha2.PolicyReasonInvalid) {
+			continue
+		}
+		if cond.ObservedGeneration != policy.Generation {
+			continue
+		}
+		return true
+	}
+	return false
 }

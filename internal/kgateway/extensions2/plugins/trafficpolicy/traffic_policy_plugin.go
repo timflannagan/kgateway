@@ -205,7 +205,7 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 		}
 
 		policyIR, errors := translator.Translate(krtctx, policyCR)
-		if err := policyIR.Validate(ctx, validator); err != nil {
+		if err := policyIR.Validate(ctx, validator, policyCR); err != nil {
 			// prevent invalid config from being pushed to the snapshot cache and
 			// trigger route replacement. additionally, disregard this IR so we can
 			// rely on the last known good state if it was previously valid.

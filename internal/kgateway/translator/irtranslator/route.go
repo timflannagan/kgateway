@@ -375,10 +375,8 @@ func (h *httpRouteConfigurationTranslator) processPolicyErrors(policyErrors []er
 			continue
 		}
 		if !policyErr.IsTerminal() {
-			logger.Info("policy reported warning errors", "error", policyErr.Message)
 			continue
 		}
-		logger.Error("policy reported terminal errors", "error", policyErr.Message)
 		return true
 	}
 	return false
