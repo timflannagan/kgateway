@@ -464,7 +464,11 @@ func testScenario(
 			os.WriteFile(fout, d, 0o644)
 			return fmt.Errorf("wrote out file - nothing to test")
 		}
-		return dump.Compare(expectedXdsDump)
+		if err := dump.Compare(expectedXdsDump); err != nil {
+			t.Logf("failed to compare dump: %v", err)
+			return err
+		}
+		return nil
 	}, retry.Converge(2), retry.BackoffDelay(2*time.Second), retry.Timeout(10*time.Second))
 	t.Logf("%s finished", t.Name())
 }
@@ -881,7 +885,6 @@ func (x *xdsDump) Compare(other xdsDump) error {
 	if len(x.Clusters) != len(other.Clusters) {
 		errs = errors.Join(errs, fmt.Errorf("expected %v clusters, got %v", len(other.Clusters), len(x.Clusters)))
 	}
-
 	if len(x.Listeners) != len(other.Listeners) {
 		errs = errors.Join(errs, fmt.Errorf("expected %v listeners, got %v", len(other.Listeners), len(x.Listeners)))
 	}
@@ -921,14 +924,14 @@ func (x *xdsDump) Compare(other xdsDump) error {
 	for _, c := range x.Listeners {
 		listenerset[c.Name] = c
 	}
-	for _, c := range other.Listeners {
-		otherc := listenerset[c.Name]
-		if otherc == nil {
-			errs = errors.Join(errs, fmt.Errorf("listener %v not found", c.Name))
+	for _, otherl := range other.Listeners {
+		ourl := listenerset[otherl.Name]
+		if ourl == nil {
+			errs = errors.Join(errs, fmt.Errorf("listener %v not found", otherl.Name))
 			continue
 		}
-		if !proto.Equal(c, otherc) {
-			errs = errors.Join(errs, fmt.Errorf("listener %v not equal", c.Name))
+		if !proto.Equal(ourl, otherl) {
+			errs = errors.Join(errs, fmt.Errorf("listener %v not equal: got: %s, expected: %s", otherl.Name, ourl.String(), otherl.String()))
 		}
 	}
 	routeset := map[string]*envoy_config_route_v3.RouteConfiguration{}
