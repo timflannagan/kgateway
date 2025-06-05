@@ -15,19 +15,19 @@ func mergeAI(
 	opts policy.MergeOptions,
 	mergeOrigins pluginsdkir.MergeOrigins,
 ) {
-	if !policy.IsMergeable(p1.spec.AI, p2.spec.AI, opts) {
+	if !policy.IsMergeable(p1.spec.ai, p2.spec.ai, opts) {
 		return
 	}
 
 	switch opts.Strategy {
 	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.AI != nil {
+		if p1.spec.ai != nil {
 			return
 		}
 		fallthrough // can override p1 if it is unset
 
 	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.AI = p2.spec.AI
+		p1.spec.ai = p2.spec.ai
 		mergeOrigins.SetOne("ai", p2Ref)
 
 	default:
@@ -41,19 +41,19 @@ func mergeExtProc(
 	opts policy.MergeOptions,
 	mergeOrigins pluginsdkir.MergeOrigins,
 ) {
-	if !policy.IsMergeable(p1.spec.ExtProc, p2.spec.ExtProc, opts) {
+	if !policy.IsMergeable(p1.spec.extProc, p2.spec.extProc, opts) {
 		return
 	}
 
 	switch opts.Strategy {
 	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.ExtProc != nil {
+		if p1.spec.extProc != nil {
 			return
 		}
 		fallthrough // can override p1 if it is unset
 
 	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.ExtProc = p2.spec.ExtProc
+		p1.spec.extProc = p2.spec.extProc
 		mergeOrigins.SetOne("extProc", p2Ref)
 
 	default:
@@ -67,37 +67,46 @@ func mergeTransformation(
 	opts policy.MergeOptions,
 	mergeOrigins pluginsdkir.MergeOrigins,
 ) {
-	if !policy.IsMergeable(p1.spec.transform, p2.spec.transform, opts) {
+	if !policy.IsMergeable(p1.spec.transformation, p2.spec.transformation, opts) {
 		return
 	}
 
 	switch opts.Strategy {
 	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		if p1.spec.transform == nil {
-			p1.spec.transform = &transformationpb.RouteTransformations{}
+		if p1.spec.transformation == nil {
+			p1.spec.transformation = &TransformationIR{transformation: &transformationpb.RouteTransformations{}}
 		}
-		// Always clone so that the original policy in p2 is not modified when
-		// the merge is invoked multiple times
-		p1.spec.transform.Transformations = slices.Clone(p2.spec.transform.GetTransformations())
+		if p2.spec.transformation != nil && p2.spec.transformation.transformation != nil {
+			// Always clone so that the original policy in p2 is not modified when
+			// the merge is invoked multiple times
+			p1.spec.transformation.transformation.Transformations = slices.Clone(p2.spec.transformation.transformation.GetTransformations())
+		}
 		mergeOrigins.SetOne("transformation", p2Ref)
 
 	case policy.AugmentedDeepMerge:
-		if p1.spec.transform == nil {
-			p1.spec.transform = &transformationpb.RouteTransformations{}
+		if p1.spec.transformation == nil {
+			p1.spec.transformation = &TransformationIR{transformation: &transformationpb.RouteTransformations{}}
 		}
-		// Always Concat so that the original policy in p1 is not modified when
-		// the merge is invoked multiple times
-		p1.spec.transform.Transformations = slices.Concat(p1.spec.transform.GetTransformations(), p2.spec.transform.GetTransformations())
+		if p2.spec.transformation != nil && p2.spec.transformation.transformation != nil {
+			// Always Concat so that the original policy in p1 is not modified when
+			// the merge is invoked multiple times
+			existing := p1.spec.transformation.transformation.GetTransformations()
+			additional := p2.spec.transformation.transformation.GetTransformations()
+			p1.spec.transformation.transformation.Transformations = slices.Concat(existing, additional)
+		}
 		mergeOrigins.Append("transformation", p2Ref)
 
 	case policy.OverridableDeepMerge:
-		if p1.spec.transform == nil {
-			p1.spec.transform = &transformationpb.RouteTransformations{}
+		if p1.spec.transformation == nil {
+			p1.spec.transformation = &TransformationIR{transformation: &transformationpb.RouteTransformations{}}
 		}
-		// Always Concat so that the original policy in p1/p2 is not modified when
-		// the merge is invoked multiple times
-		p1.spec.transform.Transformations = slices.Concat(p2.spec.transform.GetTransformations(), p1.spec.transform.GetTransformations())
-		mergeOrigins.Append("transformation", p2Ref)
+		if p2.spec.transformation != nil && p2.spec.transformation.transformation != nil {
+			// Prepend so that p2 takes precedence
+			existing := p1.spec.transformation.transformation.GetTransformations()
+			additional := p2.spec.transformation.transformation.GetTransformations()
+			p1.spec.transformation.transformation.Transformations = slices.Concat(additional, existing)
+		}
+		mergeOrigins.SetOne("transformation", p2Ref)
 
 	default:
 		logger.Warn("unsupported merge strategy for transformation policy", "strategy", opts.Strategy, "policy", p2Ref)
@@ -123,7 +132,6 @@ func mergeRustformation(
 
 	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
 		p1.spec.rustformation = p2.spec.rustformation
-		p1.spec.rustformationStringToStash = p2.spec.rustformationStringToStash
 		mergeOrigins.SetOne("rustformation", p2Ref)
 
 	default:
