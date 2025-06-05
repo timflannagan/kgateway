@@ -13,6 +13,9 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 )
 
+// FetchGatewayExtensionFunc defines the signature for fetching gateway extensions
+type FetchGatewayExtensionFunc func(krtctx krt.HandlerContext, extensionRef *corev1.LocalObjectReference, ns string) (*TrafficPolicyGatewayExtensionIR, error)
+
 type TrafficPolicyBuilder struct {
 	commoncol         *common.CommonCollections
 	gatewayExtensions krt.Collection[TrafficPolicyGatewayExtensionIR]
@@ -45,59 +48,38 @@ func (b *TrafficPolicyBuilder) Translate(
 	outSpec := trafficPolicySpecIr{}
 
 	var errors []error
-	if policyCR.Spec.AI != nil {
-		outSpec.AI = &AIPolicyIR{}
-
-		// Augment with AI secrets as needed
-		var err error
-		outSpec.AI.AISecret, err = aiSecretForSpec(krtctx, b.commoncol.Secrets, policyCR)
-		if err != nil {
-			errors = append(errors, err)
-		}
-
-		// Preprocess the AI backend
-		err = preProcessAITrafficPolicy(policyCR.Spec.AI, outSpec.AI)
-		if err != nil {
-			errors = append(errors, err)
-		}
+	// Apply AI specific translation
+	if err := aiForSpec(krtctx, policyCR, &outSpec, b.commoncol.Secrets); err != nil {
+		errors = append(errors, err)
 	}
 	// Apply transformation specific translation
-	err := transformationForSpec(policyCR.Spec, &outSpec)
-	if err != nil {
+	if err := transformationForSpec(policyCR, &outSpec); err != nil {
 		errors = append(errors, err)
 	}
-
-	if policyCR.Spec.ExtProc != nil {
-		extproc, err := b.toEnvoyExtProc(krtctx, policyCR)
-		if err != nil {
-			errors = append(errors, err)
-		} else {
-			outSpec.ExtProc = extproc
-		}
-	}
-
-	// Apply ExtAuthz specific translation
-	err = b.extAuthForSpec(krtctx, policyCR, &outSpec)
-	if err != nil {
+	// Apply rustformation specific translation
+	if err := rustformationForSpec(policyCR, &outSpec); err != nil {
 		errors = append(errors, err)
 	}
-
-	// Apply rate limit specific translation
-	err = localRateLimitForSpec(policyCR.Spec, &outSpec)
-	if err != nil {
+	// Apply extproc specific translation
+	if err := extProcForSpec(krtctx, policyCR, &outSpec, b.FetchGatewayExtension); err != nil {
 		errors = append(errors, err)
 	}
-
+	// Apply extauth specific translation
+	if err := extAuthForSpec(krtctx, policyCR, &outSpec, b.FetchGatewayExtension); err != nil {
+		errors = append(errors, err)
+	}
+	// Apply local rate limit specific translation
+	if err := localRateLimitForSpec(policyCR, &outSpec); err != nil {
+		errors = append(errors, err)
+	}
 	// Apply global rate limit specific translation
-	errs := b.globalRateLimitForSpec(krtctx, policyCR, &outSpec)
-	errors = append(errors, errs...)
-
-	// Apply cors specific translation
-	err = corsForSpec(policyCR.Spec, &outSpec)
-	if err != nil {
+	if err := globalRateLimitForSpec(krtctx, policyCR, &outSpec, b.FetchGatewayExtension); err != nil {
 		errors = append(errors, err)
 	}
-
+	// Apply cors specific translation
+	if err := corsForSpec(policyCR, &outSpec); err != nil {
+		errors = append(errors, err)
+	}
 	for _, err := range errors {
 		logger.Error("error translating gateway extension", "namespace", policyCR.GetNamespace(), "name", policyCR.GetName(), "error", err)
 	}

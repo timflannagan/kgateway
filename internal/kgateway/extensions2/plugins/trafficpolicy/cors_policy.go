@@ -10,34 +10,33 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/krtcollections"
 )
 
-type CorsIR struct {
+type corsIR struct {
 	// corsConfig is the envoy cors policy
 	corsConfig *corsv3.CorsPolicy
 }
 
-func (c *CorsIR) Equals(other *CorsIR) bool {
+func (c *corsIR) Equals(other *corsIR) bool {
 	if c == nil && other == nil {
 		return true
 	}
 	if c == nil || other == nil {
 		return false
 	}
-
 	return proto.Equal(c.corsConfig, other.corsConfig)
 }
 
 // corsForSpec translates the cors spec into an envoy cors policy and stores it in the traffic policy IR
-func corsForSpec(spec v1alpha1.TrafficPolicySpec, out *trafficPolicySpecIr) error {
-	if spec.Cors == nil {
+func corsForSpec(in *v1alpha1.TrafficPolicy, out *trafficPolicySpecIr) error {
+	if in.Spec.Cors == nil {
 		return nil
 	}
-	out.cors = &CorsIR{
-		corsConfig: krtcollections.ToEnvoyCorsPolicy(spec.Cors.HTTPCORSFilter),
+	out.cors = &corsIR{
+		corsConfig: krtcollections.ToEnvoyCorsPolicy(in.Spec.Cors.HTTPCORSFilter),
 	}
 	return nil
 }
 
-func (p *trafficPolicyPluginGwPass) handleCors(fcn string, pCtxTypedFilterConfig *ir.TypedFilterConfigMap, cors *CorsIR) {
+func (p *trafficPolicyPluginGwPass) handleCors(fcn string, pCtxTypedFilterConfig *ir.TypedFilterConfigMap, cors *corsIR) {
 	if cors == nil || cors.corsConfig == nil {
 		return
 	}

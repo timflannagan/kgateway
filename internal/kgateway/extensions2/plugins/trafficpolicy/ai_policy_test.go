@@ -39,7 +39,7 @@ func TestProcessAITrafficPolicy(t *testing.T) {
 		}
 		// extproc and transformation will be set by preProcessAITrafficPolicy
 		aiSecret := &ir.Secret{}
-		aiIR := &AIPolicyIR{
+		aiIR := &aiPolicyIR{
 			AISecret: aiSecret,
 		}
 
@@ -71,7 +71,7 @@ func TestProcessAITrafficPolicy(t *testing.T) {
 		aiConfig := &v1alpha1.AIPolicy{}
 		// extproc and transformation will be set by preProcessAITrafficPolicy
 		aiSecret := &ir.Secret{}
-		aiIR := &AIPolicyIR{
+		aiIR := &aiPolicyIR{
 			AISecret: aiSecret,
 		}
 
@@ -115,7 +115,7 @@ func TestProcessAITrafficPolicy(t *testing.T) {
 		}
 		// extproc and transformation will be set by preProcessAITrafficPolicy
 		aiSecret := &ir.Secret{}
-		aiIR := &AIPolicyIR{
+		aiIR := &aiPolicyIR{
 			AISecret: aiSecret,
 		}
 		// Execute
@@ -164,7 +164,7 @@ func TestProcessAITrafficPolicy(t *testing.T) {
 		}
 		// extproc and transformation will be set by preProcessAITrafficPolicy
 		aiSecret := &ir.Secret{}
-		aiIR := &AIPolicyIR{
+		aiIR := &aiPolicyIR{
 			AISecret: aiSecret,
 		}
 
@@ -225,7 +225,7 @@ func TestProcessAITrafficPolicy(t *testing.T) {
 		}
 		// extproc and transformation will be set by preProcessAITrafficPolicy
 		aiSecret := &ir.Secret{}
-		aiIR := &AIPolicyIR{
+		aiIR := &aiPolicyIR{
 			AISecret: aiSecret,
 		}
 

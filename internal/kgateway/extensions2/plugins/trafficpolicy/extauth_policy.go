@@ -64,11 +64,9 @@ func (e *extAuthIR) Equals(other *extAuthIR) bool {
 	if e.enablement != other.enablement {
 		return false
 	}
-
 	if !proto.Equal(e.extauthPerRoute, other.extauthPerRoute) {
 		return false
 	}
-
 	// Compare providers
 	if (e.provider == nil) != (other.provider == nil) {
 		return false
@@ -80,40 +78,34 @@ func (e *extAuthIR) Equals(other *extAuthIR) bool {
 }
 
 // extAuthForSpec translates the ExtAuthz spec into the Envoy configuration
-
-func (b *TrafficPolicyBuilder) extAuthForSpec(
+func extAuthForSpec(
 	krtctx krt.HandlerContext,
-	trafficPolicy *v1alpha1.TrafficPolicy,
+	in *v1alpha1.TrafficPolicy,
 	out *trafficPolicySpecIr,
+	fetchGatewayExtension FetchGatewayExtensionFunc,
 ) error {
-	policySpec := &trafficPolicy.Spec
-
-	if policySpec.ExtAuth == nil {
+	if in.Spec.ExtAuth == nil {
 		return nil
 	}
-	spec := policySpec.ExtAuth
-
-	if spec.Enablement == v1alpha1.ExtAuthDisableAll {
+	if in.Spec.ExtAuth.Enablement == v1alpha1.ExtAuthDisableAll {
 		out.extAuth = &extAuthIR{
 			provider:        nil,
 			enablement:      v1alpha1.ExtAuthDisableAll,
-			extauthPerRoute: translatePerFilterConfig(spec),
+			extauthPerRoute: translatePerFilterConfig(in.Spec.ExtAuth),
 		}
 		return nil
 	}
-
-	provider, err := b.FetchGatewayExtension(krtctx, spec.ExtensionRef, trafficPolicy.GetNamespace())
+	provider, err := fetchGatewayExtension(krtctx, in.Spec.ExtAuth.ExtensionRef, in.GetNamespace())
 	if err != nil {
 		return fmt.Errorf("extauthz: %w", err)
 	}
 	if provider.ExtType != v1alpha1.GatewayExtensionTypeExtAuth || provider.ExtAuth == nil {
 		return pluginutils.ErrInvalidExtensionType(v1alpha1.GatewayExtensionTypeExtAuth, provider.ExtType)
 	}
-
 	out.extAuth = &extAuthIR{
 		provider:        provider,
-		enablement:      spec.Enablement,
-		extauthPerRoute: translatePerFilterConfig(spec),
+		enablement:      in.Spec.ExtAuth.Enablement,
+		extauthPerRoute: translatePerFilterConfig(in.Spec.ExtAuth),
 	}
 	return nil
 }

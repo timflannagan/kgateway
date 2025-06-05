@@ -30,8 +30,7 @@ const (
 	contextString = `{"content":"%s","role":"%s"}`
 )
 
-// AIPolicyIR is the internal representation of an AI policy.
-type AIPolicyIR struct {
+type aiPolicyIR struct {
 	AISecret *ir.Secret
 	// Extproc config can come from the AI backend and AI policy
 	Extproc *envoy_ext_proc_v3.ExtProcPerRoute
@@ -39,9 +38,64 @@ type AIPolicyIR struct {
 	Transformation *envoytransformation.RouteTransformations
 }
 
+// Equals checks if two aiPolicyIR instances are equal
+func (a *aiPolicyIR) Equals(in *aiPolicyIR) bool {
+	if a == nil && in == nil {
+		return true
+	}
+	if a == nil || in == nil {
+		return false
+	}
+
+	// Check AISecret equality
+	if a.AISecret != nil && in.AISecret != nil {
+		if !a.AISecret.Equals(*in.AISecret) {
+			return false
+		}
+	} else if (a.AISecret != nil) != (in.AISecret != nil) {
+		return false
+	}
+	// Check Extproc equality
+	if !proto.Equal(a.Extproc, in.Extproc) {
+		return false
+	}
+	// Check Transformation equality
+	if !proto.Equal(a.Transformation, in.Transformation) {
+		return false
+	}
+
+	return true
+}
+
+// aiForSpec processes the AI policy specification and sets the corresponding IR in the output spec
+func aiForSpec(
+	krtctx krt.HandlerContext,
+	policyCR *v1alpha1.TrafficPolicy,
+	out *trafficPolicySpecIr,
+	secrets *krtcollections.SecretIndex,
+) error {
+	if policyCR.Spec.AI == nil {
+		return nil
+	}
+
+	ir := &aiPolicyIR{}
+	// Augment with AI secrets as needed
+	secret, err := aiSecretForSpec(krtctx, secrets, policyCR)
+	if err != nil {
+		return fmt.Errorf("ai: %w", err)
+	}
+	ir.AISecret = secret
+	// Preprocess the AI backend
+	if err := preProcessAITrafficPolicy(policyCR.Spec.AI, ir); err != nil {
+		return fmt.Errorf("ai: %w", err)
+	}
+	out.ai = ir
+	return nil
+}
+
 func (p *trafficPolicyPluginGwPass) processAITrafficPolicy(
 	configMap *ir.TypedFilterConfigMap,
-	inIr *AIPolicyIR,
+	inIr *aiPolicyIR,
 ) {
 	if inIr.Transformation != nil {
 		configMap.AddTypedConfig(wellknown.AIPolicyTransformationFilterName, inIr.Transformation)
@@ -64,7 +118,7 @@ func (p *trafficPolicyPluginGwPass) processAITrafficPolicy(
 
 func preProcessAITrafficPolicy(
 	aiConfig *v1alpha1.AIPolicy,
-	ir *AIPolicyIR,
+	ir *aiPolicyIR,
 ) error {
 	// Setup initial transformation template and extproc settings. The extproc is configured by the route policy and backend.
 	transformationTemplate := initTransformationTemplate()
