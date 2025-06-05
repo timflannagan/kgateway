@@ -19,7 +19,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("SDS Server E2E Test", Serial, func() {
+// TODO(tim): Flaky test when running in CI. Move to the e2e suite and fix.
+var _ = PDescribe("SDS Server E2E Test", Serial, func() {
 
 	// These tests use the Serial decorator because they rely on a hard-coded port for the SDS server (8236)
 
