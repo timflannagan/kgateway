@@ -73,12 +73,24 @@ func (p *TrafficPolicy) validateProto(ctx context.Context) error {
 // validateXDS validates the xDS configuration.
 func (p *TrafficPolicy) validateXDS(ctx context.Context, v validator.Validator) error {
 	builder := bootstrap.New()
-	builder.AddFilterConfig(transformationFilterNamePrefix, p.spec.transform)
-	builder.AddFilterConfig(rustformationFilterNamePrefix, p.spec.rustformation)
-	builder.AddFilterConfig(localRateLimitFilterNamePrefix, p.spec.localRateLimit)
-	builder.AddFilterConfig(getRateLimitFilterName(p.spec.rateLimit.provider.ResourceName()), p.spec.rateLimit.provider.RateLimit)
-	builder.AddFilterConfig(extProcFilterName(p.spec.ExtProc.provider.ResourceName()), p.spec.ExtProc.provider.ExtProc)
-	builder.AddFilterConfig(extAuthFilterName(p.spec.extAuth.provider.ResourceName()), p.spec.extAuth.provider.ExtAuth)
+	if p.spec.transform != nil {
+		builder.AddFilterConfig(transformationFilterNamePrefix, p.spec.transform)
+	}
+	if p.spec.rustformation != nil {
+		builder.AddFilterConfig(rustformationFilterNamePrefix, p.spec.rustformation)
+	}
+	if p.spec.localRateLimit != nil {
+		builder.AddFilterConfig(localRateLimitFilterNamePrefix, p.spec.localRateLimit)
+	}
+	if p.spec.rateLimit != nil && p.spec.rateLimit.provider != nil {
+		builder.AddFilterConfig(getRateLimitFilterName(p.spec.rateLimit.provider.ResourceName()), p.spec.rateLimit.provider.RateLimit)
+	}
+	if p.spec.ExtProc != nil && p.spec.ExtProc.provider != nil {
+		builder.AddFilterConfig(extProcFilterName(p.spec.ExtProc.provider.ResourceName()), p.spec.ExtProc.provider.ExtProc)
+	}
+	if p.spec.extAuth != nil && p.spec.extAuth.provider != nil {
+		builder.AddFilterConfig(extAuthFilterName(p.spec.extAuth.provider.ResourceName()), p.spec.extAuth.provider.ExtAuth)
+	}
 
 	bootstrap, err := builder.Build()
 	if err != nil {
