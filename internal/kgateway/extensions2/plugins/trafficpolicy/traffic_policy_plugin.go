@@ -41,7 +41,6 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
-	policyerrors "github.com/kgateway-dev/kgateway/v2/pkg/policy"
 	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
@@ -210,7 +209,7 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 			// trigger route replacement. additionally, disregard this IR so we can
 			// rely on the last known good state if it was previously valid.
 			logger.Error("policy validation failed", "policy", policyCR.Name, "errors", err)
-			errors = append(errors, policyerrors.NewTerminalError("PolicyValidationFailed", err))
+			errors = append(errors, policy.NewTerminalError("PolicyValidationFailed", err))
 		}
 		pol := &ir.PolicyWrapper{
 			ObjectSource: objSrc,

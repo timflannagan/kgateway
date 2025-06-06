@@ -21,8 +21,8 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator/routeutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	reportssdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/reporter"
-	policyerrors "github.com/kgateway-dev/kgateway/v2/pkg/policy"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/regexutils"
 )
 
@@ -353,7 +353,7 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 		}
 		for _, pol := range mergePolicies(pass, pols) {
 			if hasTerminalError := h.processPolicyErrors(pol.Errors); hasTerminalError {
-				return policyerrors.NewTerminalError("policy reported terminal errors", errors.Join(pol.Errors...))
+				return policy.NewTerminalError("policy reported terminal errors", errors.Join(pol.Errors...))
 			}
 			pctx.Policy = pol.PolicyIr
 			applyForPolicy(ctx, pass, pctx, out)
@@ -370,7 +370,7 @@ func (h *httpRouteConfigurationTranslator) processPolicyErrors(policyErrors []er
 		return false
 	}
 	for _, err := range policyErrors {
-		var policyErr *policyerrors.PolicyError
+		var policyErr *policy.PolicyError
 		if !errors.As(err, &policyErr) {
 			continue
 		}
