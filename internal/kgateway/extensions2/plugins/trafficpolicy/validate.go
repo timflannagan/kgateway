@@ -30,51 +30,41 @@ func (p *TrafficPolicy) Validate(ctx context.Context, v validator.Validator, pol
 
 // TODO: this is a bit of a mess.
 func (p *TrafficPolicy) validateProto(ctx context.Context) error {
+	var validators []func() error
 	if p.spec.transform != nil {
-		if err := p.spec.transform.Validate(); err != nil {
-			return err
-		}
+		validators = append(validators, p.spec.transform.Validate)
 	}
 	// TODO: rustformations?
 	if p.spec.localRateLimit != nil {
-		if err := p.spec.localRateLimit.Validate(); err != nil {
-			return err
-		}
+		validators = append(validators, p.spec.localRateLimit.Validate)
 	}
 	if p.spec.rateLimit != nil {
 		if p.spec.rateLimit.provider != nil {
-			if err := p.spec.rateLimit.provider.Validate(); err != nil {
-				return err
-			}
+			validators = append(validators, p.spec.rateLimit.provider.Validate)
 		}
 		for _, rateLimit := range p.spec.rateLimit.rateLimitActions {
-			if err := rateLimit.Validate(); err != nil {
-				return err
-			}
+			validators = append(validators, rateLimit.Validate)
 		}
 	}
 	if p.spec.ExtProc != nil {
 		if p.spec.ExtProc.ExtProcPerRoute != nil {
-			if err := p.spec.ExtProc.ExtProcPerRoute.Validate(); err != nil {
-				return err
-			}
+			validators = append(validators, p.spec.ExtProc.ExtProcPerRoute.Validate)
 		}
 		if p.spec.ExtProc.provider != nil {
-			if err := p.spec.ExtProc.provider.Validate(); err != nil {
-				return err
-			}
+			validators = append(validators, p.spec.ExtProc.provider.Validate)
 		}
 	}
 	if p.spec.extAuth != nil {
 		if p.spec.extAuth.extauthPerRoute != nil {
-			if err := p.spec.extAuth.extauthPerRoute.Validate(); err != nil {
-				return err
-			}
+			validators = append(validators, p.spec.extAuth.extauthPerRoute.Validate)
 		}
 		if p.spec.extAuth.provider != nil {
-			if err := p.spec.extAuth.provider.Validate(); err != nil {
-				return err
-			}
+			validators = append(validators, p.spec.extAuth.provider.Validate)
+		}
+	}
+	for _, validator := range validators {
+		if err := validator(); err != nil {
+			return err
 		}
 	}
 	return nil
