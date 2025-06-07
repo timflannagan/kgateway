@@ -330,14 +330,6 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 		attachedPolicies.Append(in.Parent.AttachedPolicies)
 	}
 
-	var errs []error
-	applyForPolicy := func(ctx context.Context, pass *TranslationPass, pctx *ir.RouteContext, out *envoy_config_route_v3.Route) {
-		err := pass.ApplyForRoute(ctx, pctx, out)
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
-
 	for _, gk := range attachedPolicies.ApplyOrderedGroupKinds() {
 		pols := attachedPolicies.Policies[gk]
 		pass := h.PluginPass[gk]
@@ -356,11 +348,11 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 				return policy.NewTerminalError("policy reported terminal errors", errors.Join(pol.Errors...))
 			}
 			pctx.Policy = pol.PolicyIr
-			applyForPolicy(ctx, pass, pctx, out)
+			pass.ApplyForRoute(ctx, pctx, out)
 		}
 		// TODO: check return value, if error returned, log error and report condition
 	}
-	return errors.Join(errs...)
+	return nil
 }
 
 // processPolicyErrors checks if there are any terminal errors in the policy errors.
@@ -392,7 +384,6 @@ func mergePolicies(pass *TranslationPass, policies []ir.PolicyAtt) []ir.PolicyAt
 }
 
 func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext) error {
-	var errs []error
 	for _, gk := range in.AttachedPolicies.ApplyOrderedGroupKinds() {
 		pols := in.AttachedPolicies.Policies[gk]
 		pass := h.PluginPass[gk]
@@ -403,29 +394,21 @@ func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Contex
 		reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
 		for _, pol := range mergePolicies(pass, pols) {
 			// Policy on extension ref
-			err := pass.ApplyForRouteBackend(ctx, pol.PolicyIr, pCtx)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			pass.ApplyForRouteBackend(ctx, pol.PolicyIr, pCtx)
 			// TODO: check return value, if error returned, log error and report condition
 		}
 	}
-	return errors.Join(errs...)
+	return nil
 }
 
 func (h *httpRouteConfigurationTranslator) runBackend(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext, outRoute *envoy_config_route_v3.Route) error {
-	var errs []error
 	if in.Backend.BackendObject != nil {
 		backendPass := h.PluginPass[in.Backend.BackendObject.GetGroupKind()]
 		if backendPass != nil {
-			err := backendPass.ApplyForBackend(ctx, pCtx, in, outRoute)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			backendPass.ApplyForBackend(ctx, pCtx, in, outRoute)
 		}
 	}
-	// TODO: check return value, if error returned, log error and report condition
-	return errors.Join(errs...)
+	return nil
 }
 
 func (h *httpRouteConfigurationTranslator) translateRouteAction(

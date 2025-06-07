@@ -105,7 +105,8 @@ type ProxyTranslationPass interface {
 	// called 1 time per filter chain after listeners and allows tweaking HCM settings.
 	ApplyHCM(ctx context.Context,
 		pCtx *HcmContext,
-		out *envoy_hcm.HttpConnectionManager) error
+		out *envoy_hcm.HttpConnectionManager,
+	)
 
 	// called 1 time for all the routes in a filter chain. Use this to set default PerFilterConfig
 	// No policy is provided here.
@@ -128,7 +129,7 @@ type ProxyTranslationPass interface {
 		pCtx *RouteBackendContext,
 		in HttpBackend,
 		out *envoy_config_route_v3.Route,
-	) error
+	)
 	// Applies a policy attached to a specific Backend (via extensionRef on the BackendRef).
 	// Note: TypedFilterConfig should be applied in the pCtx and is shared between ApplyForRoute, ApplyForBackend
 	// and ApplyForRouteBackend
@@ -136,7 +137,7 @@ type ProxyTranslationPass interface {
 		ctx context.Context,
 		policy PolicyIR,
 		pCtx *RouteBackendContext,
-	) error
+	)
 	// called once per route rule if SupportsPolicyMerge returns false, otherwise this is called only
 	// once on the value returned by MergePolicies.
 	// Applies policy for an HTTPRoute that has a policy attached via a targetRef.
@@ -146,13 +147,15 @@ type ProxyTranslationPass interface {
 	ApplyForRoute(
 		ctx context.Context,
 		pCtx *RouteContext,
-		out *envoy_config_route_v3.Route) error
+		out *envoy_config_route_v3.Route,
+	)
 
+	// TODO: Should this return an error?
 	// called 1 time per filter-chain.
 	// If a plugin emits new filters, they must be with a plugin unique name.
 	// filters added to impact specific routes should be disabled on the listener level, so they don't impact other routes.
 	HttpFilters(ctx context.Context, fc FilterChainCommon) ([]plugins.StagedHttpFilter, error)
-
+	// TODO: Should this return an error?
 	NetworkFilters(ctx context.Context) ([]plugins.StagedNetworkFilter, error)
 	// called 1 time (per envoy proxy). replaces GeneratedResources and allows adding clusters to the envoy.
 	ResourcesToAdd(ctx context.Context) Resources
@@ -165,12 +168,10 @@ var _ ProxyTranslationPass = UnimplementedProxyTranslationPass{}
 func (s UnimplementedProxyTranslationPass) ApplyListenerPlugin(ctx context.Context, pCtx *ListenerContext, out *envoy_config_listener_v3.Listener) {
 }
 
-func (s UnimplementedProxyTranslationPass) ApplyHCM(ctx context.Context, pCtx *HcmContext, out *envoy_hcm.HttpConnectionManager) error {
-	return nil
+func (s UnimplementedProxyTranslationPass) ApplyHCM(ctx context.Context, pCtx *HcmContext, out *envoy_hcm.HttpConnectionManager) {
 }
 
-func (s UnimplementedProxyTranslationPass) ApplyForBackend(ctx context.Context, pCtx *RouteBackendContext, in HttpBackend, out *envoy_config_route_v3.Route) error {
-	return nil
+func (s UnimplementedProxyTranslationPass) ApplyForBackend(ctx context.Context, pCtx *RouteBackendContext, in HttpBackend, out *envoy_config_route_v3.Route) {
 }
 
 func (s UnimplementedProxyTranslationPass) ApplyRouteConfigPlugin(ctx context.Context, pCtx *RouteConfigContext, out *envoy_config_route_v3.RouteConfiguration) {
@@ -179,12 +180,10 @@ func (s UnimplementedProxyTranslationPass) ApplyRouteConfigPlugin(ctx context.Co
 func (s UnimplementedProxyTranslationPass) ApplyVhostPlugin(ctx context.Context, pCtx *VirtualHostContext, out *envoy_config_route_v3.VirtualHost) {
 }
 
-func (s UnimplementedProxyTranslationPass) ApplyForRoute(ctx context.Context, pCtx *RouteContext, out *envoy_config_route_v3.Route) error {
-	return nil
+func (s UnimplementedProxyTranslationPass) ApplyForRoute(ctx context.Context, pCtx *RouteContext, out *envoy_config_route_v3.Route) {
 }
 
-func (s UnimplementedProxyTranslationPass) ApplyForRouteBackend(ctx context.Context, policy PolicyIR, pCtx *RouteBackendContext) error {
-	return nil
+func (s UnimplementedProxyTranslationPass) ApplyForRouteBackend(ctx context.Context, policy PolicyIR, pCtx *RouteBackendContext) {
 }
 
 func (s UnimplementedProxyTranslationPass) HttpFilters(ctx context.Context, fc FilterChainCommon) ([]plugins.StagedHttpFilter, error) {
@@ -199,40 +198,57 @@ func (s UnimplementedProxyTranslationPass) ResourcesToAdd(ctx context.Context) R
 	return Resources{}
 }
 
+// Resources is the set of resources to add to the envoy config.
 type Resources struct {
+	// Clusters is the set of clusters to add to the envoy config.
 	Clusters []*envoy_config_cluster_v3.Cluster
 }
 
+// GwTranslationCtx is the context for a gateway translation pass.
 type GwTranslationCtx struct{}
 
+// PolicyIR represents the IR state between a policy and a resource.
 type PolicyIR interface {
+	// CreationTime is the time the policy was created.
 	// in case multiple policies attached to the same resource, we sort by policy creation time.
 	CreationTime() time.Time
+	// Equals returns true if the policy is the same as the input.
 	Equals(in any) bool
 }
 
+// PolicyWrapper wraps a policy object and its IR.
 type PolicyWrapper struct {
-	// A reference to the original policy object
+	// ObjectSource is the source of the policy object.
 	ObjectSource `json:",inline"`
-	// The policy object itself. TODO: we can probably remove this
+	// Policy is the policy object itself. TODO: we can probably remove this
 	Policy metav1.Object
 
-	// Errors processing it for status.
+	// Errors processing the policy for status.
 	// note: these errors are based on policy itself, regardless of whether it's attached to a resource.
 	// Errors should be formatted for users, so do not include internal lib errors.
 	// Instead use a well defined error such as ErrInvalidConfig
 	Errors []error
 
-	// The IR of the policy objects. ideally with structural errors removed.
+	// PolicyIR is the IR of the policy objects. ideally with structural errors removed.
 	// Opaque to us other than metadata.
 	PolicyIR PolicyIR
 
-	// Where to attach the policy. This usually comes from the policy CRD.
+	// TargetRefs is where to attach the policy. This usually comes from the policy CRD.
 	TargetRefs []PolicyRef
 }
 
+// ResourceName returns the name of the resource the policy is attached to.
 func (c PolicyWrapper) ResourceName() string {
 	return c.ObjectSource.ResourceName()
+}
+
+// Equals returns true if the policy is the same as the input.
+func (c PolicyWrapper) Equals(in PolicyWrapper) bool {
+	if c.ObjectSource != in.ObjectSource {
+		return false
+	}
+
+	return versionEquals(c.Policy, in.Policy) && c.PolicyIR.Equals(in.PolicyIR)
 }
 
 func versionEquals(a, b metav1.Object) bool {
@@ -245,19 +261,13 @@ func versionEquals(a, b metav1.Object) bool {
 	return versionEquals && a.GetUID() == b.GetUID()
 }
 
-func (c PolicyWrapper) Equals(in PolicyWrapper) bool {
-	if c.ObjectSource != in.ObjectSource {
-		return false
-	}
-
-	return versionEquals(c.Policy, in.Policy) && c.PolicyIR.Equals(in.PolicyIR)
-}
-
+// ErrNotAttachable is returned when a policy is not attachable to an object.
 var ErrNotAttachable = fmt.Errorf("policy is not attachable to this object")
 
+// PolicyRun is the interface for a policy run.
 type PolicyRun interface {
-	// Allocate state for single listener+rotue translation pass.
+	// NewGatewayTranslationPass allocates state for single listener+rotue translation pass.
 	NewGatewayTranslationPass(ctx context.Context, tctx GwTranslationCtx, reporter reports.Reporter) ProxyTranslationPass
-	// Process cluster for a backend
+	// ProcessBackend processes a backend for a single listener+rotue translation pass.
 	ProcessBackend(ctx context.Context, in BackendObjectIR, out *envoy_config_cluster_v3.Cluster) error
 }

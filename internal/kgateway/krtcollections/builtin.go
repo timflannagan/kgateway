@@ -8,7 +8,6 @@ import (
 	"time"
 
 	stateful_sessionv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/stateful_session/v3"
-	envoyhttp "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	stateful_cookie "github.com/envoyproxy/go-control-plane/envoy/extensions/http/stateful_session/cookie/v3"
 	stateful_header "github.com/envoyproxy/go-control-plane/envoy/extensions/http/stateful_session/header/v3"
 	httpv3 "github.com/envoyproxy/go-control-plane/envoy/type/http/v3"
@@ -61,16 +60,6 @@ type builtinPluginGwPass struct {
 	reporter            reports.Reporter
 	hasCorsPolicy       map[string]bool
 	needStatefulSession map[string]bool
-}
-
-func (p *builtinPluginGwPass) ApplyForBackend(ctx context.Context, pCtx *ir.RouteBackendContext, in ir.HttpBackend, out *envoy_config_route_v3.Route) error {
-	// no op
-	return nil
-}
-
-func (p *builtinPluginGwPass) ApplyHCM(ctx context.Context, pCtx *ir.HcmContext, out *envoyhttp.HttpConnectionManager) error {
-	// no-op
-	return nil
 }
 
 func NewBuiltInIr(kctx krt.HandlerContext, f gwv1.HTTPRouteFilter, fromgk schema.GroupKind, fromns string, refgrants *RefGrantIndex, ups *BackendIndex) ir.PolicyIR {
@@ -640,28 +629,29 @@ func (p *builtinPlugin) Name() string {
 
 // called 1 time for each listener
 func (p *builtinPluginGwPass) ApplyListenerPlugin(ctx context.Context, pCtx *ir.ListenerContext, out *envoy_config_listener_v3.Listener) {
+	// no op
+	return
 }
 
 func (p *builtinPluginGwPass) ApplyVhostPlugin(ctx context.Context, pCtx *ir.VirtualHostContext, out *envoy_config_route_v3.VirtualHost) {
 }
 
 // called one or more times per route rule
-func (p *builtinPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *envoy_config_route_v3.Route) error {
+func (p *builtinPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *envoy_config_route_v3.Route) {
 	policy, ok := pCtx.Policy.(*builtinPlugin)
 	if !ok {
-		return nil
+		return
 	}
 
-	var errs error
 	if policy.filterMutation != nil {
 		if err := policy.filterMutation(pCtx.In, outputRoute); err != nil {
-			errs = errors.Join(errs, err)
+			logger.Error("failed to apply filter mutation: %v", "error", err)
 		}
 	}
 
 	if policy.ruleMutation != nil {
 		if err := policy.ruleMutation(pCtx.In, outputRoute); err != nil {
-			errs = errors.Join(errs, err)
+			logger.Error("failed to apply rule mutation: %v", "error", err)
 		}
 		if outputRoute.GetTypedPerFilterConfig()[statefulSessionFilterName] != nil {
 			p.needStatefulSession[pCtx.FilterChainName] = true
@@ -671,24 +661,22 @@ func (p *builtinPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteC
 	if policy.cors != nil {
 		p.hasCorsPolicy[pCtx.FilterChainName] = true
 	}
-
-	return errs
 }
 
 func (p *builtinPluginGwPass) ApplyForRouteBackend(
 	ctx context.Context,
 	policy ir.PolicyIR,
 	pCtx *ir.RouteBackendContext,
-) error {
+) {
 	inPolicy, ok := policy.(*builtinPlugin)
 	if !ok {
-		return nil
+		return
 	}
 	if inPolicy.cors != nil {
 		pCtx.TypedFilterConfig[envoy_wellknown.CORS] = ToEnvoyCorsPolicy(inPolicy.cors)
 		p.hasCorsPolicy[pCtx.FilterChainName] = true
 	}
-	return nil
+	return
 }
 
 func (p *builtinPluginGwPass) HttpFilters(ctx context.Context, fcc ir.FilterChainCommon) ([]plugins.StagedHttpFilter, error) {

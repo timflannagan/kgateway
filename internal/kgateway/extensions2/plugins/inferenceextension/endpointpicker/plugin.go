@@ -174,15 +174,15 @@ func (p *endpointPickerPass) ApplyForBackend(
 	pCtx *ir.RouteBackendContext,
 	in ir.HttpBackend,
 	out *routev3.Route,
-) error {
+) {
 	if p == nil || pCtx == nil || pCtx.Backend == nil {
-		return nil
+		return
 	}
 
 	// Ensure the backend object is an InferencePool.
 	irPool, ok := pCtx.Backend.ObjIr.(*inferencePool)
 	if !ok || irPool == nil {
-		return nil
+		return
 	}
 
 	// Store this pool in our map, keyed by NamespacedName.
@@ -230,7 +230,7 @@ func (p *endpointPickerPass) ApplyForBackend(
 	// Attach per-route override to typed_per_filter_config.
 	pCtx.TypedFilterConfig.AddTypedConfig(wellknown.InfPoolTransformationFilterName, override)
 
-	return nil
+	return
 }
 
 // HttpFilters inserts one ext_proc filter per used InferencePool.

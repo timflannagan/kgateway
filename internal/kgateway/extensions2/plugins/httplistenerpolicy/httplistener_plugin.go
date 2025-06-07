@@ -2,7 +2,6 @@ package httplistenerpolicy
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"time"
 
@@ -150,10 +149,11 @@ func (p *httpListenerPolicyPluginGwPass) ApplyHCM(
 	ctx context.Context,
 	pCtx *ir.HcmContext,
 	out *envoy_hcm.HttpConnectionManager,
-) error {
+) {
 	policy, ok := pCtx.Policy.(*httpListenerPolicy)
 	if !ok {
-		return fmt.Errorf("internal error: expected httplistener policy, got %T", pCtx.Policy)
+		// FIXME: handle attachment issues during IR construction
+		return
 	}
 
 	// translate access logging configuration
@@ -164,7 +164,7 @@ func (p *httpListenerPolicyPluginGwPass) ApplyHCM(
 		out.UpgradeConfigs = append(out.GetUpgradeConfigs(), policy.upgradeConfigs...)
 	}
 
-	return nil
+	return
 }
 
 func convertUpgradeConfig(policy *v1alpha1.HTTPListenerPolicy) []*envoy_hcm.HttpConnectionManager_UpgradeConfig {

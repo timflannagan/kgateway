@@ -260,11 +260,7 @@ func TestApplyAIBackend(t *testing.T) {
 					t.Errorf("expected error %v but got %v", tt.expectedError, err)
 				}
 			} else if tt.expectedError == "" {
-				err := ApplyAIBackend(aiIR, tt.pCtx, tt.out)
-				if err != nil {
-					t.Errorf("expected no error but got %v", err)
-				}
-
+				ApplyAIBackend(aiIR, tt.pCtx, tt.out)
 				if !tt.out.GetRoute().GetAutoHostRewrite().GetValue() {
 					t.Errorf("expected auto host rewrite to be set after AI Backend translation")
 				}
