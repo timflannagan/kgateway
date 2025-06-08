@@ -15,10 +15,10 @@ import (
 )
 
 func (p *TrafficPolicy) Validate(ctx context.Context, v validator.Validator, policy *v1alpha1.TrafficPolicy) error {
-	if shouldSkipValidation(policy) {
-		logger.Info("skipping validation for policy", "policy", policy.Name)
-		return nil
-	}
+	// if shouldSkipValidation(policy) {
+	// 	logger.Info("skipping validation for policy", "policy", policy.Name)
+	// 	return nil
+	// }
 	if err := p.validateProto(ctx); err != nil {
 		return err
 	}
