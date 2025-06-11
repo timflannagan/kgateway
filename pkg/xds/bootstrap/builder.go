@@ -16,32 +16,45 @@ import (
 
 // ConfigBuilder helps construct a partial bootstrap config for validation.
 type ConfigBuilder struct {
-	configs ir.TypedFilterConfigMap
+	filterConfigs ir.TypedFilterConfigMap
+	routes        []*envoy_config_route_v3.Route
 }
 
 // New creates a new ConfigBuilder
 func New() *ConfigBuilder {
 	return &ConfigBuilder{
-		configs: make(ir.TypedFilterConfigMap),
+		filterConfigs: make(ir.TypedFilterConfigMap),
 	}
 }
 
 // AddFilterConfig adds a filter configuration to the builder.
 func (b *ConfigBuilder) AddFilterConfig(name string, config proto.Message) {
-	b.configs.AddTypedConfig(name, config)
+	b.filterConfigs.AddTypedConfig(name, config)
+}
+
+// AddRouteConfig adds a route configuration to the builder.
+func (b *ConfigBuilder) AddRouteConfig(r *envoy_config_route_v3.Route) {
+	b.routes = append(b.routes, r)
 }
 
 // Build creates a partial bootstrap config suitable for validation.
 func (b *ConfigBuilder) Build() (*envoy_config_bootstrap_v3.Bootstrap, error) {
+	vhost := &envoy_config_route_v3.VirtualHost{
+		Name:    "placeholder_vhost",
+		Domains: []string{"*"},
+	}
+	if len(b.filterConfigs) > 0 {
+		vhost.TypedPerFilterConfig = b.filterConfigs.ToAnyMap()
+	}
+	if len(b.routes) > 0 {
+		vhost.Routes = b.routes
+	}
+
 	hcmAny, err := utils.MessageToAny(&envoy_extensions_filters_network_http_connection_manager_v3.HttpConnectionManager{
 		StatPrefix: "placeholder",
 		RouteSpecifier: &envoy_extensions_filters_network_http_connection_manager_v3.HttpConnectionManager_RouteConfig{
 			RouteConfig: &envoy_config_route_v3.RouteConfiguration{
-				VirtualHosts: []*envoy_config_route_v3.VirtualHost{{
-					Name:                 "placeholder_vhost",
-					Domains:              []string{"*"},
-					TypedPerFilterConfig: b.configs.ToAnyMap(),
-				}},
+				VirtualHosts: []*envoy_config_route_v3.VirtualHost{vhost},
 			},
 		},
 	})

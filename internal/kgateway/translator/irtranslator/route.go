@@ -12,6 +12,7 @@ import (
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,9 +22,10 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator/routeutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
-	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	reportssdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/reporter"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/regexutils"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
+	"github.com/kgateway-dev/kgateway/v2/pkg/xds/bootstrap"
 )
 
 const (
@@ -169,9 +171,7 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 
 	typedPerFilterConfigRoute := ir.TypedFilterConfigMap(map[string]proto.Message{})
 	// configure the route action
-	if err := h.configureRouteAction(ctx, in, out, typedPerFilterConfigRoute); err != nil {
-		return h.handleRouteError(err, in, out, routeReport)
-	}
+	h.configureRouteAction(ctx, in, out, typedPerFilterConfigRoute)
 	// run route plugins that may set action or typed per filter config
 	if err := h.runRoutePlugins(ctx, routeReport, in, out, typedPerFilterConfigRoute); err != nil {
 		return h.handleRouteError(err, in, out, routeReport)
@@ -181,15 +181,27 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 		return h.handleRouteError(err, in, out, routeReport)
 	}
 	// apply typed per filter config from translating route action and route plugins
-	if err := h.applyTypedFilterConfig(out, typedPerFilterConfigRoute); err != nil {
-		return h.handleRouteError(err, in, out, routeReport)
-	}
+	h.applyTypedFilterConfig(out, typedPerFilterConfigRoute)
 	// check if action is required but missing. skip for delegates.
 	if out.GetAction() == nil {
 		if in.Delegates {
 			return nil, nil
 		}
 		return h.handleRouteError(errors.New("no action specified"), in, out, routeReport)
+	}
+	builder := bootstrap.New()
+	builder.AddRouteConfig(out)
+	bootstrap, err := builder.Build()
+	if err != nil {
+		return h.handleRouteError(err, in, out, routeReport)
+	}
+	data, err := protojson.Marshal(bootstrap)
+	if err != nil {
+		return h.handleRouteError(err, in, out, routeReport)
+	}
+	v := validator.New(true)
+	if err := v.Validate(ctx, string(data)); err != nil {
+		return h.handleRouteError(err, in, out, routeReport)
 	}
 
 	return out, nil
@@ -200,36 +212,32 @@ func (h *httpRouteConfigurationTranslator) configureRouteAction(
 	in ir.HttpRouteRuleMatchIR,
 	out *envoy_config_route_v3.Route,
 	typedPerFilterConfigRoute ir.TypedFilterConfigMap,
-) error {
+) {
 	if len(in.Backends) == 1 {
 		// if there's only one backend, we need to reuse typedPerFilterConfigRoute in both translateRouteAction and runRoutePlugins
 		out.Action = h.translateRouteAction(ctx, in, out, typedPerFilterConfigRoute)
-		return nil
 	}
 	if len(in.Backends) > 0 {
 		// If there is more than one backend, we translate the backends as WeightedClusters and each weighted cluster
 		// will have a TypedPerFilterConfig that overrides the parent route-level config.
 		out.Action = h.translateRouteAction(ctx, in, out, nil)
-		return nil
 	}
-	return nil
 }
 
 func (h *httpRouteConfigurationTranslator) applyTypedFilterConfig(
 	out *envoy_config_route_v3.Route,
 	typedPerFilterConfigRoute ir.TypedFilterConfigMap,
-) error {
+) {
 	typedPerFilterConfig := typedPerFilterConfigRoute.ToAnyMap()
 	if out.GetTypedPerFilterConfig() == nil {
 		out.TypedPerFilterConfig = typedPerFilterConfig
-		return nil
+		return
 	}
 	for k, v := range typedPerFilterConfig {
 		if _, exists := out.GetTypedPerFilterConfig()[k]; !exists {
 			out.GetTypedPerFilterConfig()[k] = v
 		}
 	}
-	return nil
 }
 
 func (h *httpRouteConfigurationTranslator) handleRouteError(
@@ -311,7 +319,6 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 	//
 	// NOTE: AttachedPolicies must have policies in the ordered by hierarchy from root to leaf in the delegation chain where
 	// each level has policies ordered by rule level policies before entire route level policies.
-
 	var attachedPolicies ir.AttachedPolicies
 	delegatingParent := in.DelegatingParent
 	var hierarchicalPriority int
@@ -330,6 +337,7 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 		attachedPolicies.Append(in.Parent.AttachedPolicies)
 	}
 
+	var errs []error
 	for _, gk := range attachedPolicies.ApplyOrderedGroupKinds() {
 		pols := attachedPolicies.Policies[gk]
 		pass := h.PluginPass[gk]
@@ -344,34 +352,17 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 			TypedFilterConfig: typedPerFilterConfig,
 		}
 		for _, pol := range mergePolicies(pass, pols) {
-			if hasTerminalError := h.processPolicyErrors(pol.Errors); hasTerminalError {
-				return policy.NewTerminalError("policy reported terminal errors", errors.Join(pol.Errors...))
+			if len(pol.Errors) > 0 {
+				errs = append(errs, pol.Errors...)
 			}
 			pctx.Policy = pol.PolicyIr
 			pass.ApplyForRoute(ctx, pctx, out)
 		}
-		// TODO: check return value, if error returned, log error and report condition
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to apply route plugins for %s: %w", in.Name, errors.Join(errs...))
 	}
 	return nil
-}
-
-// processPolicyErrors checks if there are any terminal errors in the policy errors.
-// Returns true if there are terminal errors, false otherwise.
-func (h *httpRouteConfigurationTranslator) processPolicyErrors(policyErrors []error) bool {
-	if len(policyErrors) == 0 {
-		return false
-	}
-	for _, err := range policyErrors {
-		var policyErr *policy.PolicyError
-		if !errors.As(err, &policyErr) {
-			continue
-		}
-		if !policyErr.IsTerminal() {
-			continue
-		}
-		return true
-	}
-	return false
 }
 
 func mergePolicies(pass *TranslationPass, policies []ir.PolicyAtt) []ir.PolicyAtt {
@@ -383,7 +374,7 @@ func mergePolicies(pass *TranslationPass, policies []ir.PolicyAtt) []ir.PolicyAt
 	return policies
 }
 
-func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext) error {
+func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext) {
 	for _, gk := range in.AttachedPolicies.ApplyOrderedGroupKinds() {
 		pols := in.AttachedPolicies.Policies[gk]
 		pass := h.PluginPass[gk]
@@ -395,20 +386,19 @@ func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Contex
 		for _, pol := range mergePolicies(pass, pols) {
 			// Policy on extension ref
 			pass.ApplyForRouteBackend(ctx, pol.PolicyIr, pCtx)
-			// TODO: check return value, if error returned, log error and report condition
 		}
 	}
-	return nil
 }
 
-func (h *httpRouteConfigurationTranslator) runBackend(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext, outRoute *envoy_config_route_v3.Route) error {
-	if in.Backend.BackendObject != nil {
-		backendPass := h.PluginPass[in.Backend.BackendObject.GetGroupKind()]
-		if backendPass != nil {
-			backendPass.ApplyForBackend(ctx, pCtx, in, outRoute)
-		}
+func (h *httpRouteConfigurationTranslator) runBackend(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext, outRoute *envoy_config_route_v3.Route) {
+	if in.Backend.BackendObject == nil {
+		return
 	}
-	return nil
+	backendPass := h.PluginPass[in.Backend.BackendObject.GetGroupKind()]
+	if backendPass == nil {
+		return
+	}
+	backendPass.ApplyForBackend(ctx, pCtx, in, outRoute)
 }
 
 func (h *httpRouteConfigurationTranslator) translateRouteAction(
@@ -418,7 +408,6 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 	parentTypedPerFilterConfig ir.TypedFilterConfigMap,
 ) *envoy_config_route_v3.Route_Route {
 	var clusters []*envoy_config_route_v3.WeightedCluster_ClusterWeight
-
 	for _, backend := range in.Backends {
 		clusterName := backend.Backend.ClusterName
 
@@ -440,28 +429,19 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 			TypedFilterConfig: typedPerFilterConfig,
 		}
 
-		// non attached policy translation
-		err := h.runBackend(
+		// apply backend plugins
+		h.runBackend(
 			ctx,
 			backend,
 			&pCtx,
 			outRoute,
 		)
-		if err != nil {
-			// TODO: error on status
-			h.logger.Error("error processing backends", "error", err)
-		}
-
-		err = h.runBackendPolicies(
+		// apply route backend plugins
+		h.runBackendPolicies(
 			ctx,
 			backend,
 			&pCtx,
 		)
-		if err != nil {
-			// TODO: error on status
-			h.logger.Error("error processing backends with policies", "error", err)
-		}
-
 		// Translating weighted clusters needs the typed per filter config on each cluster
 		cw.TypedPerFilterConfig = typedPerFilterConfig.ToAnyMap()
 		clusters = append(clusters, cw)
