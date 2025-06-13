@@ -194,10 +194,9 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(ctx context.Context,
 		h.logger.Debug("invalid route", "error", err)
 		// TODO: we may want to aggregate all these errors per http route object and report one message?
 		routeReport.SetCondition(reportssdk.RouteCondition{
-			Type:   gwv1.RouteConditionPartiallyInvalid,
-			Status: metav1.ConditionTrue,
-			Reason: gwv1.RouteConditionReason(err.Error()),
-			// The message for this condition MUST start with the prefix "Dropped Rule"
+			Type:    gwv1.RouteConditionPartiallyInvalid,
+			Status:  metav1.ConditionTrue,
+			Reason:  gwv1.RouteReasonUnsupportedValue,
 			Message: fmt.Sprintf("Dropped Rule: %v", err),
 		})
 		//  TODO: we currently drop the route which is not good;
@@ -285,11 +284,29 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 		attachedPolicies.Append(in.Parent.AttachedPolicies)
 	}
 
+	// Collect errors from all attached policies
 	var errs []error
+	for gk, policies := range attachedPolicies.Policies {
+		validPolicies := make([]ir.PolicyAtt, 0, len(policies))
+		for _, policy := range policies {
+			if len(policy.Errors) > 0 {
+				errs = append(errs, fmt.Errorf("policy attachment error for %s.%s: %w",
+					gk.Kind, gk.Group, errors.Join(policy.Errors...)),
+				)
+				continue
+			}
+			validPolicies = append(validPolicies, policy)
+		}
+		if len(validPolicies) > 0 {
+			attachedPolicies.Policies[gk] = validPolicies
+		} else {
+			// If no valid policies remain, remove the entire group
+			delete(attachedPolicies.Policies, gk)
+		}
+	}
 
 	applyForPolicy := func(ctx context.Context, pass *TranslationPass, pctx *ir.RouteContext, out *envoy_config_route_v3.Route) {
-		err := pass.ApplyForRoute(ctx, pctx, out)
-		if err != nil {
+		if err := pass.ApplyForRoute(ctx, pctx, out); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -315,7 +332,6 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 
 		// TODO: check return value, if error returned, log error and report condition
 	}
-
 	err := errors.Join(errs...)
 	if err != nil {
 		routeReport.SetCondition(reportssdk.RouteCondition{

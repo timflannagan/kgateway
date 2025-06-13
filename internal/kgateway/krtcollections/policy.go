@@ -1058,17 +1058,14 @@ func (h *RoutesIndex) getExtensionRefs(kctx krt.HandlerContext, ns string, r []g
 		Policies: map[schema.GroupKind][]ir.PolicyAtt{},
 	}
 	for _, ext := range r {
-		// TODO: propagate error if we can't find the extension
+		// attempt to resolve the extension. always create a PolicyAtt to propagate errors, even if policy is nil
 		gk, policy, errs := h.resolveExtension(kctx, ns, ext)
-		if policy != nil {
-			ret.Policies[gk] = append(ret.Policies[gk], ir.PolicyAtt{
-				// direct attachment - no target ref
-				PolicyIr: policy,
-				Errors:   errs,
-			})
-		} else if len(errs) > 0 {
-			logger.Error("unresolved HTTPRouteFilter", "error", errors.Join(errs...))
+		policyAtt := ir.PolicyAtt{
+			PolicyIr:  policy,
+			Errors:    errs,
+			GroupKind: gk,
 		}
+		ret.Policies[gk] = append(ret.Policies[gk], policyAtt)
 	}
 	return ret
 }
@@ -1086,10 +1083,6 @@ func (h *RoutesIndex) getBuiltInRulePolicies(rule gwv1.HTTPRouteRule) ir.Attache
 
 func (h *RoutesIndex) resolveExtension(kctx krt.HandlerContext, ns string, ext gwv1.HTTPRouteFilter) (schema.GroupKind, ir.PolicyIR, []error) {
 	if ext.Type == gwv1.HTTPRouteFilterExtensionRef {
-		if ext.ExtensionRef == nil {
-			// TODO: report error!!
-			return schema.GroupKind{}, nil, nil
-		}
 		ref := *ext.ExtensionRef
 		key := ir.ObjectSource{
 			Group:     string(ref.Group),
@@ -1097,14 +1090,13 @@ func (h *RoutesIndex) resolveExtension(kctx krt.HandlerContext, ns string, ext g
 			Namespace: ns,
 			Name:      string(ref.Name),
 		}
-		policy := h.policies.fetchPolicy(kctx, key)
-		if policy == nil {
-			return schema.GroupKind{}, nil, []error{ErrPolicyNotFound}
-		}
-
 		gk := schema.GroupKind{
 			Group: string(ref.Group),
 			Kind:  string(ref.Kind),
+		}
+		policy := h.policies.fetchPolicy(kctx, key)
+		if policy == nil {
+			return gk, nil, []error{ErrPolicyNotFound}
 		}
 		return gk, policy.PolicyIR, policy.Errors
 	}
@@ -1218,7 +1210,7 @@ func toAttachedPolicies(policies []ir.PolicyAtt, opts ...ir.PolicyAttachmentOpts
 			Group: p.GroupKind.Group,
 			Kind:  p.GroupKind.Kind,
 		}
-		// Create a new PolicyAtt instead of using `p` because the PolicyAttchmentOpts are per-route
+		// Create a new PolicyAtt instead of using `p` because the PolicyAttachmentOpts are per-route
 		// and not encoded in `p`
 		polAtt := ir.PolicyAtt{
 			PolicyIr:  p.PolicyIr,
