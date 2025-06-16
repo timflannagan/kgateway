@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+// FIXME: Needs to be refactored to avoid exported functions shadowing the package-level variables.
+
 var (
 	// invalidPathSequences are path sequences that should not be contained in a path
 	invalidPathSequences = []string{"//", "/./", "/../", "%2f", "%2F", "#"}

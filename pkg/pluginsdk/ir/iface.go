@@ -2,7 +2,6 @@ package ir
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -40,6 +39,29 @@ type VirtualHostContext struct {
 	TypedFilterConfig TypedFilterConfigMap
 }
 
+type RouteBackendContext struct {
+	FilterChainName string
+	Backend         *BackendObjectIR
+	// TypedFilterConfig will be output on the Route or WeightedCluster level after all plugins have run
+	TypedFilterConfig       TypedFilterConfigMap
+	RequestHeadersToAdd     []*envoy_config_core_v3.HeaderValueOption
+	RequestHeadersToRemove  []string
+	ResponseHeadersToAdd    []*envoy_config_core_v3.HeaderValueOption
+	ResponseHeadersToRemove []string
+}
+
+type RouteContext struct {
+	FilterChainName string
+	Policy          PolicyIR
+	In              HttpRouteRuleMatchIR
+	// TypedFilterConfig will be output on the Route level after all plugins have run
+	TypedFilterConfig TypedFilterConfigMap
+}
+
+type HcmContext struct {
+	Policy PolicyIR
+}
+
 type TypedFilterConfigMap map[string]proto.Message
 
 // AddTypedConfig SETS the config for a given key. // TODO: consider renaming to SetTypedConfig
@@ -73,29 +95,6 @@ func (r *TypedFilterConfigMap) ToAnyMap() map[string]*anypb.Any {
 	return typedPerFilterConfigAny
 }
 
-type RouteBackendContext struct {
-	FilterChainName string
-	Backend         *BackendObjectIR
-	// TypedFilterConfig will be output on the Route or WeightedCluster level after all plugins have run
-	TypedFilterConfig       TypedFilterConfigMap
-	RequestHeadersToAdd     []*envoy_config_core_v3.HeaderValueOption
-	RequestHeadersToRemove  []string
-	ResponseHeadersToAdd    []*envoy_config_core_v3.HeaderValueOption
-	ResponseHeadersToRemove []string
-}
-
-type RouteContext struct {
-	FilterChainName string
-	Policy          PolicyIR
-	In              HttpRouteRuleMatchIR
-	// TypedFilterConfig will be output on the Route level after all plugins have run
-	TypedFilterConfig TypedFilterConfigMap
-}
-
-type HcmContext struct {
-	Policy PolicyIR
-}
-
 // ProxyTranslationPass represents a single translation pass for a gateway. It can hold state
 // for the duration of the translation.
 // Each of the functions here will be called in the order they appear in the interface.
@@ -112,7 +111,6 @@ type ProxyTranslationPass interface {
 		pCtx *HcmContext,
 		out *envoy_hcm.HttpConnectionManager,
 	)
-
 	// called 1 time for all the routes in a filter chain. Use this to set default PerFilterConfig
 	// No policy is provided here.
 	ApplyRouteConfigPlugin(
@@ -146,7 +144,7 @@ type ProxyTranslationPass interface {
 	// called once per route rule if SupportsPolicyMerge returns false, otherwise this is called only
 	// once on the value returned by MergePolicies.
 	// Applies policy for an HTTPRoute that has a policy attached via a targetRef.
-	// The output configures the envoy_config_route_v3.Route
+	// The output configures the envoy_config_route_v3.Route.
 	// Note: TypedFilterConfig should be applied in the pCtx and is shared between ApplyForRoute, ApplyForBackend
 	// and ApplyForRouteBacken (do not apply on the output route directly)
 	ApplyForRoute(
@@ -154,7 +152,6 @@ type ProxyTranslationPass interface {
 		pCtx *RouteContext,
 		out *envoy_config_route_v3.Route,
 	)
-
 	// TODO: Should this return an error?
 	// called 1 time per filter-chain.
 	// If a plugin emits new filters, they must be with a plugin unique name.
@@ -225,6 +222,7 @@ type PolicyIR interface {
 type PolicyWrapper struct {
 	// ObjectSource is the source of the policy object.
 	ObjectSource `json:",inline"`
+
 	// Policy is the policy object itself. TODO: we can probably remove this
 	Policy metav1.Object
 
@@ -265,9 +263,6 @@ func versionEquals(a, b metav1.Object) bool {
 	}
 	return versionEquals && a.GetUID() == b.GetUID()
 }
-
-// ErrNotAttachable is returned when a policy is not attachable to an object.
-var ErrNotAttachable = fmt.Errorf("policy is not attachable to this object")
 
 // PolicyRun is the interface for a policy run.
 type PolicyRun interface {

@@ -30,8 +30,6 @@ import (
 
 const (
 	webSocketUpgradeType = "websocket"
-	// TODO(tim): determine if this is the correct reason and move to the api package.
-	routeTranslationFailedReason = "RouteTranslationFailed"
 )
 
 type httpRouteConfigurationTranslator struct {
@@ -53,11 +51,8 @@ func (h *httpRouteConfigurationTranslator) ComputeRouteConfiguration(ctx context
 	// the policies in order - first listener as they are more specific and thus higher priority.
 	// then gateway policies.
 	attachedPolicies.Append(h.attachedPolicies, h.gw.AttachedHttpPolicies)
-	cfg := &envoy_config_route_v3.RouteConfiguration{
-		Name: h.routeConfigName,
-	}
+	cfg := &envoy_config_route_v3.RouteConfiguration{Name: h.routeConfigName}
 	typedPerFilterConfigRoute := ir.TypedFilterConfigMap(map[string]proto.Message{})
-
 	for _, gk := range attachedPolicies.ApplyOrderedGroupKinds() {
 		pols := attachedPolicies.Policies[gk]
 		pass := h.PluginPass[gk]
@@ -82,10 +77,6 @@ func (h *httpRouteConfigurationTranslator) ComputeRouteConfiguration(ctx context
 	// See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteSpec - hostnames field
 	cfg.IgnorePortInHostMatching = true
 
-	//	if mostSpecificVal := h.parentListener.GetRouteOptions().GetMostSpecificHeaderMutationsWins(); mostSpecificVal != nil {
-	//		cfg.MostSpecificHeaderMutationsWins = mostSpecificVal.GetValue()
-	//	}
-
 	return cfg
 }
 
@@ -101,12 +92,7 @@ func (h *httpRouteConfigurationTranslator) computeVirtualHost(
 	ctx context.Context,
 	virtualHost *ir.VirtualHost,
 ) *envoy_config_route_v3.VirtualHost {
-	sanitizedName := utils.SanitizeForEnvoy(ctx, virtualHost.Name, "virtual host")
-
-	var (
-		envoyRoutes []*envoy_config_route_v3.Route
-		errs        []error
-	)
+	var envoyRoutes []*envoy_config_route_v3.Route
 	for i, route := range virtualHost.Rules {
 		// TODO: not sure if we need listener parent ref here or the http parent ref
 		var routeReport reportssdk.ParentRefReporter = &reports.ParentRefReport{}
@@ -117,10 +103,7 @@ func (h *httpRouteConfigurationTranslator) computeVirtualHost(
 			routeReport = h.reporter.Route(route.Parent.SourceObject).ParentRef(&route.ParentRef)
 		}
 		generatedName := fmt.Sprintf("%s-route-%d", virtualHost.Name, i)
-		computedRoute, err := h.envoyRoutes(ctx, routeReport, route, generatedName)
-		if err != nil {
-			errs = append(errs, err)
-		}
+		computedRoute := h.envoyRoutes(ctx, routeReport, route, generatedName)
 		if computedRoute != nil {
 			envoyRoutes = append(envoyRoutes, computedRoute)
 		}
@@ -134,20 +117,9 @@ func (h *httpRouteConfigurationTranslator) computeVirtualHost(
 		// TODO (ilackarms): support external-only TLS
 		envoyRequireTls = envoy_config_route_v3.VirtualHost_ALL
 	}
-	if len(errs) == 0 {
-		// Implement this correctly or remove this logic.
-		logger.Info("route validation succeeded", "route", virtualHost.Name)
-		// clear stale partially invalid condition. not sure how to implement this correctly.
-		// h.reporter.Route(virtualHost.Name).SetCondition(reportssdk.RouteCondition{
-		// 	Type:    gwv1.RouteConditionPartiallyInvalid,
-		// 	Status:  metav1.ConditionFalse,
-		// 	Reason:  gwv1.RouteReasonAccepted,
-		// 	Message: "Route validation succeeded",
-		// })
-	}
 
 	out := &envoy_config_route_v3.VirtualHost{
-		Name:       sanitizedName,
+		Name:       utils.SanitizeForEnvoy(ctx, virtualHost.Name, "virtual host"),
 		Domains:    domains,
 		Routes:     envoyRoutes,
 		RequireTls: envoyRequireTls,
@@ -173,7 +145,7 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(ctx context.Context,
 	routeReport reportssdk.ParentRefReporter,
 	in ir.HttpRouteRuleMatchIR,
 	generatedName string,
-) (*envoy_config_route_v3.Route, error) {
+) *envoy_config_route_v3.Route {
 	out := h.initRoutes(in, generatedName)
 
 	typedPerFilterConfigRoute := ir.TypedFilterConfigMap(map[string]proto.Message{})
@@ -188,37 +160,43 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(ctx context.Context,
 	}
 	// run route plugins that may set action or typed per filter config
 	if err := h.runRoutePlugins(ctx, routeReport, in, out, typedPerFilterConfigRoute); err != nil {
-		return h.handleRouteError(err, in, out, routeReport)
+		h.handleRouteError(err, in, out, routeReport)
+		return nil
 	}
 	// validate envoy route for structural errors
 	if err := validateEnvoyRoute(out); err != nil {
-		return h.handleRouteError(err, in, out, routeReport)
+		h.handleRouteError(err, in, out, routeReport)
+		return nil
 	}
 	// apply typed per filter config from translating route action and route plugins
 	h.applyTypedFilterConfig(out, typedPerFilterConfigRoute)
 	// check if action is required but missing. skip for delegates.
 	if out.GetAction() == nil {
 		if in.Delegates {
-			return nil, nil
+			return nil
 		}
-		return h.handleRouteError(errors.New("no action specified"), in, out, routeReport)
+		h.handleRouteError(errors.New("no action specified"), in, out, routeReport)
+		return nil
 	}
 	builder := bootstrap.New()
 	builder.AddRouteConfig(out)
 	bootstrap, err := builder.Build()
 	if err != nil {
-		return h.handleRouteError(err, in, out, routeReport)
+		h.handleRouteError(err, in, out, routeReport)
+		return nil
 	}
 	data, err := protojson.Marshal(bootstrap)
 	if err != nil {
-		return h.handleRouteError(err, in, out, routeReport)
+		h.handleRouteError(err, in, out, routeReport)
+		return nil
 	}
 	v := validator.New(true)
 	if err := v.Validate(ctx, string(data)); err != nil {
-		return h.handleRouteError(err, in, out, routeReport)
+		h.handleRouteError(err, in, out, routeReport)
+		return nil
 	}
 
-	return out, nil
+	return out
 }
 
 func (h *httpRouteConfigurationTranslator) applyTypedFilterConfig(
@@ -250,7 +228,7 @@ func (h *httpRouteConfigurationTranslator) handleRouteError(
 	routeReport.SetCondition(reportssdk.RouteCondition{
 		Type:    gwv1.RouteConditionPartiallyInvalid,
 		Status:  metav1.ConditionTrue,
-		Reason:  routeTranslationFailedReason,
+		Reason:  gwv1.RouteReasonUnsupportedValue,
 		Message: fmt.Sprintf("Dropped Rule %d: %v", in.MatchIndex, err),
 	})
 	return nil, err
@@ -266,7 +244,7 @@ func (h *httpRouteConfigurationTranslator) replaceInvalidRoute(
 	routeReport.SetCondition(reportssdk.RouteCondition{
 		Type:    gwv1.RouteConditionPartiallyInvalid,
 		Status:  metav1.ConditionTrue,
-		Reason:  routeTranslationFailedReason,
+		Reason:  gwv1.RouteReasonUnsupportedValue,
 		Message: fmt.Sprintf("Dropped Rule %d: %v", in.MatchIndex, err),
 	})
 	out.Action = &envoy_config_route_v3.Route_DirectResponse{
@@ -440,6 +418,7 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 			&pCtx,
 		)
 
+		// Hard to read: needs it's own function.
 		backendConfigCtx.RequestHeadersToAdd = pCtx.RequestHeadersToAdd
 		backendConfigCtx.RequestHeadersToRemove = pCtx.RequestHeadersToRemove
 		backendConfigCtx.ResponseHeadersToAdd = pCtx.ResponseHeadersToAdd
@@ -461,7 +440,6 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 			ClusterNotFoundResponseCode: envoy_config_route_v3.RouteAction_INTERNAL_SERVER_ERROR,
 		}
 	}
-
 	routeAction := &envoy_config_route_v3.Route_Route{
 		Route: action,
 	}
@@ -476,7 +454,6 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 			}
 		}
 		// Skip setting the typed per filter config here, set it in the envoyRoutes() after runRoutePlugins runs
-
 	default:
 		// Only set weighted clusters if unspecified since a plugin may have set it.
 		if action.GetWeightedClusters() == nil {
@@ -522,23 +499,13 @@ func validateEnvoyRoute(r *envoy_config_route_v3.Route) error {
 	return fmt.Errorf("error %s: %w", r.GetName(), errors.Join(errs...))
 }
 
-// creates Envoy routes for each matcher provided on our Gateway route
+// initRoutes initializes Envoy routes for each matcher provided on our Gateway route.
 func (h *httpRouteConfigurationTranslator) initRoutes(
 	in ir.HttpRouteRuleMatchIR,
 	generatedName string,
 ) *envoy_config_route_v3.Route {
-	//	if len(in.Matches) == 0 {
-	//		return []*envoy_config_route_v3.Route{
-	//			{
-	//				Match: &envoy_config_route_v3.RouteMatch{
-	//					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
-	//				},
-	//			},
-	//		}
-	//	}
-
 	out := &envoy_config_route_v3.Route{
-		Match: translateGlooMatcher(in.Match),
+		Match: translateMatcher(in.Match),
 	}
 	name := in.Name
 	if name != "" {
@@ -546,11 +513,10 @@ func (h *httpRouteConfigurationTranslator) initRoutes(
 	} else {
 		out.Name = fmt.Sprintf("%s-matcher-%d", generatedName, in.MatchIndex)
 	}
-
 	return out
 }
 
-func translateGlooMatcher(matcher gwv1.HTTPRouteMatch) *envoy_config_route_v3.RouteMatch {
+func translateMatcher(matcher gwv1.HTTPRouteMatch) *envoy_config_route_v3.RouteMatch {
 	match := &envoy_config_route_v3.RouteMatch{
 		Headers:         envoyHeaderMatcher(matcher.Headers),
 		QueryParameters: envoyQueryMatcher(matcher.QueryParams),
@@ -567,7 +533,6 @@ func translateGlooMatcher(matcher gwv1.HTTPRouteMatch) *envoy_config_route_v3.Ro
 			},
 		})
 	}
-
 	setEnvoyPathMatcher(matcher, match)
 	return match
 }
@@ -588,11 +553,12 @@ func setEnvoyPathMatcher(match gwv1.HTTPRouteMatch, out *envoy_config_route_v3.R
 			out.PathSpecifier = &envoy_config_route_v3.RouteMatch_Prefix{
 				Prefix: pathValue,
 			}
-		} else {
-			out.PathSpecifier = &envoy_config_route_v3.RouteMatch_PathSeparatedPrefix{
-				PathSeparatedPrefix: pathValue,
-			}
+			return
 		}
+		out.PathSpecifier = &envoy_config_route_v3.RouteMatch_PathSeparatedPrefix{
+			PathSeparatedPrefix: pathValue,
+		}
+		return
 	case gwv1.PathMatchExact:
 		out.PathSpecifier = &envoy_config_route_v3.RouteMatch_Path{
 			Path: pathValue,
@@ -610,11 +576,10 @@ func envoyHeaderMatcher(in []gwv1.HTTPHeaderMatch) []*envoy_config_route_v3.Head
 		envoyMatch := &envoy_config_route_v3.HeaderMatcher{
 			Name: string(matcher.Name),
 		}
-		regex := false
+		var regex bool
 		if matcher.Type != nil && *matcher.Type == gwv1.HeaderMatchRegularExpression {
 			regex = true
 		}
-
 		// TODO: not sure if we should do PresentMatch according to the spec.
 		if matcher.Value == "" {
 			envoyMatch.HeaderMatchSpecifier = &envoy_config_route_v3.HeaderMatcher_PresentMatch{
@@ -650,11 +615,10 @@ func envoyQueryMatcher(in []gwv1.HTTPQueryParamMatch) []*envoy_config_route_v3.Q
 		envoyMatch := &envoy_config_route_v3.QueryParameterMatcher{
 			Name: string(matcher.Name),
 		}
-		regex := false
+		var regex bool
 		if matcher.Type != nil && *matcher.Type == gwv1.QueryParamMatchRegularExpression {
 			regex = true
 		}
-
 		// TODO: not sure if we should do PresentMatch according to the spec.
 		if matcher.Value == "" {
 			envoyMatch.QueryParameterMatchSpecifier = &envoy_config_route_v3.QueryParameterMatcher_PresentMatch{
