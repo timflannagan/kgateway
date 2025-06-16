@@ -311,8 +311,6 @@ func (d *Deployer) getValues(gw *api.Gateway, gwParam *v1alpha1.GatewayParameter
 		Name:      gw.GetName(),
 		Namespace: gw.GetNamespace(),
 	}
-	// HACK: wait until the index has synced
-	d.inputs.CommonCollections.GatewayIndex.Gateways.WaitUntilSynced(context.Background().Done())
 	irGW := d.inputs.CommonCollections.GatewayIndex.Gateways.GetKey(gwKey.ResourceName())
 	if irGW == nil {
 		irGW = gatewayFrom(gw)
