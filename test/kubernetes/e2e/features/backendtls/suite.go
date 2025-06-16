@@ -119,12 +119,26 @@ func (s *clientTlsTestingSuite) TestBackendTLSPolicyAndStatus() {
 			Body:       gomega.ContainSubstring(defaults.NginxResponse),
 		},
 	)
+	s.testInstallation.Assertions.AssertEventualCurlResponse(
+		s.ctx,
+		defaults.CurlPodExecOpt,
+		[]curl.Option{
+			curl.WithHost(kubeutils.ServiceFQDN(proxyService.ObjectMeta)),
+			curl.WithHostHeader("foo.com"),
+			curl.WithPath("/"),
+		},
+		&matchers.HttpResponse{
+			// google return 404 this when going to google.com  with host header of "foo.com"
+			StatusCode: http.StatusNotFound,
+		},
+	)
 
 	s.assertPolicyStatus(metav1.Condition{
-		Type:    string(gwv1a2.PolicyConditionAccepted),
-		Status:  metav1.ConditionTrue,
-		Reason:  string(gwv1a2.PolicyReasonAccepted),
-		Message: reports.PolicyAcceptedAndAttachedMsg,
+		Type:               string(gwv1a2.PolicyConditionAccepted),
+		Status:             metav1.ConditionTrue,
+		Reason:             string(gwv1a2.PolicyReasonAccepted),
+		Message:            reports.PolicyAcceptedAndAttachedMsg,
+		ObservedGeneration: backendTlsPolicy.Generation,
 	})
 
 	// delete configmap so we can assert status updates correctly
@@ -132,10 +146,11 @@ func (s *clientTlsTestingSuite) TestBackendTLSPolicyAndStatus() {
 	s.Require().NoError(err)
 
 	s.assertPolicyStatus(metav1.Condition{
-		Type:    string(gwv1a2.PolicyConditionAccepted),
-		Status:  metav1.ConditionFalse,
-		Reason:  string(gwv1a2.PolicyReasonInvalid),
-		Message: fmt.Sprintf("%s: default/ca", backendtlspolicy.ErrConfigMapNotFound),
+		Type:               string(gwv1a2.PolicyConditionAccepted),
+		Status:             metav1.ConditionFalse,
+		Reason:             string(gwv1a2.PolicyReasonInvalid),
+		Message:            fmt.Sprintf("%s: default/ca", backendtlspolicy.ErrConfigMapNotFound),
+		ObservedGeneration: backendTlsPolicy.Generation,
 	})
 }
 
@@ -165,5 +180,6 @@ func (s *clientTlsTestingSuite) assertPolicyStatus(inCondition metav1.Condition)
 		g.Expect(cond.Status).To(gomega.Equal(inCondition.Status), "policy accepted condition should be true")
 		g.Expect(cond.Reason).To(gomega.Equal(inCondition.Reason), "policy reason should be accepted")
 		g.Expect(cond.Message).To(gomega.Equal(inCondition.Message))
+		g.Expect(cond.ObservedGeneration).To(gomega.Equal(inCondition.ObservedGeneration))
 	}, currentTimeout, pollingInterval).Should(gomega.Succeed())
 }

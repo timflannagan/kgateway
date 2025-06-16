@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -161,8 +162,15 @@ func (h *httpRouteConfigurationTranslator) computeVirtualHost(
 	return out
 }
 
-func (h *httpRouteConfigurationTranslator) envoyRoutes(
-	ctx context.Context,
+type backendConfigContext struct {
+	typedPerFilterConfigRoute ir.TypedFilterConfigMap
+	RequestHeadersToAdd       []*envoy_config_core_v3.HeaderValueOption
+	RequestHeadersToRemove    []string
+	ResponseHeadersToAdd      []*envoy_config_core_v3.HeaderValueOption
+	ResponseHeadersToRemove   []string
+}
+
+func (h *httpRouteConfigurationTranslator) envoyRoutes(ctx context.Context,
 	routeReport reportssdk.ParentRefReporter,
 	in ir.HttpRouteRuleMatchIR,
 	generatedName string,
@@ -405,7 +413,7 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 	ctx context.Context,
 	in ir.HttpRouteRuleMatchIR,
 	outRoute *envoy_config_route_v3.Route,
-	parentTypedPerFilterConfig ir.TypedFilterConfigMap,
+	parentBackendConfigCtx *backendConfigContext,
 ) *envoy_config_route_v3.Route_Route {
 	var clusters []*envoy_config_route_v3.WeightedCluster_ClusterWeight
 	for _, backend := range in.Backends {
@@ -418,15 +426,15 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 			Weight: wrapperspb.UInt32(backend.Backend.Weight),
 		}
 
-		typedPerFilterConfig := parentTypedPerFilterConfig
-		if parentTypedPerFilterConfig == nil {
-			typedPerFilterConfig = map[string]proto.Message{}
+		backendConfigCtx := parentBackendConfigCtx
+		if parentBackendConfigCtx == nil {
+			backendConfigCtx = &backendConfigContext{typedPerFilterConfigRoute: ir.TypedFilterConfigMap(map[string]proto.Message{})}
 		}
 
 		pCtx := ir.RouteBackendContext{
 			FilterChainName:   h.fc.FilterChainName,
 			Backend:           backend.Backend.BackendObject,
-			TypedFilterConfig: typedPerFilterConfig,
+			TypedFilterConfig: backendConfigCtx.typedPerFilterConfigRoute,
 		}
 
 		// apply backend plugins
@@ -442,8 +450,18 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 			backend,
 			&pCtx,
 		)
+
+		backendConfigCtx.RequestHeadersToAdd = pCtx.RequestHeadersToAdd
+		backendConfigCtx.RequestHeadersToRemove = pCtx.RequestHeadersToRemove
+		backendConfigCtx.ResponseHeadersToAdd = pCtx.ResponseHeadersToAdd
+		backendConfigCtx.ResponseHeadersToRemove = pCtx.ResponseHeadersToRemove
+
 		// Translating weighted clusters needs the typed per filter config on each cluster
-		cw.TypedPerFilterConfig = typedPerFilterConfig.ToAnyMap()
+		cw.TypedPerFilterConfig = backendConfigCtx.typedPerFilterConfigRoute.ToAnyMap()
+		cw.RequestHeadersToAdd = backendConfigCtx.RequestHeadersToAdd
+		cw.RequestHeadersToRemove = backendConfigCtx.RequestHeadersToRemove
+		cw.ResponseHeadersToAdd = backendConfigCtx.ResponseHeadersToAdd
+		cw.ResponseHeadersToRemove = backendConfigCtx.ResponseHeadersToRemove
 		clusters = append(clusters, cw)
 	}
 

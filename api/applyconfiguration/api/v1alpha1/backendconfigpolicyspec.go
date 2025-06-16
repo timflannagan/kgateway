@@ -16,6 +16,8 @@ type BackendConfigPolicySpecApplyConfiguration struct {
 	TCPKeepalive                  *TCPKeepaliveApplyConfiguration                `json:"tcpKeepalive,omitempty"`
 	CommonHttpProtocolOptions     *CommonHttpProtocolOptionsApplyConfiguration   `json:"commonHttpProtocolOptions,omitempty"`
 	Http1ProtocolOptions          *Http1ProtocolOptionsApplyConfiguration        `json:"http1ProtocolOptions,omitempty"`
+	TLS                           *TLSApplyConfiguration                         `json:"tls,omitempty"`
+	LoadBalancer                  *LoadBalancerApplyConfiguration                `json:"loadBalancer,omitempty"`
 }
 
 // BackendConfigPolicySpecApplyConfiguration constructs a declarative configuration of the BackendConfigPolicySpec type for use with
@@ -87,5 +89,21 @@ func (b *BackendConfigPolicySpecApplyConfiguration) WithCommonHttpProtocolOption
 // If called multiple times, the Http1ProtocolOptions field is set to the value of the last call.
 func (b *BackendConfigPolicySpecApplyConfiguration) WithHttp1ProtocolOptions(value *Http1ProtocolOptionsApplyConfiguration) *BackendConfigPolicySpecApplyConfiguration {
 	b.Http1ProtocolOptions = value
+	return b
+}
+
+// WithTLS sets the TLS field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the TLS field is set to the value of the last call.
+func (b *BackendConfigPolicySpecApplyConfiguration) WithTLS(value *TLSApplyConfiguration) *BackendConfigPolicySpecApplyConfiguration {
+	b.TLS = value
+	return b
+}
+
+// WithLoadBalancer sets the LoadBalancer field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the LoadBalancer field is set to the value of the last call.
+func (b *BackendConfigPolicySpecApplyConfiguration) WithLoadBalancer(value *LoadBalancerApplyConfiguration) *BackendConfigPolicySpecApplyConfiguration {
+	b.LoadBalancer = value
 	return b
 }
