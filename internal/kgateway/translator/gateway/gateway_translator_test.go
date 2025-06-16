@@ -625,6 +625,22 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 			Name:      "example-gateway",
 		},
 	}),
+	Entry(
+		"TrafficPolicy with explicit generation",
+		translatorTestCase{
+			inputFile:  "traffic-policy/generation.yaml",
+			outputFile: "traffic-policy/generation.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "infra",
+				Name:      "example-gateway",
+			},
+			assertReports: func(gwNN types.NamespacedName, reportsMap reports.ReportMap) {
+				expectedPolicies := []reports.PolicyKey{
+					{Group: "gateway.kgateway.dev", Kind: "TrafficPolicy", Namespace: "infra", Name: "test-policy"},
+				}
+				assertPolicyStatusWithGeneration(reportsMap, expectedPolicies, 42)
+			},
+		}),
 	// TODO: Add this once istio adds support for listener sets
 	// Entry(
 	// 	"listener sets",
@@ -779,8 +795,8 @@ var _ = DescribeTable("Discovery Namespace Selector",
 		"base.yaml", "base_select_infra.yaml", "condition error for httproute: infra/example-route"),
 )
 
-// assertAcceptedPolicyStatus is a helper function to verify policy status conditions
-func assertAcceptedPolicyStatus(reportsMap reports.ReportMap, policies []reports.PolicyKey) {
+// assertPolicyStatusWithGeneration is a helper function to verify policy status conditions with a specific generation
+func assertPolicyStatusWithGeneration(reportsMap reports.ReportMap, policies []reports.PolicyKey, expectedGeneration int64) {
 	var currentStatus gwv1alpha2.PolicyStatus
 
 	for _, policy := range policies {
@@ -794,6 +810,11 @@ func assertAcceptedPolicyStatus(reportsMap reports.ReportMap, policies []reports
 		Expect(acceptedCondition.Status).To(Equal(metav1.ConditionTrue))
 		Expect(acceptedCondition.Reason).To(Equal(string(gwv1alpha2.PolicyReasonAccepted)))
 		Expect(acceptedCondition.Message).To(Equal(reporter.PolicyAcceptedMsg))
-		Expect(acceptedCondition.ObservedGeneration).To(Equal(int64(0)))
+		Expect(acceptedCondition.ObservedGeneration).To(Equal(expectedGeneration))
 	}
+}
+
+// assertAcceptedPolicyStatus is a helper function to verify policy status conditions
+func assertAcceptedPolicyStatus(reportsMap reports.ReportMap, policies []reports.PolicyKey) {
+	assertPolicyStatusWithGeneration(reportsMap, policies, 0)
 }
