@@ -327,6 +327,10 @@ func NewGatewayIndex(
 			Namespace: i.GetNamespace(),
 		}))
 
+		slices.SortFunc(listenerSets, func(a, b *gwxv1a1.XListenerSet) int {
+			return a.GetCreationTimestamp().Compare(b.GetCreationTimestamp().Time)
+		})
+
 		for _, ls := range listenerSets {
 			lsIR := ir.ListenerSet{
 				ObjectSource: ir.ObjectSource{
@@ -376,10 +380,6 @@ func NewGatewayIndex(
 			out.AllowedListenerSets = append(out.AllowedListenerSets, lsIR)
 			out.Listeners = append(out.Listeners, lsIR.Listeners...)
 		}
-
-		slices.SortFunc(out.AllowedListenerSets, func(a, b ir.ListenerSet) int {
-			return a.Obj.GetCreationTimestamp().Compare(b.Obj.GetCreationTimestamp().Time)
-		})
 
 		return &out
 	}, krtopts.ToOptions("gateways")...)
@@ -948,6 +948,17 @@ func (h *RoutesIndex) FetchHttp(kctx krt.HandlerContext, ns, n string) *ir.HttpR
 	}
 	route := krt.FetchOne(kctx, h.httpRoutes, krt.FilterKey(src.ResourceName()))
 	return route
+}
+
+// ListHTTPRoutesInNamespace returns all HTTPRouteIRs in the given namespace.
+func (h *RoutesIndex) ListHTTPRoutesInNamespace(ns string) []ir.HttpRouteIR {
+	var out []ir.HttpRouteIR
+	for _, rt := range h.httpRoutes.List() {
+		if rt.GetNamespace() == ns {
+			out = append(out, rt)
+		}
+	}
+	return out
 }
 
 func (h *RoutesIndex) Fetch(kctx krt.HandlerContext, gk schema.GroupKind, ns, n string) *RouteWrapper {
