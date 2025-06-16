@@ -14,6 +14,7 @@ import (
 
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/reports"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/reporter"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/fsutils"
 	translatortest "github.com/kgateway-dev/kgateway/v2/test/translator"
 )
@@ -131,12 +132,15 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 						Namespace: "default",
 					},
 				}
-				routeStatus := reportsMap.BuildRouteStatus(context.TODO(), route, wellknown.GatewayControllerName)
+				routeStatus := reportsMap.BuildRouteStatus(context.Background(), route, wellknown.GatewayControllerName)
 				Expect(routeStatus).NotTo(BeNil())
 				Expect(routeStatus.Parents).To(HaveLen(1))
 				resolvedRefs := meta.FindStatusCondition(routeStatus.Parents[0].Conditions, string(gwv1.RouteConditionResolvedRefs))
 				Expect(resolvedRefs).NotTo(BeNil())
-				Expect(resolvedRefs.Message).To(Equal("Service \"example-svc\" not found"))
+				Expect(resolvedRefs.Reason).To(Equal(string(gwv1.RouteReasonBackendNotFound)))
+				Expect(resolvedRefs.Status).To(Equal(metav1.ConditionFalse))
+				Expect(resolvedRefs.Message).To(Equal(`Service "example-svc" not found`))
+				Expect(resolvedRefs.ObservedGeneration).To(Equal(int64(0)))
 			},
 		}),
 	Entry(
@@ -155,12 +159,15 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 						Namespace: "default",
 					},
 				}
-				routeStatus := reportsMap.BuildRouteStatus(context.TODO(), route, wellknown.GatewayControllerName)
+				routeStatus := reportsMap.BuildRouteStatus(context.Background(), route, wellknown.GatewayControllerName)
 				Expect(routeStatus).NotTo(BeNil())
 				Expect(routeStatus.Parents).To(HaveLen(1))
 				resolvedRefs := meta.FindStatusCondition(routeStatus.Parents[0].Conditions, string(gwv1.RouteConditionResolvedRefs))
 				Expect(resolvedRefs).NotTo(BeNil())
-				Expect(resolvedRefs.Message).To(Equal("unknown backend kind"))
+				Expect(resolvedRefs.Reason).To(Equal(string(gwv1.RouteReasonInvalidKind)))
+				Expect(resolvedRefs.Status).To(Equal(metav1.ConditionFalse))
+				Expect(resolvedRefs.Message).To(Equal(`unknown backend kind`))
+				Expect(resolvedRefs.ObservedGeneration).To(Equal(int64(0)))
 			},
 		}),
 	Entry(
@@ -173,22 +180,11 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 				Name:      "example-gateway",
 			},
 			assertReports: func(gwNN types.NamespacedName, reportsMap reports.ReportMap) {
-				var currentStatus gwv1alpha2.PolicyStatus
-
 				expectedPolicies := []reports.PolicyKey{
 					{Group: "gateway.kgateway.dev", Kind: "TrafficPolicy", Namespace: "infra", Name: "policy-with-section-name"},
 					{Group: "gateway.kgateway.dev", Kind: "TrafficPolicy", Namespace: "infra", Name: "policy-without-section-name"},
 				}
-
-				for _, policy := range expectedPolicies {
-					// Validate the 2 policies attached to the route
-					status := reportsMap.BuildPolicyStatus(context.TODO(), policy, wellknown.GatewayControllerName, currentStatus)
-					Expect(status).NotTo(BeNil(), "status missing for policy %v", policy)
-					Expect(status.Ancestors).To(HaveLen(1), "ancestor missing for policy %v", policy) // 1 Gateway(ancestor)
-					acceptedCondition := meta.FindStatusCondition(status.Ancestors[0].Conditions, string(gwv1alpha2.PolicyConditionAccepted))
-					Expect(acceptedCondition).NotTo(BeNil())
-					Expect(acceptedCondition.Status).To(Equal(metav1.ConditionTrue))
-				}
+				assertAcceptedPolicyStatus(reportsMap, expectedPolicies)
 			},
 		}),
 	Entry(
@@ -201,22 +197,11 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 				Name:      "example-gateway",
 			},
 			assertReports: func(gwNN types.NamespacedName, reportsMap reports.ReportMap) {
-				var currentStatus gwv1alpha2.PolicyStatus
-
 				expectedPolicies := []reports.PolicyKey{
 					{Group: "gateway.kgateway.dev", Kind: "TrafficPolicy", Namespace: "infra", Name: "transform"},
 					{Group: "gateway.kgateway.dev", Kind: "TrafficPolicy", Namespace: "infra", Name: "rate-limit"},
 				}
-
-				for _, policy := range expectedPolicies {
-					// Validate the 2 policies attached to the route
-					status := reportsMap.BuildPolicyStatus(context.TODO(), policy, wellknown.GatewayControllerName, currentStatus)
-					Expect(status).NotTo(BeNil())
-					Expect(status.Ancestors).To(HaveLen(1)) // 1 Gateway(ancestor)
-					acceptedCondition := meta.FindStatusCondition(status.Ancestors[0].Conditions, string(gwv1alpha2.PolicyConditionAccepted))
-					Expect(acceptedCondition).NotTo(BeNil())
-					Expect(acceptedCondition.Status).To(Equal(metav1.ConditionTrue))
-				}
+				assertAcceptedPolicyStatus(reportsMap, expectedPolicies)
 			},
 		}),
 	Entry(
@@ -446,7 +431,7 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 				resolvedRefs := meta.FindStatusCondition(routeStatus.Parents[0].Conditions, string(gwv1.RouteConditionResolvedRefs))
 				Expect(resolvedRefs).NotTo(BeNil())
 				Expect(resolvedRefs.Status).To(Equal(metav1.ConditionFalse))
-				Expect(resolvedRefs.Message).To(Equal("Service \"example-grpc-svc\" not found"))
+				Expect(resolvedRefs.Message).To(Equal(`Service "example-grpc-svc" not found`))
 			},
 		}),
 	Entry(
@@ -641,7 +626,7 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 		},
 	}),
 	// TODO: Add this once istio adds support for listener sets
-	// FEntry(
+	// Entry(
 	// 	"listener sets",
 	// 	translatorTestCase{
 	// 		inputFile:  "listener-sets/manifest.yaml",
@@ -653,12 +638,13 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 	// 	}),
 )
 
+// TODO: Assert status here as well?
 var _ = DescribeTable("Route Delegation translator",
 	func(inputFile string, errdesc string) {
 		dir := fsutils.MustGetThisDir()
 		translatortest.TestTranslation(
 			GinkgoT(),
-			context.TODO(),
+			context.Background(),
 			[]string{
 				filepath.Join(dir, "testutils/inputs/delegation/common.yaml"),
 				filepath.Join(dir, "testutils/inputs/delegation", inputFile),
@@ -793,3 +779,22 @@ var _ = DescribeTable("Discovery Namespace Selector",
 ]`,
 		"base.yaml", "base_select_infra.yaml", "condition error for httproute: infra/example-route"),
 )
+
+// assertAcceptedPolicyStatus is a helper function to verify policy status conditions
+func assertAcceptedPolicyStatus(reportsMap reports.ReportMap, policies []reports.PolicyKey) {
+	var currentStatus gwv1alpha2.PolicyStatus
+
+	for _, policy := range policies {
+		// Validate each policy's status
+		status := reportsMap.BuildPolicyStatus(context.Background(), policy, wellknown.GatewayControllerName, currentStatus)
+		Expect(status).NotTo(BeNil(), "status missing for policy %v", policy)
+		Expect(status.Ancestors).To(HaveLen(1), "ancestor missing for policy %v", policy) // 1 Gateway(ancestor)
+
+		acceptedCondition := meta.FindStatusCondition(status.Ancestors[0].Conditions, string(gwv1alpha2.PolicyConditionAccepted))
+		Expect(acceptedCondition).NotTo(BeNil())
+		Expect(acceptedCondition.Status).To(Equal(metav1.ConditionTrue))
+		Expect(acceptedCondition.Reason).To(Equal(string(gwv1alpha2.PolicyReasonAccepted)))
+		Expect(acceptedCondition.Message).To(Equal(reporter.PolicyAcceptedMsg))
+		Expect(acceptedCondition.ObservedGeneration).To(Equal(int64(0)))
+	}
+}
