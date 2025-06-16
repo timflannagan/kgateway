@@ -638,7 +638,6 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 	// 	}),
 )
 
-// TODO: Assert status here as well?
 var _ = DescribeTable("Route Delegation translator",
 	func(inputFile string, errdesc string) {
 		dir := fsutils.MustGetThisDir()
