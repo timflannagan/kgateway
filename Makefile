@@ -356,6 +356,8 @@ GETTERCHECK ?= go tool github.com/saiskee/gettercheck
 getter-check: ## Runs all generate directives for mockgen in the repo
 	$(GETTERCHECK) -ignoretests -ignoregenerated -write ./internal/... ./pkg/...
 
+
+
 #----------------------------------------------------------------------------------
 # Controller
 #----------------------------------------------------------------------------------
@@ -383,6 +385,8 @@ kgateway-docker: $(CONTROLLER_OUTPUT_DIR)/kgateway-linux-$(GOARCH) $(CONTROLLER_
 		--build-arg ENVOY_IMAGE=$(ENVOY_IMAGE) \
 		-t $(IMAGE_REGISTRY)/$(CONTROLLER_IMAGE_REPO):$(VERSION)
 
+
+
 #----------------------------------------------------------------------------------
 # SDS Server - gRPC server for serving Secret Discovery Service config
 #----------------------------------------------------------------------------------
@@ -407,6 +411,8 @@ sds-docker: $(SDS_OUTPUT_DIR)/sds-linux-$(GOARCH) $(SDS_OUTPUT_DIR)/Dockerfile.s
 		--build-arg GOARCH=$(GOARCH) \
 		--build-arg BASE_IMAGE=$(ALPINE_BASE_IMAGE) \
 		-t $(IMAGE_REGISTRY)/$(SDS_IMAGE_REPO):$(VERSION)
+
+
 
 #----------------------------------------------------------------------------------
 # Envoy init (BASE/SIDECAR)
@@ -437,6 +443,8 @@ envoy-wrapper-docker: $(ENVOYINIT_OUTPUT_DIR)/envoyinit-linux-$(GOARCH) $(ENVOYI
 		--build-arg GOARCH=$(GOARCH) \
 		--build-arg ENVOY_IMAGE=$(ENVOY_IMAGE) \
 		-t $(IMAGE_REGISTRY)/$(ENVOYINIT_IMAGE_REPO):$(VERSION)
+
+
 
 #----------------------------------------------------------------------------------
 # Helm
@@ -531,6 +539,29 @@ INSTALL_NAMESPACE ?= kgateway-system
 kind-create: ## Create a KinD cluster
 	$(KIND) get clusters | grep $(CLUSTER_NAME) || $(KIND) create cluster --name $(CLUSTER_NAME)
 
+CONFORMANCE_CHANNEL ?= experimental
+CONFORMANCE_VERSION ?= v1.3.0
+.PHONY: gw-api-crds
+gw-api-crds: ## Install the Gateway API CRDs
+	kubectl apply --kustomize "https://github.com/kubernetes-sigs/gateway-api/config/crd/$(CONFORMANCE_CHANNEL)?ref=$(CONFORMANCE_VERSION)"
+
+.PHONY: kind-metallb
+metallb: ## Install the MetalLB load balancer
+	./hack/kind/setup-metalllb-on-kind.sh
+
+.PHONY: deploy-kgateway
+deploy-kgateway: package-kgateway-charts deploy-kgateway-crd-chart deploy-kgateway-chart ## Deploy the kgateway chart and CRDs
+
+.PHONY: run
+run: kind-create kind-build-and-load gw-api-crds metallb deploy-kgateway  ## Set up complete development environment
+
+#----------------------------------------------------------------------------------
+# Build assets for kubernetes e2e tests
+#----------------------------------------------------------------------------------
+
+kind-setup: ## Set up the KinD cluster. Deprecated: use kind-create instead.
+	VERSION=${VERSION} CLUSTER_NAME=${CLUSTER_NAME} ./hack/kind/setup-kind.sh
+
 kind-load-%:
 	$(KIND) load docker-image $(IMAGE_REGISTRY)/$*:$(VERSION) --name $(CLUSTER_NAME)
 
@@ -541,11 +572,32 @@ kind-build-and-load-%: %-docker kind-load-% ; ## Use to build specified image an
 
 # Update the docker image used by a deployment
 # This works for most of our deployments because the deployment name and container name both match
+# NOTE TO DEVS:
+#	I explored using a special format of the wildcard to pass deployment:image,
+# 	but ran into some challenges with that pattern, while calling this target from another one.
+#	It could be a cool extension to support, but didn't feel pressing so I stopped
 kind-set-image-%:
 	kubectl rollout pause deployment $* -n $(INSTALL_NAMESPACE) || true
 	kubectl set image deployment/$* $*=$(IMAGE_REGISTRY)/$*:$(VERSION) -n $(INSTALL_NAMESPACE)
 	kubectl patch deployment $* -n $(INSTALL_NAMESPACE) -p '{"spec": {"template":{"metadata":{"annotations":{"kgateway-kind-last-update":"$(shell date)"}}}} }'
 	kubectl rollout resume deployment $* -n $(INSTALL_NAMESPACE)
+
+# Reload an image in KinD
+# This is useful to developers when changing a single component
+# You can reload an image, which means it will be rebuilt and reloaded into the kind cluster, and the deployment
+# will be updated to reference it
+# Depends on: IMAGE_REGISTRY, VERSION, INSTALL_NAMESPACE , CLUSTER_NAME
+# Envoy image may be specified via ENVOY_IMAGE on the command line or at the top of this file
+kind-reload-%: kind-build-and-load-% kind-set-image-% ; ## Use to build specified image, load it into kind, and restart its deployment
+
+# This is an alias to remedy the fact that the deployment is called gateway-proxy
+# but our make targets refer to envoy-wrapper
+kind-reload-envoy-wrapper: kind-build-and-load-envoy-wrapper
+kind-reload-envoy-wrapper:
+	kubectl rollout pause deployment gateway-proxy -n $(INSTALL_NAMESPACE) || true
+	kubectl set image deployment/gateway-proxy gateway-proxy=$(IMAGE_REGISTRY)/envoy-wrapper:$(VERSION) -n $(INSTALL_NAMESPACE)
+	kubectl patch deployment gateway-proxy -n $(INSTALL_NAMESPACE) -p '{"spec": {"template":{"metadata":{"annotations":{"kgateway-kind-last-update":"$(shell date)"}}}} }'
+	kubectl rollout resume deployment gateway-proxy -n $(INSTALL_NAMESPACE)
 
 .PHONY: kind-build-and-load ## Use to build all images and load them into kind
 kind-build-and-load: kind-build-and-load-kgateway
@@ -558,6 +610,27 @@ kind-load: kind-load-kgateway
 kind-load: kind-load-envoy-wrapper
 kind-load: kind-load-sds
 kind-load: kind-load-kgateway-ai-extension
+
+define kind_reload_msg
+The kind-reload-% targets exist in order to assist developers with the work cycle of
+build->test->change->build->test. To that end, rebuilding/reloading every image, then
+restarting every deployment is seldom necessary. Consider using kind-reload-% to do so
+for a specific component, or kind-build-and-load to push new images for every component.
+endef
+export kind_reload_msg
+.PHONY: kind-reload
+kind-reload:
+	@echo "$$kind_reload_msg"
+
+# Useful utility for listing images loaded into the kind cluster
+.PHONY: kind-list-images
+kind-list-images: ## List solo-io images in the kind cluster named {CLUSTER_NAME}
+	docker exec -ti $(CLUSTER_NAME)-control-plane crictl images | grep "solo-io"
+
+# Useful utility for pruning images that were previously loaded into the kind cluster
+.PHONY: kind-prune-images
+kind-prune-images: ## Remove images in the kind cluster named {CLUSTER_NAME}
+	docker exec -ti $(CLUSTER_NAME)-control-plane crictl rmi --prune
 
 #----------------------------------------------------------------------------------
 # A2A Test Server (for agentgateway a2a integration in e2e tests)
