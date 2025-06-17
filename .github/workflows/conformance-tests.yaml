@@ -10,7 +10,6 @@ on:
         type: choice
         options:
           - standard
-          - distroless
       version:
         description: "Optional: Specify an existing kgateway release tag to deploy and test. Leave empty to use the default branch."
         required: false
