@@ -201,6 +201,14 @@ func processBackend(_ context.Context, polir ir.PolicyIR, _ ir.BackendObjectIR, 
 	if pol.commonHttpProtocolOptions != nil {
 		if err := translatorutils.MutateHttpOptions(out, func(opts *envoy_upstreams_v3.HttpProtocolOptions) {
 			opts.CommonHttpProtocolOptions = pol.commonHttpProtocolOptions
+			if opts.GetUpstreamProtocolOptions() == nil {
+				// Envoy requires UpstreamProtocolOptions if CommonHttpProtocolOptions is set.
+				opts.UpstreamProtocolOptions = &envoy_upstreams_v3.HttpProtocolOptions_ExplicitHttpConfig_{
+					ExplicitHttpConfig: &envoy_upstreams_v3.HttpProtocolOptions_ExplicitHttpConfig{
+						ProtocolConfig: &envoy_upstreams_v3.HttpProtocolOptions_ExplicitHttpConfig_HttpProtocolOptions{},
+					},
+				}
+			}
 		}); err != nil {
 			logger.Error("failed to apply common http protocol options", "error", err)
 		}
@@ -311,16 +319,6 @@ func translateCommonHttpProtocolOptions(commonHttpProtocolOptions *v1alpha1.Comm
 		out.MaxStreamDuration = durationpb.New(commonHttpProtocolOptions.MaxStreamDuration.Duration)
 	}
 
-	if commonHttpProtocolOptions.HeadersWithUnderscoresAction != nil {
-		switch *commonHttpProtocolOptions.HeadersWithUnderscoresAction {
-		case v1alpha1.HeadersWithUnderscoresActionAllow:
-			out.HeadersWithUnderscoresAction = corev3.HttpProtocolOptions_ALLOW
-		case v1alpha1.HeadersWithUnderscoresActionRejectRequest:
-			out.HeadersWithUnderscoresAction = corev3.HttpProtocolOptions_REJECT_REQUEST
-		case v1alpha1.HeadersWithUnderscoresActionDropHeader:
-			out.HeadersWithUnderscoresAction = corev3.HttpProtocolOptions_DROP_HEADER
-		}
-	}
 	return out
 }
 
