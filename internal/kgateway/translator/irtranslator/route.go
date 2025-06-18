@@ -22,6 +22,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator/routeutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	reportssdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/reporter"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/regexutils"
 )
@@ -338,7 +339,13 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("failed to apply route plugins for %s: %w", in.Name, errors.Join(errs...))
+		// for terminal errors, return a concrete error, which will potentially trigger route replacement.
+		// this error type is only triggered when the "validate" mode is enabled.
+		if policy.HasTerminalError(errs) {
+			return fmt.Errorf("terminal error applying route plugins for %s: %w", in.Name, errors.Join(errs...))
+		}
+		// otherwise, log the error and return a nil error.
+		logger.Error("non-terminal error applying route plugins", "route", in.Name, "errors", errs)
 	}
 	return nil
 }

@@ -41,3 +41,13 @@ func NewTerminalError(msg string, err error) *PolicyError {
 		Err:     err,
 	}
 }
+
+// HasTerminalError checks if any error in the slice is a terminal error
+func HasTerminalError(errors []error) bool {
+	for _, err := range errors {
+		if policyErr, ok := err.(*PolicyError); ok && policyErr.IsTerminal() {
+			return true
+		}
+	}
+	return false
+}

@@ -33,6 +33,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
 	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/plugins"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/reports"
@@ -191,7 +192,7 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 	), commoncol.KrtOpts.ToOptions("TrafficPolicy")...)
 	gk := wellknown.TrafficPolicyGVK.GroupKind()
 
-	validator := validator.New(commoncol.Settings.RouteReplacementMode)
+	validator := validator.New()
 	translator := NewTrafficPolicyBuilder(ctx, commoncol)
 
 	// TrafficPolicy IR will have TypedConfig -> implement backendroute method to add prompt guard, etc.
@@ -203,14 +204,15 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 			Name:      policyCR.Name,
 		}
 
+		// translate the policy spec to an IR. when the "validate" mode is enabled, we validate the IR
+		// contents and perform xds validation.
 		policyIR, errors := translator.Translate(krtctx, policyCR)
-		if err := policyIR.Validate(ctx, validator, policyCR); err != nil {
-			// prevent invalid config from being pushed to the snapshot cache and
-			// trigger route replacement. additionally, disregard this IR so we can
-			// rely on the last known good state if it was previously valid.
-			logger.Error("policy validation failed", "policy", policyCR.Name, "errors", err)
-			errors = append(errors, policy.NewTerminalError("PolicyValidationFailed", err))
+		if commoncol.Settings.RouteReplacementMode == settings.RouteReplacementValidate {
+			if err := policyIR.Validate(ctx, validator, policyCR); err != nil {
+				errors = append(errors, policy.NewTerminalError("PolicyValidationFailed", err))
+			}
 		}
+
 		pol := &ir.PolicyWrapper{
 			ObjectSource: objSrc,
 			Policy:       policyCR,

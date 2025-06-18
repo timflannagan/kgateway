@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 )
 
 const (
@@ -25,27 +23,23 @@ type Validator interface {
 }
 
 // New chooses the best validator available.
-func New(validationMode settings.RouteReplacementMode) Validator {
+func New() Validator {
 	// check if envoy is in the path
 	if _, err := exec.LookPath(envoyPath); err == nil {
-		return &binaryValidator{path: envoyPath, validationMode: validationMode}
+		return &binaryValidator{path: envoyPath}
 	}
 	// otherwise, fallback to docker
-	return &dockerValidator{img: envoyImage, validationMode: validationMode}
+	return &dockerValidator{img: envoyImage}
 }
 
 // binaryValidator validates envoy using the binary.
 type binaryValidator struct {
-	path           string
-	validationMode settings.RouteReplacementMode
+	path string
 }
 
 var _ Validator = &binaryValidator{}
 
 func (b *binaryValidator) Validate(ctx context.Context, yaml string) error {
-	if b.validationMode == settings.RouteReplacementOff {
-		return nil
-	}
 	cmd := exec.CommandContext(ctx, b.path, "--mode", "validate", "--config-yaml", yaml, "-l", "critical", "--log-format", "%v")
 	cmd.Stdin = strings.NewReader(yaml)
 	var e bytes.Buffer
@@ -57,16 +51,12 @@ func (b *binaryValidator) Validate(ctx context.Context, yaml string) error {
 }
 
 type dockerValidator struct {
-	img            string
-	validationMode settings.RouteReplacementMode
+	img string
 }
 
 var _ Validator = &dockerValidator{}
 
 func (d *dockerValidator) Validate(ctx context.Context, yaml string) error {
-	if d.validationMode == settings.RouteReplacementOff {
-		return nil
-	}
 	cmd := exec.CommandContext(ctx,
 		"docker", "run",
 		"--rm",
