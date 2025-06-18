@@ -189,14 +189,24 @@ func TestWithInferenceAPI(t *testing.T) {
 	runScenario(t, "testdata/inference_api", st)
 }
 
-func TestWithRouteReplacement(t *testing.T) {
+func TestWithRouteReplacementOn(t *testing.T) {
 	st, err := settings.BuildSettings()
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
-	st.EnableRouteReplacement = true
+	st.RouteReplacementMode = settings.RouteReplacementOn
 
-	runScenario(t, "testdata/route_replacement", st)
+	runScenario(t, "testdata/route_replacement/on", st)
+}
+
+func TestWithRouteReplacementValidate(t *testing.T) {
+	st, err := settings.BuildSettings()
+	if err != nil {
+		t.Fatalf("can't get settings %v", err)
+	}
+	st.RouteReplacementMode = settings.RouteReplacementValidate
+
+	runScenario(t, "testdata/route_replacement/validate", st)
 }
 
 func TestPolicyUpdate(t *testing.T) {

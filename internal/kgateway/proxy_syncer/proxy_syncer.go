@@ -32,6 +32,7 @@ import (
 	gwxv1a1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/reports"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator"
@@ -71,7 +72,7 @@ type ProxySyncer struct {
 	waitForSync []cache.InformerSynced
 	ready       atomic.Bool
 
-	routeReplacement bool
+	routeReplacement settings.RouteReplacementMode
 }
 
 // NewProxySyncer returns an implementation of the ProxySyncer
@@ -85,7 +86,7 @@ func NewProxySyncer(
 	mergedPlugins plug.Plugin,
 	commonCols *common.CommonCollections,
 	xdsCache envoycache.SnapshotCache,
-	routeReplacement bool,
+	routeReplacementMode settings.RouteReplacementMode,
 ) *ProxySyncer {
 	return &ProxySyncer{
 		controllerName:   controllerName,
@@ -94,9 +95,9 @@ func NewProxySyncer(
 		istioClient:      client,
 		proxyTranslator:  NewProxyTranslator(xdsCache),
 		uniqueClients:    uniqueClients,
-		translator:       translator.NewCombinedTranslator(ctx, mergedPlugins, commonCols, routeReplacement),
+		translator:       translator.NewCombinedTranslator(ctx, mergedPlugins, commonCols, routeReplacementMode),
 		plugins:          mergedPlugins,
-		routeReplacement: routeReplacement,
+		routeReplacement: routeReplacementMode,
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/endpoints"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
 	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/query"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/reports"
@@ -32,19 +33,19 @@ type CombinedTranslator struct {
 
 	waitForSync []cache.InformerSynced
 
-	gwtranslator      extensionsplug.KGwTranslator
-	irtranslator      *irtranslator.Translator
-	backendTranslator *irtranslator.BackendTranslator
-	endpointPlugins   []extensionsplug.EndpointPlugin
-	routeReplacement  bool
-	logger            *slog.Logger
+	gwtranslator         extensionsplug.KGwTranslator
+	irtranslator         *irtranslator.Translator
+	backendTranslator    *irtranslator.BackendTranslator
+	endpointPlugins      []extensionsplug.EndpointPlugin
+	routeReplacementMode settings.RouteReplacementMode
+	logger               *slog.Logger
 }
 
 func NewCombinedTranslator(
 	ctx context.Context,
 	extensions extensionsplug.Plugin,
 	commonCols *common.CommonCollections,
-	routeReplacement bool,
+	routeReplacementMode settings.RouteReplacementMode,
 ) *CombinedTranslator {
 	var endpointPlugins []extensionsplug.EndpointPlugin
 	for _, ext := range extensions.ContributesPolicies {
@@ -53,12 +54,12 @@ func NewCombinedTranslator(
 		}
 	}
 	return &CombinedTranslator{
-		commonCols:       commonCols,
-		extensions:       extensions,
-		endpointPlugins:  endpointPlugins,
-		logger:           logger,
-		waitForSync:      []cache.InformerSynced{extensions.HasSynced},
-		routeReplacement: routeReplacement,
+		commonCols:           commonCols,
+		extensions:           extensions,
+		endpointPlugins:      endpointPlugins,
+		logger:               logger,
+		waitForSync:          []cache.InformerSynced{extensions.HasSynced},
+		routeReplacementMode: routeReplacementMode,
 	}
 }
 
@@ -70,8 +71,8 @@ func (s *CombinedTranslator) Init(ctx context.Context) {
 
 	s.gwtranslator = gwtranslator.NewTranslator(queries, listenerTranslatorConfig)
 	s.irtranslator = &irtranslator.Translator{
-		ContributedPolicies: s.extensions.ContributesPolicies,
-		RouteReplacement:    s.routeReplacement,
+		ContributedPolicies:  s.extensions.ContributesPolicies,
+		RouteReplacementMode: s.routeReplacementMode,
 	}
 	s.backendTranslator = &irtranslator.BackendTranslator{
 		ContributedBackends: make(map[schema.GroupKind]ir.BackendInit),

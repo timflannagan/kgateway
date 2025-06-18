@@ -568,7 +568,7 @@ func (tc TestCase) Run(
 
 	commoncol.InitPlugins(ctx, extensions)
 
-	translator := translator.NewCombinedTranslator(ctx, extensions, commoncol, false)
+	translator := translator.NewCombinedTranslator(ctx, extensions, commoncol, settings.RouteReplacementOff)
 	translator.Init(ctx)
 
 	cli.RunAndWait(ctx.Done())

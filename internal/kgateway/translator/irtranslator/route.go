@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/reports"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator/routeutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
@@ -38,7 +39,7 @@ type httpRouteConfigurationTranslator struct {
 	routeConfigName          string
 	reporter                 reportssdk.Reporter
 	requireTlsOnVirtualHosts bool
-	enableRouteReplacement   bool
+	enableRouteReplacement   settings.RouteReplacementMode
 	pluginPass               TranslationPassPlugins
 	logger                   *slog.Logger
 }
@@ -237,7 +238,14 @@ func (h *httpRouteConfigurationTranslator) handleRouteError(
 		Reason:  gwv1.RouteReasonUnsupportedValue,
 		Message: fmt.Sprintf("Dropped Rule (%d): %v", in.MatchIndex, err),
 	})
-	if h.enableRouteReplacement {
+	// If route replacement is off, we return nil to indicate that the route should be dropped.
+	// this is the legacy behavior and used for backwards compatibility. otherwise, we return a
+	// direct response action.
+	switch h.enableRouteReplacement {
+	case settings.RouteReplacementOff:
+		out = nil
+		return out, err
+	case settings.RouteReplacementOn, settings.RouteReplacementValidate:
 		out.Action = &envoy_config_route_v3.Route_DirectResponse{
 			DirectResponse: &envoy_config_route_v3.DirectResponseAction{
 				Status: http.StatusInternalServerError,
@@ -249,7 +257,7 @@ func (h *httpRouteConfigurationTranslator) handleRouteError(
 			},
 		}
 	}
-	return nil, err
+	return out, err
 }
 
 func (h *httpRouteConfigurationTranslator) runVhostPlugins(

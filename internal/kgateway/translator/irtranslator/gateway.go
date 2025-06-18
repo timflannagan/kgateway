@@ -13,6 +13,7 @@ import (
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/query"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/reports"
@@ -25,8 +26,8 @@ var logger = logging.New("translator/ir")
 
 // Translator is responsible for translating the IR to the gateway.
 type Translator struct {
-	ContributedPolicies map[schema.GroupKind]extensionsplug.PolicyPlugin
-	RouteReplacement    bool
+	ContributedPolicies  map[schema.GroupKind]extensionsplug.PolicyPlugin
+	RouteReplacementMode settings.RouteReplacementMode
 }
 
 // TranslationPass represents a single translation pass.
@@ -117,7 +118,7 @@ func (t *Translator) ComputeListener(
 			attachedPolicies:         hfc.AttachedPolicies,
 			reporter:                 reporter,
 			requireTlsOnVirtualHosts: hfc.FilterChainCommon.TLS != nil,
-			enableRouteReplacement:   t.RouteReplacement,
+			enableRouteReplacement:   t.RouteReplacementMode,
 			pluginPass:               pass,
 			logger:                   logger.With("route_config_name", hfc.FilterChainName),
 		}

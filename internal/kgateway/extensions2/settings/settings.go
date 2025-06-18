@@ -1,8 +1,34 @@
 package settings
 
 import (
+	"fmt"
+
 	"github.com/kelseyhightower/envconfig"
 )
+
+// RouteReplacementMode controls how invalid routes are handled
+type RouteReplacementMode string
+
+const (
+	// RouteReplacementOff is the legacy behavior where invalid rules are dropped
+	RouteReplacementOff RouteReplacementMode = "off"
+	// RouteReplacementOn enables route replacement with policy-level checks
+	RouteReplacementOn RouteReplacementMode = "on"
+	// RouteReplacementValidate enables strict mode with full IR validation
+	RouteReplacementValidate RouteReplacementMode = "validate"
+)
+
+// Decode implements envconfig.Decoder.
+func (m *RouteReplacementMode) Decode(value string) error {
+	mode := RouteReplacementMode(value)
+	switch mode {
+	case RouteReplacementOff, RouteReplacementOn, RouteReplacementValidate:
+		*m = mode
+		return nil
+	default:
+		return fmt.Errorf("invalid route replacement mode: %q", value)
+	}
+}
 
 type Settings struct {
 	// Controls the DnsLookupFamily for all static clusters created via Backend resources.
@@ -39,13 +65,8 @@ type Settings struct {
 	// UseRustFormations enables the use of rust-based transformations instead of the classic transformation filter.
 	UseRustFormations bool `envconfig:"USE_RUST_FORMATIONS" default:"false"`
 
-	// EnableRouteReplacement enables the route replacement feature. Defaults to false.
-	// When enabled, kgateway will replace invalid routes with a direct response to the
-	// client. Route replacement is triggered when an invalid route or policy attached to
-	// it would lead to configuration fundamentally invalid from Envoy's perspective. Other types
-	// of errors, e.g. referential or runtime, are handled through different mechanisms
-	// and are not subject to route replacement.
-	EnableRouteReplacement bool `envconfig:"ENABLE_ROUTE_REPLACEMENT" default:"false"`
+	// RouteReplacementMode controls how invalid routes are handled
+	RouteReplacementMode RouteReplacementMode `split_words:"true" default:"off"`
 
 	// EnableInferExt defines whether to enable/disable support for Gateway API inference extension.
 	EnableInferExt bool `split_words:"true"`
