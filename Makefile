@@ -168,6 +168,9 @@ ANALYZE_ARGS ?= --fix --verbose
 analyze:  ## Run golangci-lint. Override options with ANALYZE_ARGS.
 	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GOLANGCI_LINT) run $(ANALYZE_ARGS) ./...
 
+analyze-custom:
+	go build -o ./bin/ir-analyzer ./internal/ir-analyzer/...
+
 #----------------------------------------------------------------------------
 # Info
 #----------------------------------------------------------------------------

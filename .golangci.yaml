@@ -25,7 +25,13 @@ linters:
     - whitespace
     - staticcheck
     - sloglint
+    - irequals
   settings:
+    custom:
+      irequals:
+        type: module
+        description: Ensure IR structs define proper Equals method
+        settings: {}
     forbidigo:
       forbid:
         - pattern: anypb.New
@@ -76,7 +82,7 @@ linters:
         - time
         - level
         - msg
-        - source     
+        - source
   exclusions:
     generated: lax
     presets:

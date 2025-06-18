@@ -1,0 +1,6 @@
+version: v2.1.6
+name: golangci-lint-custom
+destination: ./bin
+plugins:
+- module: github.com/kgateway-dev/kgateway/v2/pkg/linters/irequals
+  path: ./pkg/linters/irequals
