@@ -82,7 +82,8 @@ func (s *CombinedTranslator) Init(ctx context.Context) {
 		s.backendTranslator.ContributedBackends[k] = up.BackendInit
 	}
 
-	s.waitForSync = append(s.waitForSync,
+	s.waitForSync = append(
+		s.waitForSync,
 		s.commonCols.HasSynced,
 		s.extensions.HasSynced,
 	)
@@ -101,6 +102,7 @@ func (s *CombinedTranslator) HasSynced() bool {
 func (s *CombinedTranslator) buildProxy(kctx krt.HandlerContext, ctx context.Context, gw ir.Gateway, r reports.Reporter) *ir.GatewayIR {
 	stopwatch := utils.NewTranslatorStopWatch("CombinedTranslator")
 	stopwatch.Start()
+
 	var gatewayTranslator extensionsplug.KGwTranslator = s.gwtranslator
 	if s.extensions.ContributesGwTranslator != nil {
 		maybeGatewayTranslator := s.extensions.ContributesGwTranslator(gw.Obj)
@@ -116,36 +118,37 @@ func (s *CombinedTranslator) buildProxy(kctx krt.HandlerContext, ctx context.Con
 	duration := stopwatch.Stop(ctx)
 	logger.Debug("translated proxy", "namespace", gw.Namespace, "name", gw.Name, "duration", duration.String())
 
-	// TODO: these are likely unnecessary and should be removed!
-	//	applyPostTranslationPlugins(ctx, pluginRegistry, &gwplugins.PostTranslationContext{
-	//		TranslatedGateways: translatedGateways,
-	//	})
-
 	return proxy
 }
 
-func (s *CombinedTranslator) GetUpstreamTranslator() *irtranslator.BackendTranslator {
+func (s *CombinedTranslator) GetBackendTranslator() *irtranslator.BackendTranslator {
 	return s.backendTranslator
 }
 
-// ctx needed for logging; remove once we refactor logging.
-func (s *CombinedTranslator) TranslateGateway(kctx krt.HandlerContext, ctx context.Context, gw ir.Gateway) (*irtranslator.TranslationResult, reports.ReportMap) {
+func (s *CombinedTranslator) TranslateGateway(
+	kctx krt.HandlerContext,
+	ctx context.Context,
+	gw ir.Gateway,
+) (*irtranslator.TranslationResult, reports.ReportMap) {
 	rm := reports.NewReportMap()
 	r := reports.NewReporter(&rm)
 	logger.Debug("translating Gateway", "resource_ref", gw.ResourceName(), "resource_version", gw.Obj.GetResourceVersion())
 	gwir := s.buildProxy(kctx, ctx, gw, r)
-
 	if gwir == nil {
 		return nil, reports.ReportMap{}
 	}
 
 	// we are recomputing xds snapshots as proxies have changed, signal that we need to sync xds with these new snapshots
-	xdsSnap := s.irtranslator.Translate(*gwir, r)
+	xdsSnap := s.irtranslator.Translate(ctx, *gwir, r)
 
 	return &xdsSnap, rm
 }
 
-func (s *CombinedTranslator) TranslateEndpoints(kctx krt.HandlerContext, ucc ir.UniqlyConnectedClient, ep ir.EndpointsForBackend) (*envoy_config_endpoint_v3.ClusterLoadAssignment, uint64) {
+func (s *CombinedTranslator) TranslateEndpoints(
+	kctx krt.HandlerContext,
+	ucc ir.UniqlyConnectedClient,
+	ep ir.EndpointsForBackend,
+) (*envoy_config_endpoint_v3.ClusterLoadAssignment, uint64) {
 	epInputs := endpoints.EndpointsInputs{
 		EndpointsForBackend: ep,
 	}

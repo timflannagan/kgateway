@@ -23,11 +23,23 @@ import (
 
 var logger = logging.New("translator/ir")
 
+// Translator is responsible for translating the IR to the gateway.
 type Translator struct {
 	ContributedPolicies map[schema.GroupKind]extensionsplug.PolicyPlugin
 	RouteReplacement    bool
 }
 
+// TranslationPass represents a single translation pass.
+type TranslationPass struct {
+	ir.ProxyTranslationPass
+	Name string
+	// If the plugin supports policy merging, it must implement MergePolicies
+	// such that policies ordered from high to low priority, both hierarchically
+	// and within the same hierarchy, are Merged into a single Policy
+	MergePolicies func(policies []ir.PolicyAtt) ir.PolicyAtt
+}
+
+// TranslationPassPlugins is a map of group kind to a translation pass.
 type TranslationPassPlugins map[schema.GroupKind]*TranslationPass
 
 type TranslationResult struct {
@@ -36,23 +48,24 @@ type TranslationResult struct {
 	ExtraClusters []*envoy_config_cluster_v3.Cluster
 }
 
-// Translate IR to gateway. IR is self contained, so no need for krt context
-func (t *Translator) Translate(gw ir.GatewayIR, reporter reports.Reporter) TranslationResult {
+// Translate is responsible for translating the IR to the gateway. Note: the IR
+// is self contained, so no need for a KRT context parameter.
+func (t *Translator) Translate(ctx context.Context, gw ir.GatewayIR, reporter reports.Reporter) TranslationResult {
 	pass := t.newPass(reporter)
 	var res TranslationResult
-
 	for _, l := range gw.Listeners {
 		// TODO: propagate errors so we can allow the retain last config mode
-		l, routes := t.ComputeListener(context.TODO(), pass, gw, l, reporter)
+		l, routes := t.ComputeListener(ctx, pass, gw, l, reporter)
 		res.Listeners = append(res.Listeners, l)
 		res.Routes = append(res.Routes, routes...)
 	}
-
 	for _, c := range pass {
-		if c != nil {
-			r := c.ResourcesToAdd(context.TODO())
-			res.ExtraClusters = append(res.ExtraClusters, r.Clusters...)
+		if c == nil {
+			// Is this possible?
+			continue
 		}
+		r := c.ResourcesToAdd(ctx)
+		res.ExtraClusters = append(res.ExtraClusters, r.Clusters...)
 	}
 
 	return res
@@ -69,6 +82,8 @@ func getReporterForFilterChain(gw ir.GatewayIR, reporter reports.Reporter, filte
 	return listener.GetParentReporter(reporter).ListenerName(string(listener.Name))
 }
 
+// ComputeListener is responsible for computing the listener and routes for a
+// listener. Exported for testing.
 func (t *Translator) ComputeListener(
 	ctx context.Context,
 	pass TranslationPassPlugins,
@@ -103,7 +118,7 @@ func (t *Translator) ComputeListener(
 			reporter:                 reporter,
 			requireTlsOnVirtualHosts: hfc.FilterChainCommon.TLS != nil,
 			enableRouteReplacement:   t.RouteReplacement,
-			PluginPass:               pass,
+			pluginPass:               pass,
 			logger:                   logger.With("route_config_name", hfc.FilterChainName),
 		}
 		rc := hr.ComputeRouteConfiguration(ctx, hfc.Vhosts)
@@ -149,7 +164,13 @@ func (t *Translator) ComputeListener(
 	return ret, routes
 }
 
-func (t *Translator) runListenerPlugins(ctx context.Context, pass TranslationPassPlugins, gw ir.GatewayIR, l ir.ListenerIR, out *envoy_config_listener_v3.Listener) {
+func (t *Translator) runListenerPlugins(
+	ctx context.Context,
+	pass TranslationPassPlugins,
+	gw ir.GatewayIR,
+	l ir.ListenerIR,
+	out *envoy_config_listener_v3.Listener,
+) {
 	var attachedPolicies ir.AttachedPolicies
 	attachedPolicies.Append(l.AttachedPolicies, gw.AttachedHttpPolicies)
 	for _, gk := range attachedPolicies.ApplyOrderedGroupKinds() {
@@ -182,22 +203,14 @@ func (t *Translator) newPass(reporter reports.Reporter) TranslationPassPlugins {
 			continue
 		}
 		tp := v.NewGatewayTranslationPass(context.TODO(), ir.GwTranslationCtx{}, reporter)
-		if tp != nil {
-			ret[k] = &TranslationPass{
-				ProxyTranslationPass: tp,
-				Name:                 v.Name,
-				MergePolicies:        v.MergePolicies,
-			}
+		if tp == nil {
+			continue
+		}
+		ret[k] = &TranslationPass{
+			ProxyTranslationPass: tp,
+			Name:                 v.Name,
+			MergePolicies:        v.MergePolicies,
 		}
 	}
 	return ret
-}
-
-type TranslationPass struct {
-	ir.ProxyTranslationPass
-	Name string
-	// If the plugin supports policy merging, it must implement MergePolicies
-	// such that policies ordered from high to low priority, both hierarchically
-	// and within the same hierarchy, are Merged into a single Policy
-	MergePolicies func(policies []ir.PolicyAtt) ir.PolicyAtt
 }

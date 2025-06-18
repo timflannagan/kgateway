@@ -44,6 +44,8 @@ import (
 	plug "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
 )
 
+var logger = logging.New("proxy_syncer")
+
 // ProxySyncer orchestrates the translation of K8s Gateway CRs to xDS
 // and setting the output xDS snapshot in the envoy snapshot cache,
 // resulting in each connected proxy getting the correct configuration.
@@ -70,6 +72,32 @@ type ProxySyncer struct {
 	ready       atomic.Bool
 
 	routeReplacement bool
+}
+
+// NewProxySyncer returns an implementation of the ProxySyncer
+// The provided GatewayInputChannels are used to trigger syncs.
+func NewProxySyncer(
+	ctx context.Context,
+	controllerName string,
+	mgr manager.Manager,
+	client kube.Client,
+	uniqueClients krt.Collection[ir.UniqlyConnectedClient],
+	mergedPlugins plug.Plugin,
+	commonCols *common.CommonCollections,
+	xdsCache envoycache.SnapshotCache,
+	routeReplacement bool,
+) *ProxySyncer {
+	return &ProxySyncer{
+		controllerName:   controllerName,
+		commonCols:       commonCols,
+		mgr:              mgr,
+		istioClient:      client,
+		proxyTranslator:  NewProxyTranslator(xdsCache),
+		uniqueClients:    uniqueClients,
+		translator:       translator.NewCombinedTranslator(ctx, mergedPlugins, commonCols, routeReplacement),
+		plugins:          mergedPlugins,
+		routeReplacement: routeReplacement,
+	}
 }
 
 type GatewayXdsResources struct {
@@ -129,32 +157,6 @@ func toResources(gw ir.Gateway, xdsSnap irtranslator.TranslationResult, r report
 	}
 }
 
-// NewProxySyncer returns an implementation of the ProxySyncer
-// The provided GatewayInputChannels are used to trigger syncs.
-func NewProxySyncer(
-	ctx context.Context,
-	controllerName string,
-	mgr manager.Manager,
-	client kube.Client,
-	uniqueClients krt.Collection[ir.UniqlyConnectedClient],
-	mergedPlugins plug.Plugin,
-	commonCols *common.CommonCollections,
-	xdsCache envoycache.SnapshotCache,
-	routeReplacement bool,
-) *ProxySyncer {
-	return &ProxySyncer{
-		controllerName:   controllerName,
-		commonCols:       commonCols,
-		mgr:              mgr,
-		istioClient:      client,
-		proxyTranslator:  NewProxyTranslator(xdsCache),
-		uniqueClients:    uniqueClients,
-		translator:       translator.NewCombinedTranslator(ctx, mergedPlugins, commonCols, routeReplacement),
-		plugins:          mergedPlugins,
-		routeReplacement: routeReplacement,
-	}
-}
-
 type ProxyTranslator struct {
 	xdsCache envoycache.SnapshotCache
 }
@@ -197,8 +199,6 @@ func (r report) Equals(in report) bool {
 	return true
 }
 
-var logger = logging.New("proxy_syncer")
-
 func (s *ProxySyncer) Init(ctx context.Context, krtopts krtutil.KrtOptions) {
 	// all backends with policies attached in a single collection
 	finalBackends := krt.JoinCollection(s.commonCols.BackendIndex.BackendsWithPolicy(), krtopts.ToOptions("FinalBackends")...)
@@ -231,7 +231,7 @@ func (s *ProxySyncer) Init(ctx context.Context, krtopts krtutil.KrtOptions) {
 	clustersPerClient := NewPerClientEnvoyClusters(
 		ctx,
 		krtopts,
-		s.translator.GetUpstreamTranslator(),
+		s.translator.GetBackendTranslator(),
 		finalBackends,
 		s.uniqueClients,
 	)
@@ -355,8 +355,7 @@ func (s *ProxySyncer) Start(ctx context.Context) error {
 		ctx.Done(),
 		s.waitForSync...,
 	)
-
-	// wait for ctrl-rtime caches to sync before accepting events
+	// wait for c-r caches to sync before accepting events
 	if !s.mgr.GetCache().WaitForCacheSync(ctx) {
 		return errors.New("kube gateway sync loop waiting for all caches to sync failed")
 	}
@@ -415,15 +414,11 @@ func (s *ProxySyncer) Start(ctx context.Context) error {
 
 	s.perclientSnapCollection.RegisterBatch(func(o []krt.Event[XdsSnapWrapper], initialSync bool) {
 		for _, e := range o {
-			if e.Event != controllers.EventDelete {
-				snapWrap := e.Latest()
-				s.proxyTranslator.syncXds(ctx, snapWrap)
-			} else {
-				// key := e.Latest().proxyKey
-				// if _, err := s.proxyTranslator.xdsCache.GetSnapshot(key); err == nil {
-				// 	s.proxyTranslator.xdsCache.ClearSnapshot(e.Latest().proxyKey)
-				// }
+			if e.Event == controllers.EventDelete {
+				continue
 			}
+			snapWrap := e.Latest()
+			s.proxyTranslator.syncXds(ctx, snapWrap)
 		}
 	}, true)
 
@@ -432,9 +427,7 @@ func (s *ProxySyncer) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *ProxySyncer) HasSynced() bool {
-	return s.ready.Load()
-}
+func (s *ProxySyncer) HasSynced() bool { return s.ready.Load() }
 
 func (s *ProxySyncer) syncRouteStatus(ctx context.Context, logger *slog.Logger, rm reports.ReportMap) {
 	stopwatch := utils.NewTranslatorStopWatch("RouteStatusSyncer")
@@ -451,8 +444,7 @@ func (s *ProxySyncer) syncRouteStatus(ctx context.Context, logger *slog.Logger, 
 		return retry.Do(
 			func() error {
 				route := getRouteFunc()
-				err := s.mgr.GetClient().Get(ctx, routeKey, route)
-				if err != nil {
+				if err := s.mgr.GetClient().Get(ctx, routeKey, route); err != nil {
 					if apierrors.IsNotFound(err) {
 						// the route is not found, we can't report status on it
 						// if it's recreated, we'll retranslate it anyway
@@ -567,25 +559,22 @@ func (s *ProxySyncer) syncGatewayStatus(ctx context.Context, logger *slog.Logger
 	err := retry.Do(func() error {
 		for gwnn := range rm.Gateways {
 			gw := gwv1.Gateway{}
-			err := s.mgr.GetClient().Get(ctx, gwnn, &gw)
-			if err != nil {
+			if err := s.mgr.GetClient().Get(ctx, gwnn, &gw); err != nil {
 				logger.Info("error getting gw", "error", err, "gateway", gwnn.String())
 				return err
 			}
 			gwStatusWithoutAddress := gw.Status
 			gwStatusWithoutAddress.Addresses = nil
-			if status := rm.BuildGWStatus(ctx, gw); status != nil {
-				if !isGatewayStatusEqual(&gwStatusWithoutAddress, status) {
-					gw.Status = *status
-					if err := s.mgr.GetClient().Status().Patch(ctx, &gw, client.Merge); err != nil {
-						logger.Error("error patching gateway status", "error", err, "gateway", gwnn.String())
-						return err
-					}
-					logger.Info("patched gw status", "gateway", gwnn.String())
-				} else {
-					logger.Info("skipping k8s gateway status update, status equal", "gateway", gwnn.String())
-				}
+			status := rm.BuildGWStatus(ctx, gw)
+			if status == nil || isGatewayStatusEqual(&gwStatusWithoutAddress, status) {
+				continue
 			}
+			gw.Status = *status
+			if err := s.mgr.GetClient().Status().Patch(ctx, &gw, client.Merge); err != nil {
+				logger.Error("error patching gateway status", "error", err, "gateway", gwnn.String())
+				return err
+			}
+			logger.Info("patched gw status", "gateway", gwnn.String())
 		}
 		return nil
 	},
@@ -605,28 +594,25 @@ func (s *ProxySyncer) syncListenerSetStatus(ctx context.Context, logger *slog.Lo
 	stopwatch := utils.NewTranslatorStopWatch("ListenerSetStatusSyncer")
 	stopwatch.Start()
 
-	// TODO: retry within loop per LS rathen that as a full block
+	// TODO: retry within loop per LS rather than as a full block
 	err := retry.Do(func() error {
 		for lsnn := range rm.ListenerSets {
 			ls := gwxv1a1.XListenerSet{}
-			err := s.mgr.GetClient().Get(ctx, lsnn, &ls)
-			if err != nil {
+			if err := s.mgr.GetClient().Get(ctx, lsnn, &ls); err != nil {
 				logger.Info("error getting ls", "erro", err.Error())
 				return err
 			}
 			lsStatus := ls.Status
-			if status := rm.BuildListenerSetStatus(ctx, ls); status != nil {
-				if !isListenerSetStatusEqual(&lsStatus, status) {
-					ls.Status = *status
-					if err := s.mgr.GetClient().Status().Patch(ctx, &ls, client.Merge); err != nil {
-						logger.Error("error patching listener set status", "error", err, "gateway", lsnn.String())
-						return err
-					}
-					logger.Info("patched ls status", "listenerset", lsnn.String())
-				} else {
-					logger.Info("skipping k8s ls status update, status equal", "listenerset", lsnn.String())
-				}
+			status := rm.BuildListenerSetStatus(ctx, ls)
+			if status == nil || isListenerSetStatusEqual(&lsStatus, status) {
+				continue
 			}
+			ls.Status = *status
+			if err := s.mgr.GetClient().Status().Patch(ctx, &ls, client.Merge); err != nil {
+				logger.Error("error patching listener set status", "error", err, "gateway", lsnn.String())
+				return err
+			}
+			logger.Info("patched ls status", "listenerset", lsnn.String())
 		}
 		return nil
 	},

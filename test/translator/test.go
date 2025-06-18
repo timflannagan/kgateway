@@ -606,7 +606,7 @@ func (tc TestCase) Run(
 		var clusters []*clusterv3.Cluster
 		for _, col := range commoncol.BackendIndex.BackendsWithPolicy() {
 			for _, backend := range col.List() {
-				cluster, err := translator.GetUpstreamTranslator().TranslateBackend(krt.TestingDummyContext{}, ucc, backend)
+				cluster, err := translator.GetBackendTranslator().TranslateBackend(krt.TestingDummyContext{}, ucc, backend)
 				Expect(err).NotTo(HaveOccurred())
 				clusters = append(clusters, cluster)
 			}
