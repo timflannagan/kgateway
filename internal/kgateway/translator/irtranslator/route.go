@@ -169,12 +169,12 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 	// run route plugins that may set action or typed per filter config
 	if err := h.runRoutePlugins(ctx, routeReport, in, out, typedPerFilterConfigRoute); err != nil {
 		h.handleRouteError(err, in, out, routeReport)
-		return nil
+		return out
 	}
 	// validate envoy route for structural errors
 	if err := validateEnvoyRoute(out); err != nil {
 		h.handleRouteError(err, in, out, routeReport)
-		return nil
+		return out
 	}
 	// apply typed per filter config from translating route action and route plugins
 	h.applyTypedFilterConfig(out, typedPerFilterConfigRoute)
@@ -184,7 +184,7 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 			return nil
 		}
 		h.handleRouteError(errors.New("no action specified"), in, out, routeReport)
-		return nil
+		return out
 	}
 
 	// TODO: Clean this up. WIP RDS validation.
@@ -243,9 +243,11 @@ func (h *httpRouteConfigurationTranslator) handleRouteError(
 	// direct response action.
 	switch h.enableRouteReplacement {
 	case settings.RouteReplacementOff:
+		h.logger.Info("route replacement is off, dropping route", "route", in.Name)
 		out = nil
 		return out, err
 	case settings.RouteReplacementOn, settings.RouteReplacementValidate:
+		h.logger.Info("route replacement is on, replacing route with direct response", "route", in.Name)
 		out.Action = &envoy_config_route_v3.Route_DirectResponse{
 			DirectResponse: &envoy_config_route_v3.DirectResponseAction{
 				Status: http.StatusInternalServerError,
