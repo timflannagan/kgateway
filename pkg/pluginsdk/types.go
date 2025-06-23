@@ -91,8 +91,10 @@ type KGwTranslator interface {
 	Translate(kctx krt.HandlerContext,
 		ctx context.Context,
 		gateway *ir.Gateway,
-		reporter reports.Reporter) *ir.GatewayIR
+		reporter reports.Reporter,
+	) *ir.GatewayIR
 }
+
 type (
 	GwTranslatorFactory func(gw *gwv1.Gateway) KGwTranslator
 	ContributesPolicies map[schema.GroupKind]PolicyPlugin
