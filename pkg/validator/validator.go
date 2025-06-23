@@ -45,7 +45,7 @@ func (b *binaryValidator) Validate(ctx context.Context, yaml string) error {
 	var e bytes.Buffer
 	cmd.Stderr = &e
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%w: %s", ErrInvalidXDS, trim(e.String()))
+		return fmt.Errorf("%w: %s", ErrInvalidXDS, e.String())
 	}
 	return nil
 }
@@ -61,6 +61,7 @@ func (d *dockerValidator) Validate(ctx context.Context, yaml string) error {
 		"docker", "run",
 		"--rm",
 		"-i",
+		"--platform", "linux/amd64",
 		d.img,
 		"--mode",
 		"validate",
@@ -68,37 +69,36 @@ func (d *dockerValidator) Validate(ctx context.Context, yaml string) error {
 		"-l", "critical",
 		"--log-format", "%v",
 	)
-	var buf bytes.Buffer
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = strings.NewReader(yaml), &buf, &buf
-	if err := cmd.Run(); err != nil {
-		out := stripWarn(buf.String())
-		if strings.Contains(out, "error initializing configuration") || strings.Contains(out, "[error] envoy") {
-			return fmt.Errorf("%w: %s", ErrInvalidXDS, trim(out))
+	cmd.Stdin = strings.NewReader(yaml)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err == nil {
+		return nil
+	}
+
+	// TODO(tim): Just return first match from "error initializing configuration"?
+	rawErr := strings.TrimSpace(stderr.String())
+	rawErr = stripDockerWarn(rawErr)
+	if _, ok := err.(*exec.ExitError); ok {
+		if rawErr == "" {
+			rawErr = err.Error()
 		}
-		return errors.New(trim(out))
+		return fmt.Errorf("%w: %s", ErrInvalidXDS, rawErr)
 	}
-	return nil
+	return fmt.Errorf("envoy validate invocation failed: %v", err)
 }
 
-// trim removes some common prefixes from the output.
-func trim(s string) string {
-	s = strings.ReplaceAll(s, "''", "'")
-	s = strings.TrimPrefix(s, "error initializing configuration '': ")
-	s = strings.TrimPrefix(s, "Failed to parse request template: ")
-	if i := strings.IndexByte(s, '\n'); i != -1 {
-		s = s[:i]
-	}
-	return strings.Join(strings.Fields(s), " ")
-}
-
-// stripWarn removes the warning about the image platform from the output. This was
-// causing cmd.Run to fail with an error.
-func stripWarn(s string) string {
-	var r []string
+// stripDockerWarn drops the platform-mismatch line docker prints on ARM hosts.
+func stripDockerWarn(s string) string {
+	var cleaned []string
+	// TODO(tim): fix the linter violation below.
 	for _, l := range strings.Split(s, "\n") {
 		if !strings.HasPrefix(l, "WARNING: The requested image's platform") {
-			r = append(r, l)
+			cleaned = append(cleaned, l)
 		}
 	}
-	return strings.Join(r, "\n")
+	return strings.TrimSpace(strings.Join(cleaned, "\n"))
 }
