@@ -61,6 +61,10 @@ func (h *httpRouteConfigurationTranslator) ComputeRouteConfiguration(ctx context
 		}
 		reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
 		for _, pol := range mergePolicies(pass, pols) {
+			if len(pol.Errors) > 0 {
+				h.logger.Error("failed to apply route config plugin", "policy", pol.PolicyRef.Name, "errors", pol.Errors)
+				continue
+			}
 			pass.ApplyRouteConfigPlugin(ctx, &ir.RouteConfigContext{
 				FilterChainName:   h.fc.FilterChainName,
 				TypedFilterConfig: typedPerFilterConfigRoute,
@@ -278,6 +282,10 @@ func (h *httpRouteConfigurationTranslator) runVhostPlugins(
 		}
 		reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
 		for _, pol := range mergePolicies(pass, pols) {
+			if len(pol.Errors) > 0 {
+				h.logger.Error("failed to apply vhost plugin", "policy", pol.PolicyRef.Name, "errors", pol.Errors)
+				continue
+			}
 			pctx := &ir.VirtualHostContext{
 				Policy:            pol.PolicyIr,
 				TypedFilterConfig: typedPerFilterConfig,
@@ -359,7 +367,8 @@ func mergePolicies(pass *TranslationPass, policies []ir.PolicyAtt) []ir.PolicyAt
 	return policies
 }
 
-func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext) {
+func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext) []error {
+	var errs []error
 	for _, gk := range in.AttachedPolicies.ApplyOrderedGroupKinds() {
 		pols := in.AttachedPolicies.Policies[gk]
 		pass := h.pluginPass[gk]
@@ -369,9 +378,17 @@ func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Contex
 		}
 		reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
 		for _, pol := range mergePolicies(pass, pols) {
+			if len(pol.Errors) > 0 {
+				errs = append(errs, pol.Errors...)
+				continue
+			}
 			pass.ApplyForRouteBackend(ctx, pol.PolicyIr, pCtx)
 		}
 	}
+	if len(errs) > 0 {
+		h.logger.Error("failed to apply backend plugin", "errors", errs)
+	}
+	return errs
 }
 
 func (h *httpRouteConfigurationTranslator) runBackend(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext, outRoute *envoy_config_route_v3.Route) {
@@ -382,6 +399,7 @@ func (h *httpRouteConfigurationTranslator) runBackend(ctx context.Context, in ir
 	if backendPass == nil {
 		return
 	}
+	// TODO: index into pol errors?
 	backendPass.ApplyForBackend(ctx, pCtx, in, outRoute)
 }
 
@@ -420,11 +438,14 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 			outRoute,
 		)
 		// apply route backend plugins
-		h.runBackendPolicies(
+		errs := h.runBackendPolicies(
 			ctx,
 			backend,
 			&pCtx,
 		)
+		if len(errs) > 0 {
+			h.logger.Error("failed to apply backend plugin", "errors", errs)
+		}
 
 		// Hard to read: needs it's own function.
 		backendConfigCtx.RequestHeadersToAdd = pCtx.RequestHeadersToAdd
@@ -441,6 +462,8 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 		clusters = append(clusters, cw)
 	}
 
+	// default to a blackhole cluster if no clusters are found. otherwise, we'll override with
+	// the weighted clusters that were built.
 	// TODO: i think envoy nacks if all weights are 0, we should error on that.
 	action := outRoute.GetRoute()
 	if action == nil {

@@ -10,6 +10,7 @@ import (
 	envoyauth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_upstreams_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
 	envoywellknown "github.com/envoyproxy/go-control-plane/pkg/wellknown"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	skubeclient "istio.io/istio/pkg/config/schema/kubeclient"
@@ -20,18 +21,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
 	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	translatorutils "github.com/kgateway-dev/kgateway/v2/internal/kgateway/translator/utils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
 const PreserveCasePlugin = "envoy.http.stateful_header_formatters.preserve_case"
@@ -144,10 +146,13 @@ func registerTypes(ourCli versioned.Interface) {
 
 func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensionsplug.Plugin {
 	registerTypes(commoncol.OurClient)
+
 	col := krt.WrapClient(kclient.NewFiltered[*v1alpha1.BackendConfigPolicy](
 		commoncol.Client,
 		kclient.Filter{ObjectFilter: commoncol.Client.ObjectFilter()},
 	), commoncol.KrtOpts.ToOptions("BackendConfigPolicy")...)
+
+	validator := validator.New()
 	backendConfigPolicyCol := krt.NewCollection(col, func(krtctx krt.HandlerContext, b *v1alpha1.BackendConfigPolicy) *ir.PolicyWrapper {
 		objSrc := ir.ObjectSource{
 			Group:     wellknown.BackendConfigPolicyGVK.Group,
@@ -156,11 +161,19 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 			Name:      b.Name,
 		}
 
+		var errs []error
 		policyIR, err := translate(commoncol, krtctx, b)
-		errs := []error{}
 		if err != nil {
 			errs = append(errs, err)
 		}
+		if commoncol.Settings.RouteReplacementMode == settings.RouteReplacementValidate {
+			logger.Info("validating policy", "policy", b.Name)
+			if err := policyIR.Validate(ctx, validator, b); err != nil {
+				logger.Error("failed to validate policy", "policy", b.Name, "error", err)
+				errs = append(errs, policy.NewTerminalError("PolicyValidationFailed", err))
+			}
+		}
+
 		return &ir.PolicyWrapper{
 			ObjectSource: objSrc,
 			Policy:       b,

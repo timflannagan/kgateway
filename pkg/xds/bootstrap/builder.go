@@ -3,6 +3,7 @@ package bootstrap
 
 import (
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -18,6 +19,7 @@ import (
 type ConfigBuilder struct {
 	filterConfigs ir.TypedFilterConfigMap
 	routes        []*envoy_config_route_v3.Route
+	clusters      []*envoy_config_cluster_v3.Cluster
 }
 
 // New creates a new ConfigBuilder
@@ -35,6 +37,11 @@ func (b *ConfigBuilder) AddFilterConfig(name string, config proto.Message) {
 // AddRouteConfig adds a route configuration to the builder.
 func (b *ConfigBuilder) AddRouteConfig(r *envoy_config_route_v3.Route) {
 	b.routes = append(b.routes, r)
+}
+
+// AddClusterConfig adds a cluster configuration to the builder.
+func (b *ConfigBuilder) AddClusterConfig(c *envoy_config_cluster_v3.Cluster) {
+	b.clusters = append(b.clusters, c)
 }
 
 // Build creates a partial bootstrap config suitable for validation.
@@ -62,32 +69,37 @@ func (b *ConfigBuilder) Build() (*envoy_config_bootstrap_v3.Bootstrap, error) {
 		return nil, err
 	}
 
+	staticResources := &envoy_config_bootstrap_v3.Bootstrap_StaticResources{
+		Listeners: []*envoy_config_listener_v3.Listener{{
+			Name: "placeholder_listener",
+			Address: &envoy_config_core_v3.Address{
+				Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Address:       "0.0.0.0",
+						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: 8081},
+					},
+				},
+			},
+			FilterChains: []*envoy_config_listener_v3.FilterChain{{
+				Name: "placeholder_filter_chain",
+				Filters: []*envoy_config_listener_v3.Filter{{
+					Name: envoywellknown.HTTPConnectionManager,
+					ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
+						TypedConfig: hcmAny,
+					},
+				}},
+			}},
+		}},
+	}
+	if len(b.clusters) > 0 {
+		staticResources.Clusters = b.clusters
+	}
+
 	return &envoy_config_bootstrap_v3.Bootstrap{
 		Node: &envoy_config_core_v3.Node{
 			Id:      "validation-node-id",
 			Cluster: "validation-cluster",
 		},
-		StaticResources: &envoy_config_bootstrap_v3.Bootstrap_StaticResources{
-			Listeners: []*envoy_config_listener_v3.Listener{{
-				Name: "placeholder_listener",
-				Address: &envoy_config_core_v3.Address{
-					Address: &envoy_config_core_v3.Address_SocketAddress{
-						SocketAddress: &envoy_config_core_v3.SocketAddress{
-							Address:       "0.0.0.0",
-							PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: 8081},
-						},
-					},
-				},
-				FilterChains: []*envoy_config_listener_v3.FilterChain{{
-					Name: "placeholder_filter_chain",
-					Filters: []*envoy_config_listener_v3.Filter{{
-						Name: envoywellknown.HTTPConnectionManager,
-						ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
-							TypedConfig: hcmAny,
-						},
-					}},
-				}},
-			}},
-		},
+		StaticResources: staticResources,
 	}, nil
 }

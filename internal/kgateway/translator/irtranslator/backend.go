@@ -106,6 +106,10 @@ func (t *BackendTranslator) runPolicies(
 			continue
 		}
 		for _, polAttachment := range backend.AttachedPolicies.Policies[gk] {
+			if len(polAttachment.Errors) > 0 {
+				logger.Error("failed to apply backend plugin", "policy", polAttachment.PolicyRef.Name, "errors", polAttachment.Errors)
+				continue
+			}
 			policyPlugin.ProcessBackend(ctx, polAttachment.PolicyIr, backend, out)
 		}
 	}
