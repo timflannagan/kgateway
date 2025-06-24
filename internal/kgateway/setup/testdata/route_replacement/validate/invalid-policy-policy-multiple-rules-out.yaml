@@ -77,6 +77,18 @@ routes:
       match:
         pathSeparatedPrefix: /api/v1
       name: listener~8080~*-route-0-httproute-multi-rule-route-gwtest-0-0-rule-1-matcher-0
+      typedPerFilterConfig:
+        transformation:
+          '@type': type.googleapis.com/envoy.api.v2.filter.http.RouteTransformations
+          transformations:
+          - requestMatch:
+              requestTransformation:
+                transformationTemplate:
+                  headers:
+                    x-test-header:
+                      text: '{{ invalid_template }'
+                  parseBodyBehavior: DontParse
+                  passthrough: {}
     - match:
         pathSeparatedPrefix: /api/v2
       name: listener~8080~*-route-1-httproute-multi-rule-route-gwtest-1-0-rule-2-matcher-0

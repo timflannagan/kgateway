@@ -77,3 +77,15 @@ routes:
       match:
         prefix: /
       name: listener~8080~www_example_com-route-0-httproute-invalid-traffic-policy-route-gwtest-0-0-matcher-0
+      typedPerFilterConfig:
+        transformation:
+          '@type': type.googleapis.com/envoy.api.v2.filter.http.RouteTransformations
+          transformations:
+          - requestMatch:
+              requestTransformation:
+                transformationTemplate:
+                  body:
+                    text: '{{ invalid_template }'
+                  headers:
+                    x-test-header:
+                      text: test
