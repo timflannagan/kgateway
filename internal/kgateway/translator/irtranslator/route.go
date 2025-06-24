@@ -167,6 +167,10 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 		err = validateEnvoyRoute(out)
 	}
 	// apply typed per filter config from translating route action and route plugins
+	//
+	// TODO(tim): determine whether applying typed per filter config on the output route
+	// is correct if/when it's replaced with a direct response action. AFAIK, adding this
+	// config is a no-op, but we should double check.
 	typedPerFilterConfig := backendConfigCtx.typedPerFilterConfigRoute.ToAnyMap()
 	if out.GetTypedPerFilterConfig() == nil {
 		out.TypedPerFilterConfig = typedPerFilterConfig
