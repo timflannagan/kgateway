@@ -85,6 +85,10 @@ func (r *TypedFilterConfigMap) GetTypedConfig(key string) proto.Message {
 func (r *TypedFilterConfigMap) ToAnyMap() map[string]*anypb.Any {
 	typedPerFilterConfigAny := map[string]*anypb.Any{}
 	for k, v := range *r {
+		if anyMsg, ok := v.(*anypb.Any); ok {
+			typedPerFilterConfigAny[k] = anyMsg
+			continue
+		}
 		config, err := utils.MessageToAny(v)
 		if err != nil {
 			logger.Error("unexpected marshalling error", "error", err)
