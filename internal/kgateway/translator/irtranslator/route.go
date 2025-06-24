@@ -151,120 +151,74 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 ) *envoy_config_route_v3.Route {
 	out := h.initRoutes(in, generatedName)
 
-	typedPerFilterConfigRoute := ir.TypedFilterConfigMap(map[string]proto.Message{})
-	backendConfigCtx := backendConfigContext{typedPerFilterConfigRoute: typedPerFilterConfigRoute}
+	backendConfigCtx := backendConfigContext{typedPerFilterConfigRoute: ir.TypedFilterConfigMap(map[string]proto.Message{})}
 	if len(in.Backends) == 1 {
 		// if there's only one backend, we need to reuse typedPerFilterConfigRoute in both translateRouteAction and runRoutePlugins
-		action, err := h.translateRouteAction(ctx, in, out, &backendConfigCtx)
-		if err != nil {
-			h.handleRouteError(err, in, out, routeReport)
-			return nil
-		}
-		out.Action = action
+		out.Action = h.translateRouteAction(ctx, in, out, &backendConfigCtx)
 	} else if len(in.Backends) > 0 {
 		// If there is more than one backend, we translate the backends as WeightedClusters and each weighted cluster
 		// will have a TypedPerFilterConfig that overrides the parent route-level config.
-		action, err := h.translateRouteAction(ctx, in, out, nil)
-		if err != nil {
-			h.handleRouteError(err, in, out, routeReport)
-			return nil
-		}
-		out.Action = action
+		out.Action = h.translateRouteAction(ctx, in, out, nil)
 	}
-	// run route plugins that may set action or typed per filter config
-	if err := h.runRoutePlugins(ctx, routeReport, in, out, typedPerFilterConfigRoute); err != nil {
-		h.handleRouteError(err, in, out, routeReport)
-		return out
-	}
-	// validate envoy route for structural errors
-	if err := validateEnvoyRoute(out); err != nil {
-		h.handleRouteError(err, in, out, routeReport)
-		return out
+
+	// run plugins here that may set action
+	err := h.runRoutePlugins(ctx, routeReport, in, out, backendConfigCtx.typedPerFilterConfigRoute)
+	if err == nil {
+		err = validateEnvoyRoute(out)
 	}
 	// apply typed per filter config from translating route action and route plugins
-	h.applyTypedFilterConfig(out, typedPerFilterConfigRoute)
-	// check if action is required but missing. skip for delegates.
-	if out.GetAction() == nil {
-		if in.Delegates {
-			return nil
-		}
-		h.handleRouteError(errors.New("no action specified"), in, out, routeReport)
-		return out
-	}
-
-	// TODO: Clean this up. WIP RDS validation.
-	// builder := bootstrap.New()
-	// builder.AddRouteConfig(out)
-	// bootstrap, err := builder.Build()
-	// if err != nil {
-	// 	h.handleRouteError(err, in, out, routeReport)
-	// 	return nil
-	// }
-	// data, err := protojson.Marshal(bootstrap)
-	// if err != nil {
-	// 	h.handleRouteError(err, in, out, routeReport)
-	// 	return nil
-	// }
-	// v := validator.New(true)
-	// if err := v.Validate(ctx, string(data)); err != nil {
-	// 	h.handleRouteError(err, in, out, routeReport)
-	// 	return nil
-	// }
-
-	return out
-}
-
-func (h *httpRouteConfigurationTranslator) applyTypedFilterConfig(
-	out *envoy_config_route_v3.Route,
-	typedPerFilterConfigRoute ir.TypedFilterConfigMap,
-) {
-	typedPerFilterConfig := typedPerFilterConfigRoute.ToAnyMap()
+	typedPerFilterConfig := backendConfigCtx.typedPerFilterConfigRoute.ToAnyMap()
 	if out.GetTypedPerFilterConfig() == nil {
 		out.TypedPerFilterConfig = typedPerFilterConfig
-		return
-	}
-	for k, v := range typedPerFilterConfig {
-		if _, exists := out.GetTypedPerFilterConfig()[k]; !exists {
-			out.GetTypedPerFilterConfig()[k] = v
+	} else {
+		for k, v := range typedPerFilterConfig {
+			if _, exists := out.GetTypedPerFilterConfig()[k]; !exists {
+				out.GetTypedPerFilterConfig()[k] = v
+			}
 		}
 	}
-}
+	out.RequestHeadersToAdd = append(out.GetRequestHeadersToAdd(), backendConfigCtx.RequestHeadersToAdd...)
+	out.RequestHeadersToRemove = append(out.GetRequestHeadersToRemove(), backendConfigCtx.RequestHeadersToRemove...)
+	out.ResponseHeadersToAdd = append(out.GetResponseHeadersToAdd(), backendConfigCtx.ResponseHeadersToAdd...)
+	out.ResponseHeadersToRemove = append(out.GetResponseHeadersToRemove(), backendConfigCtx.ResponseHeadersToRemove...)
 
-func (h *httpRouteConfigurationTranslator) handleRouteError(
-	err error,
-	in ir.HttpRouteRuleMatchIR,
-	out *envoy_config_route_v3.Route,
-	routeReport reportssdk.ParentRefReporter,
-) (*envoy_config_route_v3.Route, error) {
-	h.logger.Debug("invalid route", "error", err)
-	routeReport.SetCondition(reportssdk.RouteCondition{
-		Type:    gwv1.RouteConditionPartiallyInvalid,
-		Status:  metav1.ConditionTrue,
-		Reason:  gwv1.RouteReasonUnsupportedValue,
-		Message: fmt.Sprintf("Dropped Rule (%d): %v", in.MatchIndex, err),
-	})
-	// If route replacement is off, we return nil to indicate that the route should be dropped.
-	// this is the legacy behavior and used for backwards compatibility. otherwise, we return a
-	// direct response action.
-	switch h.enableRouteReplacement {
-	case settings.RouteReplacementOff:
-		h.logger.Info("route replacement is off, dropping route", "route", in.Name)
-		out = nil
-		return out, err
-	case settings.RouteReplacementOn, settings.RouteReplacementValidate:
-		h.logger.Info("route replacement is on, replacing route with direct response", "route", in.Name)
-		out.Action = &envoy_config_route_v3.Route_DirectResponse{
-			DirectResponse: &envoy_config_route_v3.DirectResponseAction{
-				Status: http.StatusInternalServerError,
-				Body: &envoy_config_core_v3.DataSource{
-					Specifier: &envoy_config_core_v3.DataSource_InlineString{
-						InlineString: `Kgateway has detected an invalid route configuration`,
+	if err == nil && out.GetAction() == nil {
+		if in.Delegates {
+			return nil
+		} else {
+			err = errors.New("no action specified")
+		}
+	}
+	if err != nil {
+		h.logger.Debug("invalid route", "error", err)
+		switch h.enableRouteReplacement {
+		case settings.RouteReplacementOn, settings.RouteReplacementValidate:
+			h.logger.Info("route replacement is on, replacing route with direct response", "route", in.Name)
+			out.Action = &envoy_config_route_v3.Route_DirectResponse{
+				DirectResponse: &envoy_config_route_v3.DirectResponseAction{
+					Status: http.StatusInternalServerError,
+					Body: &envoy_config_core_v3.DataSource{
+						Specifier: &envoy_config_core_v3.DataSource_InlineString{
+							InlineString: `Kgateway has detected an invalid route configuration`,
+						},
 					},
 				},
-			},
+			}
+		case settings.RouteReplacementOff:
+			fallthrough
+		default:
+			out = nil
 		}
+		// TODO: we may want to aggregate all these errors per http route object and report one message?
+		routeReport.SetCondition(reportssdk.RouteCondition{
+			Type:    gwv1.RouteConditionPartiallyInvalid,
+			Status:  metav1.ConditionTrue,
+			Reason:  gwv1.RouteReasonUnsupportedValue,
+			Message: fmt.Sprintf("Dropped Rule (%d): %v", in.MatchIndex, err),
+		})
 	}
-	return out, err
+
+	return out
 }
 
 func (h *httpRouteConfigurationTranslator) runVhostPlugins(
@@ -367,8 +321,7 @@ func mergePolicies(pass *TranslationPass, policies []ir.PolicyAtt) []ir.PolicyAt
 	return policies
 }
 
-func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext) []error {
-	var errs []error
+func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext) {
 	for _, gk := range in.AttachedPolicies.ApplyOrderedGroupKinds() {
 		pols := in.AttachedPolicies.Policies[gk]
 		pass := h.pluginPass[gk]
@@ -378,17 +331,10 @@ func (h *httpRouteConfigurationTranslator) runBackendPolicies(ctx context.Contex
 		}
 		reportPolicyAcceptanceStatus(h.reporter, h.listener.PolicyAncestorRef, pols...)
 		for _, pol := range mergePolicies(pass, pols) {
-			if len(pol.Errors) > 0 {
-				errs = append(errs, pol.Errors...)
-				continue
-			}
+			// TODO(tim): check len(pols.Errors) > 0.
 			pass.ApplyForRouteBackend(ctx, pol.PolicyIr, pCtx)
 		}
 	}
-	if len(errs) > 0 {
-		h.logger.Error("failed to apply backend plugin", "errors", errs)
-	}
-	return errs
 }
 
 func (h *httpRouteConfigurationTranslator) runBackend(ctx context.Context, in ir.HttpBackend, pCtx *ir.RouteBackendContext, outRoute *envoy_config_route_v3.Route) {
@@ -399,7 +345,7 @@ func (h *httpRouteConfigurationTranslator) runBackend(ctx context.Context, in ir
 	if backendPass == nil {
 		return
 	}
-	// TODO: index into pol errors?
+	// TODO(tim): check len(pols.Errors) > 0 if that's even possible.
 	backendPass.ApplyForBackend(ctx, pCtx, in, outRoute)
 }
 
@@ -408,7 +354,7 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 	in ir.HttpRouteRuleMatchIR,
 	outRoute *envoy_config_route_v3.Route,
 	parentBackendConfigCtx *backendConfigContext,
-) (*envoy_config_route_v3.Route_Route, error) {
+) *envoy_config_route_v3.Route_Route {
 	var clusters []*envoy_config_route_v3.WeightedCluster_ClusterWeight
 	for _, backend := range in.Backends {
 		clusterName := backend.Backend.ClusterName
@@ -438,14 +384,11 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 			outRoute,
 		)
 		// apply route backend plugins
-		errs := h.runBackendPolicies(
+		h.runBackendPolicies(
 			ctx,
 			backend,
 			&pCtx,
 		)
-		if len(errs) > 0 {
-			h.logger.Error("failed to apply backend plugin", "errors", errs)
-		}
 
 		// Hard to read: needs it's own function.
 		backendConfigCtx.RequestHeadersToAdd = pCtx.RequestHeadersToAdd
@@ -477,7 +420,7 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 	switch len(clusters) {
 	case 0:
 		// defensive check, should never happen
-		return nil, fmt.Errorf("no clusters found for route %s", in.Name)
+		return nil
 	case 1:
 		// Only set the cluster name if unspecified since a plugin may have set it.
 		if action.GetCluster() == "" {
@@ -508,7 +451,7 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 			}
 		}
 	}
-	return routeAction, nil
+	return routeAction
 }
 
 func validateEnvoyRoute(r *envoy_config_route_v3.Route) error {
