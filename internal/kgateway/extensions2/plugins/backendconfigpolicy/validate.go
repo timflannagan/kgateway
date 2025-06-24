@@ -62,7 +62,7 @@ func (p *BackendConfigPolicyIR) validateXDS(ctx context.Context, v validator.Val
 		Action: &routev3.Route_Route{
 			Route: &routev3.RouteAction{
 				ClusterSpecifier: &routev3.RouteAction_Cluster{
-					Cluster: testCluster.Name,
+					Cluster: testCluster.GetName(),
 				},
 			},
 		},
