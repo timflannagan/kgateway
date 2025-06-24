@@ -51,6 +51,7 @@ func NewPerClientEnvoyClusters(
 		uccWithClusterRet := make([]uccWithCluster, 0, len(uccs))
 
 		for _, ucc := range uccs {
+			// TODO(tim): this debug log is very noisy, re-evaluate whether it provides any value
 			backendLogger.Debug("applying destination rules for backend", "ucc", ucc.ResourceName())
 
 			c, err := translator.TranslateBackend(ctx, kctx, ucc, backendObj)
