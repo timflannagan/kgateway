@@ -33,6 +33,7 @@ type BackendTranslator struct {
 }
 
 func (t *BackendTranslator) TranslateBackend(
+	ctx context.Context,
 	kctx krt.HandlerContext,
 	ucc ir.UniqlyConnectedClient,
 	backend ir.BackendObjectIR,
@@ -62,17 +63,17 @@ func (t *BackendTranslator) TranslateBackend(
 	}
 
 	out := initializeCluster(backend)
-	inlineEps := process.InitBackend(context.TODO(), backend, out)
+	inlineEps := process.InitBackend(ctx, backend, out)
 	processDnsLookupFamily(out, t.CommonCols)
 
 	// now process backend policies
-	t.runPolicies(kctx, context.TODO(), ucc, backend, inlineEps, out)
+	t.runPolicies(ctx, kctx, ucc, backend, inlineEps, out)
 	return out, nil
 }
 
 func (t *BackendTranslator) runPolicies(
-	kctx krt.HandlerContext,
 	ctx context.Context,
+	kctx krt.HandlerContext,
 	ucc ir.UniqlyConnectedClient,
 	backend ir.BackendObjectIR,
 	inlineEps *ir.EndpointsForBackend,

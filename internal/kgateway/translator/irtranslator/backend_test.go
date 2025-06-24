@@ -39,7 +39,7 @@ func TestBackendTranslatorTranslatesAppProtocol(t *testing.T) {
 		},
 	}
 
-	c, err := bt.TranslateBackend(kctx, ucc, backend)
+	c, err := bt.TranslateBackend(context.Background(), kctx, ucc, backend)
 	g.Expect(err).NotTo(HaveOccurred())
 	opts := c.GetTypedExtensionProtocolOptions()["envoy.extensions.upstreams.http.v3.HttpProtocolOptions"]
 	g.Expect(opts).NotTo(BeNil())

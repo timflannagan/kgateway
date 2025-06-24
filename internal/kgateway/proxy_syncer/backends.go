@@ -53,7 +53,7 @@ func NewPerClientEnvoyClusters(
 		for _, ucc := range uccs {
 			backendLogger.Debug("applying destination rules for backend", "ucc", ucc.ResourceName())
 
-			c, err := translator.TranslateBackend(kctx, ucc, backendObj)
+			c, err := translator.TranslateBackend(ctx, kctx, ucc, backendObj)
 			if c == nil {
 				continue
 			}
