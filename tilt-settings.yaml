@@ -12,7 +12,7 @@ metal_lb: false
 providers:
   kgateway:
     context: _output/internal/kgateway
-    image: ghcr.io/kgateway-dev/kgateway
+    image: cr.kgateway.dev/kgateway-dev/kgateway
     live_reload_deps:
       - pkg
       - internal

@@ -180,9 +180,9 @@ func cleanupMockProvider(ctx context.Context, testInstallation *e2e.TestInstalla
 func installProviderMockApp(ctx context.Context, testInstallation *e2e.TestInstallation, namespace string) {
 	// Get version from environment variable or use default image
 	version := os.Getenv("VERSION")
-	image := "ghcr.io/kgateway-dev/test-ai-provider:1.0.0-ci1"
+	image := "cr.kgateway.dev/kgateway-dev/test-ai-provider:1.0.0-ci1"
 	if version != "" {
-		image = fmt.Sprintf("ghcr.io/kgateway-dev/test-ai-provider:%s", version)
+		image = fmt.Sprintf("cr.kgateway.dev/kgateway-dev/test-ai-provider:%s", version)
 	}
 
 	yaml := getMockProviderYAML(namespace, image)

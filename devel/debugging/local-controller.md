@@ -38,7 +38,7 @@ Use the following `launch.json` configuration to run the controller in the debug
     "KUBECONFIG": "/home/user/.kube/config",
     "KGW_LOG_LEVEL": "info",
     "KGW_XDS_SERVICE_HOST": "172.17.0.1",
-    "KGW_DEFAULT_IMAGE_REGISTRY": "ghcr.io/kgateway-dev",
+    "KGW_DEFAULT_IMAGE_REGISTRY": "cr.kgateway.dev/kgateway-dev",
     "KGW_DEFAULT_IMAGE_TAG": "2.0.0-dev",
     "KGW_DEFAULT_IMAGE_PULL_POLICY": "IfNotPresent",
   },

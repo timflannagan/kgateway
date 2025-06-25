@@ -27,7 +27,7 @@ help: ## Output the self-documenting make targets
 ROOTDIR := $(shell pwd)
 OUTPUT_DIR ?= $(ROOTDIR)/_output
 
-export IMAGE_REGISTRY ?= ghcr.io/kgateway-dev
+export IMAGE_REGISTRY ?= cr.kgateway.dev/kgateway-dev
 
 # Kind of a hack to make sure _output exists
 z := $(shell mkdir -p $(OUTPUT_DIR))
@@ -38,9 +38,6 @@ export VERSION
 
 SOURCES := $(shell find . -name "*.go" | grep -v test.go)
 
-# ATTENTION: when updating to a new major version of Envoy, check if
-# universal header validation has been enabled and if so, we expect
-# failures in `test/e2e/header_validation_test.go`.
 export ENVOY_IMAGE ?= quay.io/solo-io/envoy-gloo:1.34.1-patch3
 export LDFLAGS := -X 'github.com/kgateway-dev/kgateway/v2/internal/version.Version=$(VERSION)'
 export GCFLAGS ?=
@@ -75,7 +72,6 @@ endif
 GOOS ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 GO_BUILD_FLAGS := GO111MODULE=on CGO_ENABLED=0 GOARCH=$(GOARCH)
-GOLANG_ALPINE_IMAGE_NAME = golang:$(shell go version | egrep -o '([0-9]+\.[0-9]+)')-alpine3.18
 
 TEST_ASSET_DIR ?= $(ROOTDIR)/_test
 
@@ -156,12 +152,14 @@ analyze:  ## Run golangci-lint. Override options with ANALYZE_ARGS.
 #----------------------------------------------------------------------------
 # Info
 #----------------------------------------------------------------------------
+
 .PHONY: envoyversion
 envoyversion: ENVOY_VERSION_TAG ?= $(shell echo $(ENVOY_IMAGE) | cut -d':' -f2)
 envoyversion:
 	echo "Version is $(ENVOY_VERSION_TAG)"
 	echo "Commit for envoyproxy is $(shell curl -s https://raw.githubusercontent.com/solo-io/envoy-gloo/refs/tags/v$(ENVOY_VERSION_TAG)/bazel/repository_locations.bzl | grep "envoy =" -A 4 | grep commit | cut -d'"' -f2)"
 	echo "Current ABI in envoyinit can be found in the cargo.toml's envoy-proxy-dynamic-modules-rust-sdk"
+
 #----------------------------------------------------------------------------------
 # Ginkgo Tests
 #----------------------------------------------------------------------------------
@@ -194,14 +192,6 @@ test-with-coverage: test
 run-tests: GINKGO_FLAGS += -skip-package=e2e,kgateway,test/kubernetes/testutils/helper ## Run all non E2E tests, or only run the test package at {TEST_PKG} if it is specified
 run-tests: GINKGO_FLAGS += --label-filter="!end-to-end && !performance"
 run-tests: test
-
-.PHONY: run-performance-tests
-# Performance tests are filtered using a Ginkgo label
-# This means that any tests which do not rely on Ginkgo, will by default be compiled and run
-# Since this is not the desired behavior, we explicitly skip these packages
-run-performance-tests: GINKGO_FLAGS += -skip-package=kgateway,kubernetes/e2e
-run-performance-tests: GINKGO_FLAGS += --label-filter="performance" ## Run only tests with the Performance label
-run-performance-tests: test
 
 .PHONY: run-e2e-tests
 run-e2e-tests: TEST_PKG = ./test/e2e/ ## Run all in-memory E2E tests
@@ -304,12 +294,8 @@ verify: generate-all  ## Verify that generated code is up to date
 .PHONY: generate-all
 generate-all: generated-code
 
-# Generates all required code, cleaning and formatting as well; this target is executed in CI
 .PHONY: generated-code
-generated-code: clean-gen go-generate-all getter-check mod-tidy
-generated-code: update-licenses
-# generated-code: generate-crd-reference-docs
-generated-code: fmt
+generated-code: clean-gen go-generate-all mod-tidy update-licenses fmt ## Generate all required code, cleaning and formatting as well; this target is executed in CI
 
 .PHONY: go-generate-all
 go-generate-all: go-generate-apis go-generate-mocks
@@ -349,15 +335,6 @@ kgateway-ai-extension-docker:
 		--build-arg PYTHON_DIR=python \
 		-t  $(IMAGE_REGISTRY)/kgateway-ai-extension:$(VERSION)
 
-GETTERCHECK ?= go tool github.com/saiskee/gettercheck
-# Ensures that accesses for fields which have "getter" functions are exclusively done via said "getter" functions
-# TODO: do we still want this?
-.PHONY: getter-check
-getter-check: ## Runs all generate directives for mockgen in the repo
-	$(GETTERCHECK) -ignoretests -ignoregenerated -write ./internal/... ./pkg/...
-
-
-
 #----------------------------------------------------------------------------------
 # Controller
 #----------------------------------------------------------------------------------
@@ -385,8 +362,6 @@ kgateway-docker: $(CONTROLLER_OUTPUT_DIR)/kgateway-linux-$(GOARCH) $(CONTROLLER_
 		--build-arg ENVOY_IMAGE=$(ENVOY_IMAGE) \
 		-t $(IMAGE_REGISTRY)/$(CONTROLLER_IMAGE_REPO):$(VERSION)
 
-
-
 #----------------------------------------------------------------------------------
 # SDS Server - gRPC server for serving Secret Discovery Service config
 #----------------------------------------------------------------------------------
@@ -411,8 +386,6 @@ sds-docker: $(SDS_OUTPUT_DIR)/sds-linux-$(GOARCH) $(SDS_OUTPUT_DIR)/Dockerfile.s
 		--build-arg GOARCH=$(GOARCH) \
 		--build-arg BASE_IMAGE=$(ALPINE_BASE_IMAGE) \
 		-t $(IMAGE_REGISTRY)/$(SDS_IMAGE_REPO):$(VERSION)
-
-
 
 #----------------------------------------------------------------------------------
 # Envoy init (BASE/SIDECAR)
@@ -443,8 +416,6 @@ envoy-wrapper-docker: $(ENVOYINIT_OUTPUT_DIR)/envoyinit-linux-$(GOARCH) $(ENVOYI
 		--build-arg GOARCH=$(GOARCH) \
 		--build-arg ENVOY_IMAGE=$(ENVOY_IMAGE) \
 		-t $(IMAGE_REGISTRY)/$(ENVOYINIT_IMAGE_REPO):$(VERSION)
-
-
 
 #----------------------------------------------------------------------------------
 # Helm
@@ -479,7 +450,6 @@ HELM_ADDITIONAL_VALUES ?= hack/helm/dev.yaml
 deploy-kgateway-chart: ## Deploy the kgateway chart
 	$(HELM) upgrade --install kgateway $(TEST_ASSET_DIR)/kgateway-$(VERSION).tgz \
 	--namespace kgateway-system --create-namespace \
-	--set image.registry=$(IMAGE_REGISTRY) \
 	--set image.tag=$(VERSION) \
 	-f $(HELM_ADDITIONAL_VALUES)
 
