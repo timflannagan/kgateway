@@ -404,7 +404,7 @@ envoyinit: $(ENVOYINIT_OUTPUT_DIR)/envoyinit-linux-$(GOARCH)
 
 # TODO(nfuden) cheat the process for now with -r but try to find a cleaner method
 $(ENVOYINIT_OUTPUT_DIR)/Dockerfile.envoyinit: internal/envoyinit/Dockerfile.envoyinit
-	cp  -r  ${ENVOYINIT_DIR}/rustformations $(ENVOYINIT_OUTPUT_DIR)
+	cp -r ${ENVOYINIT_DIR}/rustformations $(ENVOYINIT_OUTPUT_DIR)
 	cp $< $@
 
 $(ENVOYINIT_OUTPUT_DIR)/docker-entrypoint.sh: internal/envoyinit/cmd/docker-entrypoint.sh
@@ -643,14 +643,16 @@ CONFORMANCE_REPORT_ARGS ?= -report-output=$(TEST_ASSET_DIR)/conformance/$(VERSIO
 CONFORMANCE_ARGS := -gateway-class=$(CONFORMANCE_GATEWAY_CLASS) $(CONFORMANCE_UNSUPPORTED_FEATURES) $(CONFORMANCE_SUPPORTED_PROFILES) $(CONFORMANCE_REPORT_ARGS)
 
 .PHONY: conformance ## Run the conformance test suite
-conformance: $(TEST_ASSET_DIR)/conformance/conformance_test.go
+test/conformance: $(TEST_ASSET_DIR)/conformance/conformance_test.go
 	go test -mod=mod -ldflags='$(LDFLAGS)' -tags conformance -test.v $(TEST_ASSET_DIR)/conformance/... -args $(CONFORMANCE_ARGS)
 
 # Run only the specified conformance test. The name must correspond to the ShortName of one of the k8s gateway api
 # conformance tests.
-conformance-%: $(TEST_ASSET_DIR)/conformance/conformance_test.go
+test/conformance-%: $(TEST_ASSET_DIR)/conformance/conformance_test.go
 	go test -mod=mod -ldflags='$(LDFLAGS)' -tags conformance -test.v $(TEST_ASSET_DIR)/conformance/... -args $(CONFORMANCE_ARGS) \
 	-run-test=$*
+
+conformance: run test/conformance
 
 #----------------------------------------------------------------------------------
 # Third Party License Management
