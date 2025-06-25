@@ -1,6 +1,8 @@
 WEBHOOK_API_SOURCES = docs/export_openapi.py samples/app.py ai_extension/guardrails/api.py
 TEST_DIR = ../test/kubernetes/e2e/features/aiextension/
 
+# TODO(tim): This feels like it's mostly cruft, no?
+
 webhooks-openapi.yaml: $(WEBHOOK_API_SOURCES)
 	python docs/export_openapi.py app:app --app-dir samples/ --out docs/$@
 
@@ -25,5 +27,5 @@ lint:
 
 .PHONY: run-webhook-server
 run-webhook-server:
-	python3 -m fastapi run  --host 0.0.0.0 --port 7891 samples/app.py 
+	python3 -m fastapi run  --host 0.0.0.0 --port 7891 samples/app.py
 

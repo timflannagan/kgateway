@@ -219,7 +219,10 @@ unit-go: mod-download kgateway
 .PHONY: unit-python
 unit-python: ## Run Python unit tests
 unit-python:
-	$(MAKE) -C python unit-tests
+	cd python && python3 -m venv .venv
+	cd python && .venv/bin/pip install -r requirements-dev.txt --no-cache-dir
+	cd python && .venv/bin/pip install -r requirements.txt --no-cache-dir
+	cd python/ai_extension && ../.venv/bin/python -m pytest test
 
 .PHONY: unit
 unit: unit-go unit-python ## Run all unit tests
