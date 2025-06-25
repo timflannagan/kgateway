@@ -3,6 +3,8 @@ description: run kubernetes gateway api conformance tests
 runs:
   using: "composite"
   steps:
+  # TODO(tim): Do we need the prep-go-runner step? Outside of installing Go, this workflow shouldn't run into
+  # any disk pressure issues on the remote VM.
   - name: Prep Go Runner
     uses: ./.github/actions/prep-go-runner
   - uses: azure/setup-kubectl@v4

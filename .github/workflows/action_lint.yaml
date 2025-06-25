@@ -1,5 +1,8 @@
 name: pr-github-workflow-lint
 
+# FIXME(tim): If this check isn't required, it's highly likely actions that fail
+# linting will be ignored and main branch will be blocked for subsequent PRs that
+# modify the workflows regarless of whether they are related to the linting failure.
 on:
   pull_request:
     paths:

@@ -2,6 +2,7 @@ name: Prep Go Runner
 
 description: Common setup steps for Gloo actions
 
+# TODO(tim): Add input that skips the disk cleanup step.
 inputs:
   working-directory:
     description: 'directory to run setup steps in'
