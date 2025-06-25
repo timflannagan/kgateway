@@ -275,10 +275,10 @@ func (p *trafficPolicyPluginGwPass) ApplyVhostPlugin(ctx context.Context, pCtx *
 }
 
 // called 0 or more times
-func (p *trafficPolicyPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *routev3.Route) {
+func (p *trafficPolicyPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *routev3.Route) error {
 	policy, ok := pCtx.Policy.(*TrafficPolicy)
 	if !ok {
-		return
+		return nil
 	}
 
 	if policy.spec.rustformation != nil {
@@ -361,13 +361,17 @@ func (p *trafficPolicyPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.
 	}
 	p.handlePolicies(pCtx.FilterChainName, &pCtx.TypedFilterConfig, policy.spec)
 
-	return
+	return nil
 }
 
-func (p *trafficPolicyPluginGwPass) ApplyForRouteBackend(ctx context.Context, policy ir.PolicyIR, pCtx *ir.RouteBackendContext) {
+func (p *trafficPolicyPluginGwPass) ApplyForRouteBackend(
+	ctx context.Context,
+	policy ir.PolicyIR,
+	pCtx *ir.RouteBackendContext,
+) error {
 	rtPolicy, ok := policy.(*TrafficPolicy)
 	if !ok {
-		return
+		return nil
 	}
 
 	p.handlePolicies(pCtx.FilterChainName, &pCtx.TypedFilterConfig, rtPolicy.spec)
@@ -376,7 +380,7 @@ func (p *trafficPolicyPluginGwPass) ApplyForRouteBackend(ctx context.Context, po
 		p.processAITrafficPolicy(&pCtx.TypedFilterConfig, rtPolicy.spec.AI)
 	}
 
-	return
+	return nil
 }
 
 // called 1 time per listener

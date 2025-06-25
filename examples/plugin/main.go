@@ -168,14 +168,14 @@ type ourPolicyPass struct {
 }
 
 // ApplyForRoute is called when a an HTTPRouteRule is being translated to an envoy route.
-func (s *ourPolicyPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, out *envoy_config_route_v3.Route) {
+func (s *ourPolicyPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, out *envoy_config_route_v3.Route) error {
 	// get our policy IR. Kgateway used the targetRef to attach the policy to the HTTPRoute. and now as it
 	// translates the HTTPRoute to xDS, it calls our plugin and passes the policy for the plugin's translation pass to do the
 	// policy to xDS translation.
 	cmIr, ok := pCtx.Policy.(*configMapIr)
 	if !ok {
 		// should never happen
-		return
+		return nil
 	}
 	// apply the metadata from our IR to envoy's route object
 	if out.Metadata == nil {
@@ -189,7 +189,7 @@ func (s *ourPolicyPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext
 	}
 	s.filterNeeded[pCtx.FilterChainName] = true
 
-	return
+	return nil
 }
 
 func (s *ourPolicyPass) HttpFilters(ctx context.Context, fc ir.FilterChainCommon) ([]plugins.StagedHttpFilter, error) {

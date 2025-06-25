@@ -7,6 +7,7 @@ import (
 	"time"
 
 	stateful_sessionv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/stateful_session/v3"
+	envoyhttp "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	stateful_cookie "github.com/envoyproxy/go-control-plane/envoy/extensions/http/stateful_session/cookie/v3"
 	stateful_header "github.com/envoyproxy/go-control-plane/envoy/extensions/http/stateful_session/header/v3"
 	httpv3 "github.com/envoyproxy/go-control-plane/envoy/type/http/v3"
@@ -90,6 +91,16 @@ type builtinPluginGwPass struct {
 	reporter            reports.Reporter
 	hasCorsPolicy       map[string]bool
 	needStatefulSession map[string]bool
+}
+
+func (p *builtinPluginGwPass) ApplyForBackend(ctx context.Context, pCtx *ir.RouteBackendContext, in ir.HttpBackend, out *envoy_config_route_v3.Route) error {
+	// no op
+	return nil
+}
+
+func (p *builtinPluginGwPass) ApplyHCM(ctx context.Context, pCtx *ir.HcmContext, out *envoyhttp.HttpConnectionManager) error {
+	// no-op
+	return nil
 }
 
 func NewBuiltInIr(kctx krt.HandlerContext, f gwv1.HTTPRouteFilter, fromgk schema.GroupKind, fromns string, refgrants *RefGrantIndex, ups *BackendIndex) ir.PolicyIR {
@@ -532,12 +543,13 @@ func (p *builtinPlugin) Name() string {
 }
 
 // called one or more times per route rule
-func (p *builtinPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *envoy_config_route_v3.Route) {
+func (p *builtinPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *envoy_config_route_v3.Route) error {
 	policy, ok := pCtx.Policy.(*builtinPlugin)
 	if !ok {
-		return
+		return nil
 	}
 
+	var errs error
 	if policy.filter != nil {
 		policy.filter.apply(outputRoute)
 	}
@@ -550,22 +562,24 @@ func (p *builtinPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteC
 	if policy.hasCors {
 		p.hasCorsPolicy[pCtx.FilterChainName] = true
 	}
+
+	return errs
 }
 
 func (p *builtinPluginGwPass) ApplyForRouteBackend(
 	ctx context.Context,
 	policy ir.PolicyIR,
 	pCtx *ir.RouteBackendContext,
-) {
+) error {
 	inPolicy, ok := policy.(*builtinPlugin)
 	if !ok {
-		return
+		return nil
 	}
 	if inPolicy.filter == nil {
-		return
+		return nil
 	}
 	if inPolicy.filter.policy == nil {
-		return
+		return nil
 	}
 
 	if inPolicy.hasCors {
@@ -576,8 +590,10 @@ func (p *builtinPluginGwPass) ApplyForRouteBackend(
 	} else {
 		logger.Error("filter policy is not supported on backendRef", "filter_type", inPolicy.filter.filterType)
 		// TODO: once we have warnings / non terminal errors we should return it here, so the policy status is updated.
-		return
+		return nil
 	}
+
+	return nil
 }
 
 func (p *builtinPluginGwPass) HttpFilters(ctx context.Context, fcc ir.FilterChainCommon) ([]plugins.StagedHttpFilter, error) {

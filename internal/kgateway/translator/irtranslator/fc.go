@@ -204,7 +204,6 @@ func (h *hcmNetworkFilterTranslator) computeNetworkFilters(ctx context.Context, 
 	var attachedPolicies ir.AttachedPolicies
 	attachedPolicies.Append(h.gateway.AttachedHttpPolicies, l.AttachedPolicies)
 	for _, gk := range attachedPolicies.ApplyOrderedGroupKinds() {
-		// FIXME: status?
 		pols := attachedPolicies.Policies[gk]
 		pass := pass[gk]
 		if pass == nil {
@@ -215,7 +214,14 @@ func (h *hcmNetworkFilterTranslator) computeNetworkFilters(ctx context.Context, 
 			pctx := &ir.HcmContext{
 				Policy: pol.PolicyIr,
 			}
-			pass.ApplyHCM(ctx, pctx, httpConnectionManager)
+			if err := pass.ApplyHCM(ctx, pctx, httpConnectionManager); err != nil {
+				h.reporter.SetCondition(reports.ListenerCondition{
+					Type:    gwv1.ListenerConditionProgrammed,
+					Reason:  gwv1.ListenerReasonInvalid,
+					Status:  metav1.ConditionFalse,
+					Message: "Error processing HCM plugin: " + err.Error(),
+				})
+			}
 		}
 	}
 

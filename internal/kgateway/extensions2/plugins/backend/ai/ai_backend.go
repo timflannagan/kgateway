@@ -64,7 +64,7 @@ func data(s *ir.Secret) map[string][]byte {
 	return s.Data
 }
 
-func ApplyAIBackend(ir *IR, pCtx *ir.RouteBackendContext, out *envoy_config_route_v3.Route) {
+func ApplyAIBackend(ir *IR, pCtx *ir.RouteBackendContext, out *envoy_config_route_v3.Route) error {
 	pCtx.TypedFilterConfig.AddTypedConfig(wellknown.AIBackendTransformationFilterName, ir.Transformation)
 
 	copyBackendExtproc := proto.Clone(ir.Extproc).(*envoy_ext_proc_v3.ExtProcPerRoute)
@@ -88,7 +88,7 @@ func ApplyAIBackend(ir *IR, pCtx *ir.RouteBackendContext, out *envoy_config_rout
 		AutoHostRewrite: wrapperspb.Bool(true),
 	}
 
-	return
+	return nil
 }
 
 func PreprocessAIBackend(ctx context.Context, aiBackend *v1alpha1.AIBackend, ir *IR) error {

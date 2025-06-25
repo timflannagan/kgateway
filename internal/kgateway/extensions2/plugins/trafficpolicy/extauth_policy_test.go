@@ -69,8 +69,10 @@ func TestApplyForRoute(t *testing.T) {
 		outputRoute := &envoy_config_route_v3.Route{}
 
 		// Execute
-		plugin.ApplyForRoute(ctx, pCtx, outputRoute)
+		err := plugin.ApplyForRoute(ctx, pCtx, outputRoute)
+
 		// Verify
+		require.NoError(t, err)
 		require.NotNil(t, pCtx.TypedFilterConfig)
 		extAuthConfig, ok := pCtx.TypedFilterConfig[extAuthFilterName("test-extension")]
 		assert.True(t, ok)
@@ -92,9 +94,10 @@ func TestApplyForRoute(t *testing.T) {
 		outputRoute := &envoy_config_route_v3.Route{}
 
 		// Execute
-		plugin.ApplyForRoute(ctx, pCtx, outputRoute)
+		err := plugin.ApplyForRoute(ctx, pCtx, outputRoute)
 
 		// Verify
+		require.NoError(t, err)
 		assert.Nil(t, pCtx.TypedFilterConfig)
 	})
 }
@@ -160,9 +163,10 @@ func TestExtAuthPolicyPlugin(t *testing.T) {
 		outputRoute := &envoy_config_route_v3.Route{}
 
 		// Execute
-		plugin.ApplyForRoute(ctx, pCtx, outputRoute)
+		err := plugin.ApplyForRoute(ctx, pCtx, outputRoute)
 
 		// Verify
+		require.NoError(t, err)
 		require.NotNil(t, pCtx.TypedFilterConfig)
 		extAuthConfig, ok := pCtx.TypedFilterConfig[extAuthFilterName("test-auth-extension")]
 		assert.True(t, ok)
@@ -187,9 +191,10 @@ func TestExtAuthPolicyPlugin(t *testing.T) {
 		outputRoute := &envoy_config_route_v3.Route{}
 
 		// Execute
-		plugin.ApplyForRoute(ctx, pCtx, outputRoute)
+		err := plugin.ApplyForRoute(ctx, pCtx, outputRoute)
 
 		// Verify
+		require.NoError(t, err)
 		// assert.NotNil(t, )
 		assert.NotNil(t, pCtx.TypedFilterConfig, pCtx)
 		assert.NotEmpty(t, pCtx.TypedFilterConfig[extAuthGlobalDisableFilterName])

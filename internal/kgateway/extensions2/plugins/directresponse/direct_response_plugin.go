@@ -2,6 +2,7 @@ package directresponse
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -107,11 +108,10 @@ func NewGatewayTranslationPass(ctx context.Context, tctx ir.GwTranslationCtx, re
 }
 
 // called one or more times per route rule
-func (p *directResponsePluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *envoy_config_route_v3.Route) {
+func (p *directResponsePluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.RouteContext, outputRoute *envoy_config_route_v3.Route) error {
 	dr, ok := pCtx.Policy.(*directResponse)
 	if !ok {
-		// FIXME: handle attachment issues during IR construction
-		return
+		return fmt.Errorf("internal error: expected *directResponse, got %T", pCtx.Policy)
 	}
 	// at this point, we have a valid DR reference that we should apply to the route.
 	if outputRoute.GetAction() != nil {
@@ -123,7 +123,7 @@ func (p *directResponsePluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir
 				Status: http.StatusInternalServerError,
 			},
 		}
-		// FIXME: handle edge case where the DR is attached to a route that already has an action
+		return fmt.Errorf("DirectResponse cannot be applied to route with existing action: %T", outputRoute.GetAction())
 	}
 
 	outputRoute.Action = &envoy_config_route_v3.Route_DirectResponse{
@@ -136,5 +136,13 @@ func (p *directResponsePluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir
 			},
 		},
 	}
-	return
+	return nil
+}
+
+func (p *directResponsePluginGwPass) ApplyForRouteBackend(
+	ctx context.Context,
+	policy ir.PolicyIR,
+	pCtx *ir.RouteBackendContext,
+) error {
+	return ir.ErrNotAttachable
 }

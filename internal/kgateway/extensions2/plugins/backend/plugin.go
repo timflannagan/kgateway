@@ -341,12 +341,16 @@ func (p *backendPlugin) Name() string {
 	return ExtensionName
 }
 
-func (p *backendPlugin) ApplyForBackend(ctx context.Context, pCtx *ir.RouteBackendContext, in ir.HttpBackend, out *envoy_config_route_v3.Route) {
+func (p *backendPlugin) ApplyForBackend(ctx context.Context, pCtx *ir.RouteBackendContext, in ir.HttpBackend, out *envoy_config_route_v3.Route) error {
 	backend := pCtx.Backend.Obj.(*v1alpha1.Backend)
 	backendIr := pCtx.Backend.ObjIr.(*BackendIr)
 	switch backend.Spec.Type {
 	case v1alpha1.BackendTypeAI:
-		ai.ApplyAIBackend(backendIr.AIIr, pCtx, out)
+		err := ai.ApplyAIBackend(backendIr.AIIr, pCtx, out)
+		if err != nil {
+			return err
+		}
+
 		if p.aiGatewayEnabled == nil {
 			p.aiGatewayEnabled = make(map[string]bool)
 		}
@@ -368,7 +372,7 @@ func (p *backendPlugin) ApplyForBackend(ctx context.Context, pCtx *ir.RouteBacke
 		p.needsDfpFilter[pCtx.FilterChainName] = true
 	}
 
-	return
+	return nil
 }
 
 // called 1 time per listener

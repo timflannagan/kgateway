@@ -71,5 +71,6 @@ var (
 	BackendResourceName                   = ir.BackendResourceName
 	NewUniqlyConnectedClient              = ir.NewUniqlyConnectedClient
 	WithDelegationInheritedPolicyPriority = ir.WithDelegationInheritedPolicyPriority
+	ErrNotAttachable                      = ir.ErrNotAttachable
 	ParseAppProtocol                      = ir.ParseAppProtocol
 )
