@@ -208,7 +208,7 @@ func createManager(
 		ControllerName: gatewayControllerName,
 		AutoProvision:  true,
 		ImageInfo: &deployer.ImageInfo{
-			Registry: "ghcr.io/kgateway-dev",
+			Registry: "cr.kgateway.dev",
 			Tag:      "latest",
 		},
 		DiscoveryNamespaceFilter: fakeDiscoveryNamespaceFilter{},

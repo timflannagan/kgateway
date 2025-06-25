@@ -4,30 +4,14 @@ Note, all commands should be run from the root of the kgateway repo.
 
 ## Quickstart
 
-### Prerequisites
-
-- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
-- [helm](https://helm.sh/docs/intro/install/)
-
 ### Setup
+
+<!-- TODO: Deflate this README.md? -->
 
 To create the local test environment in kind, run:
 
 ```shell
-./hack/kind/setup-kind.sh
-```
-
-This will create the kind cluster and build the docker images.
-
-Next use helm to install the gateway control plane:
-
-```shell
-helm upgrade -i -n kgateway-system kgateway-crds _test/kgateway-crds-1.0.0-ci1.tgz --version 1.0.0-ci1 \
-          --create-namespace
-
-helm upgrade -i -n kgateway-system kgateway _test/kgateway-1.0.0-ci1.tgz --version 1.0.0-ci1 \
-          --set image.registry=ghcr.io/kgateway-dev \
-          --create-namespace
+make run
 ```
 
 To create a gateway, use the Gateway resource:
@@ -97,32 +81,20 @@ curl -I localhost:8080/productpage -H "host: www.example.com" -v
 
 ## Istio Integration
 
-This will create the kind cluster, build the docker images.
+Let's bootstrap the test environment with the Istio auto mTLS feature enabled:
 
 ```shell
-./hack/kind/setup-kind.sh
-```
-
-Next use helm to install the gateway control plane with istio auto mtls enabled:
-
-```shell
-helm upgrade -i -n kgateway-system kgateway-crds _test/kgateway-crds-1.0.0-ci1.tgz --version 1.0.0-ci1 \
-          --create-namespace
-
-helm upgrade -i -n kgateway-system kgateway _test/kgateway-1.0.0-ci1.tgz --version 1.0.0-ci1 \
-          --set image.registry=ghcr.io/kgateway-dev \
-          --create-namespace \
-          -f - <<EOF
+HELM_ADDITIONAL_VALUES=<(cat <<EOF
 controller:
   extraEnv:
     KGW_ENABLE_ISTIO_AUTO_MTLS: true
 EOF
 ```
 
-Next we need to install Istio in the cluster along with the bookinfo test application in the mesh:
+Next, we need to install Istio in the cluster along with the bookinfo test application in the mesh:
 
 ```shell
-./internal/kgateway/istio.sh
+./hack/istio.sh
 ```
 
 To create a gateway, use the Gateway resource:

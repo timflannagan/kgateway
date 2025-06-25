@@ -1,12 +1,14 @@
+# TODO(tim): Does this need to be a composite action?
 name: Conformance Tests
 description: run kubernetes gateway api conformance tests
 runs:
   using: "composite"
   steps:
-  # TODO(tim): Do we need the prep-go-runner step? Outside of installing Go, this workflow shouldn't run into
-  # any disk pressure issues on the remote VM.
-  - name: Prep Go Runner
-    uses: ./.github/actions/prep-go-runner
+  - uses: actions/checkout@v4
+  - name: Setup Go
+    uses: actions/setup-go@v5
+    with:
+      go-version-file: go.mod
   - uses: azure/setup-kubectl@v4
     id: kubectl
     with:

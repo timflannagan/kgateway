@@ -130,8 +130,6 @@ mod-tidy: mod-download  ## Tidy the go mod file
 # Analyze
 #----------------------------------------------------------------------------
 
-YQ ?= go tool yq
-LINTER_VERSION := $(shell cat .github/workflows/static-analysis.yaml | $(YQ) '.jobs.static-analysis.steps.[] | select( .uses == "*golangci/golangci-lint-action*") | .with.version ')
 GO_VERSION := $(shell cat go.mod | grep -E '^go' | awk '{print $$2}')
 GOTOOLCHAIN ?= go$(GO_VERSION)
 
@@ -197,12 +195,13 @@ run-e2e-tests: test
 ENVTEST_K8S_VERSION = 1.23
 ENVTEST ?= go tool setup-envtest
 
+# FIXME(tim): Separate envtests/setup package from unit suite!
 .PHONY: envtest-path
 envtest-path: ## Set the envtest path
 	@$(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path --arch=amd64
 
 #----------------------------------------------------------------------------------
-# Go Tests
+# Unit Tests
 #----------------------------------------------------------------------------------
 
 GO_TEST_ENV ?=
@@ -210,36 +209,20 @@ GO_TEST_ENV ?=
 # The default timeout for a suite is 10 minutes, but this can be overridden by setting the -timeout flag. Currently set
 # to 25 minutes based on the time it takes to run the longest test setup (kgateway_test).
 GO_TEST_ARGS ?= -timeout=25m -cpu=4 -race -outputdir=$(OUTPUT_DIR)
-GO_TEST_COVERAGE_ARGS ?= --cover --covermode=atomic --coverprofile=cover.out
-GO_TEST_COVERAGE ?= go tool github.com/vladopajic/go-test-coverage/v2
+GO_UNIT_TEST_PKGS ?= $(shell go list ./... | grep -v hack | grep -v test | grep -v internal/kgateway/setup)
 
-# This is a way for a user executing `make go-test` to be able to provide args which we do not include by default
-# For example, you may want to run tests multiple times, or with various timeouts
-GO_TEST_USER_ARGS ?=
+.PHONY: unit-go
+unit-go: ## Run Go unit tests with coverage and validation
+unit-go: mod-download kgateway
+	go test -ldflags='$(LDFLAGS)' $(GO_TEST_ARGS) $(GO_UNIT_TEST_PKGS)
 
-.PHONY: go-test
-go-test: ## Run all tests, or only run the test package at {TEST_PKG} if it is specified
-go-test: clean-bug-report clean-test-logs $(BUG_REPORT_DIR) $(TEST_LOG_DIR) # Ensure the bug_report dir is reset before each invocation
-	@$(GO_TEST_ENV) go test -ldflags='$(LDFLAGS)' \
-    $(GO_TEST_ARGS) $(GO_TEST_USER_ARGS) \
-    $(TEST_PKG) > $(TEST_LOG_DIR)/go-test 2>&1; \
-    RESULT=$$?; \
-    cat $(TEST_LOG_DIR)/go-test; \
-    if [ $$RESULT -ne 0 ]; then exit $$RESULT; fi  # ensure non-zero exit code if tests fail
+.PHONY: unit-python
+unit-python: ## Run Python unit tests
+unit-python:
+	$(MAKE) -C python unit-tests
 
-# https://go.dev/blog/cover#heat-maps
-.PHONY: go-test-with-coverage
-go-test-with-coverage: GO_TEST_ARGS += $(GO_TEST_COVERAGE_ARGS)
-go-test-with-coverage: go-test
-
-.PHONY: validate-test-coverage
-validate-test-coverage: ## Validate the test coverage
-	$(GO_TEST_COVERAGE) --config=./test_coverage.yml
-
-# https://go.dev/blog/cover#heat-maps
-.PHONY: view-test-coverage
-view-test-coverage:
-	go tool cover -html $(OUTPUT_DIR)/cover.out
+.PHONY: unit
+unit: unit-go unit-python ## Run all unit tests
 
 #----------------------------------------------------------------------------------
 # Clean
@@ -277,7 +260,7 @@ clean-test-logs:
 	rm -rf $(TEST_LOG_DIR)
 
 #----------------------------------------------------------------------------------
-# Generated Code and Docs
+# Generated Code
 #----------------------------------------------------------------------------------
 
 .PHONY: verify
@@ -288,7 +271,7 @@ verify: generate-all  ## Verify that generated code is up to date
 generate-all: generated-code
 
 .PHONY: generated-code
-generated-code: clean-gen go-generate-all mod-tidy update-licenses fmt ## Generate all required code, cleaning and formatting as well; this target is executed in CI
+generated-code: clean-gen go-generate-all mod-tidy generate-licenses fmt ## Generate all required code, cleaning and formatting as well; this target is executed in CI
 
 .PHONY: go-generate-all
 go-generate-all: go-generate-apis go-generate-mocks
@@ -300,6 +283,12 @@ go-generate-apis: ## Run all go generate directives in the repo, including codeg
 .PHONY: go-generate-mocks
 go-generate-mocks: ## Runs all generate directives for mockgen in the repo
 	GO111MODULE=on go generate -run="mockgen" ./...
+
+.PHONY: generate-licenses
+generate-licenses: ## Update the licenses for the project
+	GO111MODULE=on go run hack/utils/oss_compliance/oss_compliance.go osagen -c "GNU General Public License v2.0,GNU General Public License v3.0,GNU Lesser General Public License v2.1,GNU Lesser General Public License v3.0,GNU Affero General Public License v3.0"
+	GO111MODULE=on go run hack/utils/oss_compliance/oss_compliance.go osagen -s "Mozilla Public License 2.0,GNU General Public License v2.0,GNU General Public License v3.0,GNU Lesser General Public License v2.1,GNU Lesser General Public License v3.0,GNU Affero General Public License v3.0"> hack/utils/oss_compliance/osa_provided.md
+	GO111MODULE=on go run hack/utils/oss_compliance/oss_compliance.go osagen -i "Mozilla Public License 2.0"> hack/utils/oss_compliance/osa_included.md
 
 #----------------------------------------------------------------------------------
 # AI Extensions ExtProc Server
@@ -633,16 +622,6 @@ test/conformance-%: $(TEST_ASSET_DIR)/conformance/conformance_test.go
 	-run-test=$*
 
 conformance: run test/conformance
-
-#----------------------------------------------------------------------------------
-# Third Party License Management
-#----------------------------------------------------------------------------------
-
-.PHONY: update-licenses
-update-licenses: ## Update the licenses for the project
-	GO111MODULE=on go run hack/utils/oss_compliance/oss_compliance.go osagen -c "GNU General Public License v2.0,GNU General Public License v3.0,GNU Lesser General Public License v2.1,GNU Lesser General Public License v3.0,GNU Affero General Public License v3.0"
-	GO111MODULE=on go run hack/utils/oss_compliance/oss_compliance.go osagen -s "Mozilla Public License 2.0,GNU General Public License v2.0,GNU General Public License v3.0,GNU Lesser General Public License v2.1,GNU Lesser General Public License v3.0,GNU Affero General Public License v3.0"> hack/utils/oss_compliance/osa_provided.md
-	GO111MODULE=on go run hack/utils/oss_compliance/oss_compliance.go osagen -i "Mozilla Public License 2.0"> hack/utils/oss_compliance/osa_included.md
 
 #----------------------------------------------------------------------------------
 # Printing makefile variables utility
