@@ -6,23 +6,30 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-// RouteReplacementMode controls how invalid routes are handled
+// RouteReplacementMode determines how invalid routes are handled during translation.
+// Higher modes increase safety guarantees, but may have performance implications.
 type RouteReplacementMode string
 
 const (
-	// RouteReplacementOff is the legacy behavior where invalid rules are dropped.
+	// RouteReplacementOff drops invalid routes entirely, causing Envoy to
+	// return 404 for requests to those paths.
 	RouteReplacementOff RouteReplacementMode = "OFF"
-	// RouteReplacementOn enables route replacement with policy-level checks.
-	RouteReplacementOn RouteReplacementMode = "ON"
-	// RouteReplacementValidate enables strict mode with full IR validation.
-	RouteReplacementValidate RouteReplacementMode = "VALIDATE"
+	// RouteReplacementBasic rewrites invalid routes to direct responses
+	// (typically HTTP 500), preserving a valid config while isolating failures.
+	// This limits the blast radius of misconfigured routes or policies without
+	// affecting unrelated tenants.
+	RouteReplacementBasic RouteReplacementMode = "BASIC"
+	// RouteReplacementStrict builds on BASIC by running targeted validation
+	// (e.g. RDS, CDS, and security-related policies). Routes that fail these
+	// checks are also replaced with direct responses, and helps prevent unsafe
+	// config from reaching Envoy.
+	RouteReplacementStrict RouteReplacementMode = "STRICT"
 )
 
-// Decode implements envconfig.Decoder.
 func (m *RouteReplacementMode) Decode(value string) error {
 	mode := RouteReplacementMode(value)
 	switch mode {
-	case RouteReplacementOff, RouteReplacementOn, RouteReplacementValidate:
+	case RouteReplacementOff, RouteReplacementBasic, RouteReplacementStrict:
 		*m = mode
 		return nil
 	default:

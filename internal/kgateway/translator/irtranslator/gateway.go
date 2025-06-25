@@ -52,7 +52,7 @@ type TranslationResult struct {
 // Translate is responsible for translating the IR to the gateway. Note: the IR
 // is self contained, so no need for a KRT context parameter.
 func (t *Translator) Translate(ctx context.Context, gw ir.GatewayIR, reporter reports.Reporter) TranslationResult {
-	pass := t.newPass(reporter)
+	pass := t.newPass(ctx, reporter)
 	var res TranslationResult
 	for _, l := range gw.Listeners {
 		// TODO: propagate errors so we can allow the retain last config mode
@@ -118,7 +118,7 @@ func (t *Translator) ComputeListener(
 			attachedPolicies:         hfc.AttachedPolicies,
 			reporter:                 reporter,
 			requireTlsOnVirtualHosts: hfc.FilterChainCommon.TLS != nil,
-			enableRouteReplacement:   t.RouteReplacementMode,
+			routeReplacementMode:     t.RouteReplacementMode,
 			pluginPass:               pass,
 			logger:                   logger.With("route_config_name", hfc.FilterChainName),
 		}
@@ -191,19 +191,20 @@ func (t *Translator) runListenerPlugins(
 					Name:      gwv1.ObjectName(gw.SourceObject.GetName()),
 				},
 			}
+			// TODO: Handle pol.Errors here.
 			pass.ApplyListenerPlugin(ctx, pctx, out)
 			// TODO: check return value, if error returned, log error and report condition
 		}
 	}
 }
 
-func (t *Translator) newPass(reporter reports.Reporter) TranslationPassPlugins {
+func (t *Translator) newPass(ctx context.Context, reporter reports.Reporter) TranslationPassPlugins {
 	ret := TranslationPassPlugins{}
 	for k, v := range t.ContributedPolicies {
 		if v.NewGatewayTranslationPass == nil {
 			continue
 		}
-		tp := v.NewGatewayTranslationPass(context.TODO(), ir.GwTranslationCtx{}, reporter)
+		tp := v.NewGatewayTranslationPass(ctx, ir.GwTranslationCtx{}, reporter)
 		if tp == nil {
 			continue
 		}

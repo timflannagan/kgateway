@@ -211,10 +211,10 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 			Name:      policyCR.Name,
 		}
 
-		// translate the policy spec to an IR. when the "validate" mode is enabled, we validate the IR
+		// translate the policy spec to an IR. when the "strict" mode is enabled, we validate the IR
 		// contents and perform xds validation.
 		policyIR, errors := translator.Translate(krtctx, policyCR)
-		if commoncol.Settings.RouteReplacementMode == settings.RouteReplacementValidate {
+		if commoncol.Settings.RouteReplacementMode == settings.RouteReplacementStrict {
 			if err := policyIR.Validate(ctx, validator, policyCR); err != nil {
 				errors = append(errors, policy.NewTerminalError("PolicyValidationFailed", err))
 			}

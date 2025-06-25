@@ -57,7 +57,7 @@ func TestSettings(t *testing.T) {
 				"KGW_DNS_LOOKUP_FAMILY":             string(settings.DnsLookupFamilyV4Only),
 				"KGW_ENABLE_ISTIO_INTEGRATION":      "true",
 				"KGW_ENABLE_ISTIO_AUTO_MTLS":        "true",
-				"KGW_ROUTE_REPLACEMENT_MODE":        "validate",
+				"KGW_ROUTE_REPLACEMENT_MODE":        "STRICT",
 				"KGW_LISTENER_BIND_IPV6":            "false",
 				"KGW_STS_CLUSTER_NAME":              "my-cluster",
 				"KGW_STS_URI":                       "my.sts.uri",
@@ -81,7 +81,7 @@ func TestSettings(t *testing.T) {
 				ListenerBindIpv6:            false,
 				EnableIstioIntegration:      true,
 				EnableIstioAutoMtls:         true,
-				RouteReplacementMode:        settings.RouteReplacementValidate,
+				RouteReplacementMode:        settings.RouteReplacementStrict,
 				IstioNamespace:              "istio-system",
 				XdsServiceHost:              "my-xds-host",
 				XdsServiceName:              "custom-svc",
@@ -98,13 +98,6 @@ func TestSettings(t *testing.T) {
 				DiscoveryNamespaceSelectors: `[{"matchExpressions":[{"key":"kubernetes.io/metadata.name","operator":"In","values":["infra"]}]},{"matchLabels":{"app":"a"}}]`,
 				EnableAgentGateway:          true,
 			},
-		},
-		{
-			name: "errors on invalid route replacement mode",
-			envVars: map[string]string{
-				"KGW_ROUTE_REPLACEMENT_MODE": "invalid",
-			},
-			expectedErrorStr: `invalid route replacement mode: "invalid"`,
 		},
 		{
 			name: "errors on invalid bool",
@@ -126,6 +119,13 @@ func TestSettings(t *testing.T) {
 				"KGW_DNS_LOOKUP_FAMILY": "invalid",
 			},
 			expectedErrorStr: `invalid DNS lookup family: "invalid"`,
+		},
+		{
+			name: "errors on invalid route replacement mode",
+			envVars: map[string]string{
+				"KGW_ROUTE_REPLACEMENT_MODE": "invalid",
+			},
+			expectedErrorStr: `invalid route replacement mode: "invalid"`,
 		},
 		{
 			name: "ignores other env vars",
