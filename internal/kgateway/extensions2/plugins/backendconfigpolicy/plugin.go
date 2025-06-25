@@ -22,15 +22,12 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
 	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
-	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	pluginsdkutils "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/utils"
-	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
 const PreserveCasePlugin = "envoy.http.stateful_header_formatters.preserve_case"
@@ -149,7 +146,6 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 		kclient.Filter{ObjectFilter: commoncol.Client.ObjectFilter()},
 	), commoncol.KrtOpts.ToOptions("BackendConfigPolicy")...)
 
-	validator := validator.New()
 	backendConfigPolicyCol := krt.NewCollection(col, func(krtctx krt.HandlerContext, b *v1alpha1.BackendConfigPolicy) *ir.PolicyWrapper {
 		objSrc := ir.ObjectSource{
 			Group:     wellknown.BackendConfigPolicyGVK.Group,
@@ -162,13 +158,6 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 		policyIR, err := translate(commoncol, krtctx, b)
 		if err != nil {
 			errs = append(errs, err)
-		}
-		if commoncol.Settings.RouteReplacementMode == settings.RouteReplacementValidate {
-			logger.Info("validating policy", "policy", b.Name)
-			if err := policyIR.Validate(ctx, validator, b); err != nil {
-				logger.Error("failed to validate policy", "policy", b.Name, "error", err)
-				errs = append(errs, policy.NewTerminalError("PolicyValidationFailed", err))
-			}
 		}
 
 		return &ir.PolicyWrapper{
