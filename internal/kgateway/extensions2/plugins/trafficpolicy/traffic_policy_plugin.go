@@ -33,7 +33,6 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
 	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/plugins"
@@ -43,6 +42,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
+	pluginsdkutils "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/utils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
@@ -224,7 +224,7 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 			ObjectSource: objSrc,
 			Policy:       policyCR,
 			PolicyIR:     policyIR,
-			TargetRefs:   pluginutils.TargetRefsToPolicyRefsWithSectionName(policyCR.Spec.TargetRefs, policyCR.Spec.TargetSelectors),
+			TargetRefs:   pluginsdkutils.TargetRefsToPolicyRefsWithSectionName(policyCR.Spec.TargetRefs, policyCR.Spec.TargetSelectors),
 			Errors:       errors,
 		}
 		return pol
@@ -581,19 +581,12 @@ func mergePolicies(policies []ir.PolicyAtt) ir.PolicyAtt {
 		return out
 	}
 
-	// collect all errors from the policies being merged
-	var allErrors []error
-	for _, p := range policies {
-		allErrors = append(allErrors, p.Errors...)
-	}
-
 	// base policy to merge into has an empty PolicyIr so it can always be merged into
 	out = ir.PolicyAtt{
 		GroupKind:    policies[0].GroupKind,
 		PolicyRef:    policies[0].PolicyRef,
 		MergeOrigins: map[string]*ir.AttachedPolicyRef{},
 		PolicyIr:     &TrafficPolicy{},
-		Errors:       allErrors,
 	}
 	merged := out.PolicyIr.(*TrafficPolicy)
 
@@ -618,6 +611,7 @@ func mergePolicies(policies []ir.PolicyAtt) ir.PolicyAtt {
 		mergeOrigins := MergeTrafficPolicies(merged, p2, p2Ref, mergeOpts)
 		maps.Copy(out.MergeOrigins, mergeOrigins)
 		out.HierarchicalPriority = policies[i].HierarchicalPriority
+		out.Errors = append(out.Errors, policies[i].Errors...)
 	}
 
 	return out
