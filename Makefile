@@ -70,7 +70,6 @@ ifeq ($(MULTIARCH), true)
 endif
 
 GOOS ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
-
 GO_BUILD_FLAGS := GO111MODULE=on CGO_ENABLED=0 GOARCH=$(GOARCH)
 
 TEST_ASSET_DIR ?= $(ROOTDIR)/_test
@@ -89,6 +88,8 @@ $(TEST_LOG_DIR):
 	mkdir -p $(TEST_LOG_DIR)
 
 # Base Alpine image used for all containers. Exported for use in goreleaser.yaml.
+# TODO(tim): Why does SDS need an alphine-based base image? Can we remove this and
+# use distroless, scratch, chaingurad, etc.
 export ALPINE_BASE_IMAGE ?= alpine:3.17.6
 
 #----------------------------------------------------------------------------------
@@ -103,12 +104,11 @@ get_sources = $(shell find $(1) -name "*.go" | grep -v test | grep -v generated.
 # Repo setup
 #----------------------------------------------------------------------------------
 
-GOIMPORTS ?= go tool goimports
-
 .PHONY: init-git-hooks
 init-git-hooks:  ## Use the tracked version of Git hooks from this repo
 	git config core.hooksPath .githooks
 
+GOIMPORTS ?= go tool goimports
 .PHONY: fmt
 fmt:  ## Format the code with goimports
 	$(GOIMPORTS) -local "github.com/kgateway-dev/kgateway/v2/"  -w $(shell ls -d */ | grep -v vendor)
@@ -125,14 +125,6 @@ mod-download:  ## Download the dependencies
 .PHONY: mod-tidy
 mod-tidy: mod-download  ## Tidy the go mod file
 	go mod tidy
-
-.PHONY: check-format
-check-format:
-	NOT_FORMATTED=$$(gofmt -l ./pkg/ ./internal/ ./test/) && if [ -n "$$NOT_FORMATTED" ]; then echo These files are not formatted: $$NOT_FORMATTED; exit 1; fi
-
-.PHONY: check-spelling
-check-spelling:
-	./ci/spell.sh check
 
 #----------------------------------------------------------------------------
 # Analyze
@@ -254,6 +246,7 @@ view-test-coverage:
 #----------------------------------------------------------------------------------
 
 # Important to clean before pushing new releases. Dockerfiles and binaries may not update properly
+# FIXME(tim): Why doesn't this clean _everything_ and run all the sub-clean targets?
 .PHONY: clean
 clean:
 	rm -rf _output
@@ -308,25 +301,11 @@ go-generate-apis: ## Run all go generate directives in the repo, including codeg
 go-generate-mocks: ## Runs all generate directives for mockgen in the repo
 	GO111MODULE=on go generate -run="mockgen" ./...
 
-PYTHON_DIR := $(ROOTDIR)/python
-
-.PHONY: generate-ai-extension-apis
-generate-ai-extension-apis:
-ifeq ($(SKIP_VENV), true)
-	ENVOY_VERSION=$(UPSTREAM_ENVOY_VERSION) $(PYTHON_DIR)/scripts/genproto.sh
-else
-	( \
-		python3 -m venv .pyenv; \
-		. .pyenv/bin/activate; \
-		pip3 install -r $(PYTHON_DIR)/scripts/requirements.txt; \
-		ENVOY_VERSION=$(UPSTREAM_ENVOY_VERSION) $(PYTHON_DIR)/scripts/genproto.sh; \
-		rm -rf .pyenv; \
-	)
-endif
-
 #----------------------------------------------------------------------------------
 # AI Extensions ExtProc Server
 #----------------------------------------------------------------------------------
+
+PYTHON_DIR := $(ROOTDIR)/python
 
 export AI_EXTENSION_IMAGE_REPO ?= kgateway-ai-extension
 .PHONY: kgateway-ai-extension-docker
@@ -608,17 +587,18 @@ kind-prune-images: ## Remove images in the kind cluster named {CLUSTER_NAME}
 # A2A Test Server (for agentgateway a2a integration in e2e tests)
 #----------------------------------------------------------------------------------
 
+# TODO(tim): Where is this used?
 TEST_A2A_AGENT_SERVER_DIR := $(ROOTDIR)/test/kubernetes/e2e/features/agentgateway/a2a-example
 .PHONY: test-a2a-agent-docker
 test-a2a-agent-docker:
 	docker buildx build $(LOAD_OR_PUSH) $(PLATFORM_MULTIARCH) -f $(TEST_A2A_AGENT_SERVER_DIR)/Dockerfile $(TEST_A2A_AGENT_SERVER_DIR) \
 		-t $(IMAGE_REGISTRY)/test-a2a-agent:$(VERSION)
 
-
 #----------------------------------------------------------------------------------
 # AI Extensions Test Server (for mocking AI Providers in e2e tests)
 #----------------------------------------------------------------------------------
 
+# TODO(tim): Where is this used?
 TEST_AI_PROVIDER_SERVER_DIR := $(ROOTDIR)/test/mocks/mock-ai-provider-server
 .PHONY: test-ai-provider-docker
 test-ai-provider-docker:
