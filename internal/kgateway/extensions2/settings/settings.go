@@ -10,12 +10,12 @@ import (
 type RouteReplacementMode string
 
 const (
-	// RouteReplacementOff is the legacy behavior where invalid rules are dropped
-	RouteReplacementOff RouteReplacementMode = "off"
-	// RouteReplacementOn enables route replacement with policy-level checks
-	RouteReplacementOn RouteReplacementMode = "on"
-	// RouteReplacementValidate enables strict mode with full IR validation
-	RouteReplacementValidate RouteReplacementMode = "validate"
+	// RouteReplacementOff is the legacy behavior where invalid rules are dropped.
+	RouteReplacementOff RouteReplacementMode = "OFF"
+	// RouteReplacementOn enables route replacement with policy-level checks.
+	RouteReplacementOn RouteReplacementMode = "ON"
+	// RouteReplacementValidate enables strict mode with full IR validation.
+	RouteReplacementValidate RouteReplacementMode = "VALIDATE"
 )
 
 // Decode implements envconfig.Decoder.
