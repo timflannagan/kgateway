@@ -1,0 +1,123 @@
+name: Lint and Static Analysis
+
+on:
+  pull_request: { }
+  merge_group:
+    types: [checks_requested]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: GitHub Workflow Lint
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    if: contains(github.event.pull_request.files.*.name, '.github/')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.6
+      - run: actionlint
+
+  codegen:
+    name: Generated Code
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+      - name: Prep Go Runner
+        uses: ./.github/actions/prep-go-runner
+      - name: Generate Code
+        run: make verify
+
+  go-lint:
+    name: Go Static Analysis
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+      - name: Prep Go Runner
+        uses: ./.github/actions/prep-go-runner
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.1.6
+          args: --verbose --modules-download-mode=readonly --allow-parallel-runners
+          skip-cache: true
+          skip-save-cache: true
+          only-new-issues: false
+
+  helm-lint:
+    name: Helm Charts
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+      - name: Lint Helm Charts
+        run: make lint-kgateway-charts
+
+  python-lint:
+    name: Python Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Check for Python file changes
+        id: check_python_changes
+        run: |
+          if git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep -E '\.py$'; then
+            echo "PYTHON_CHANGED=true" >> "$GITHUB_ENV"
+          else
+            echo "PYTHON_CHANGED=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install ruff
+        if: env.PYTHON_CHANGED == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff==0.9.0
+
+      - name: Run ruff linter
+        if: env.PYTHON_CHANGED == 'true'
+        run: ruff check . --output-format=github --exclude '**/*_pb2.py' --exclude '**/*_pb2.pyi' --exclude '**/*_pb2_*.py'
+
+      - name: Run ruff format check
+        if: env.PYTHON_CHANGED == 'true'
+        run: |
+          if ! ruff format --diff . --exclude '**/*_pb2.py' --exclude '**/*_pb2.pyi' --exclude '**/*_pb2_*.py'; then
+            echo "Ruff formatting issues detected. Please run 'ruff format . --exclude '**/*_pb2.py' --exclude '**/*_pb2.pyi' --exclude '**/*_pb2_*.py'' locally to fix formatting issues."
+            exit 1
+          fi
+
+  rust-lint:
+    name: Rust Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy,rustfmt
+          cache: true
+
+      - name: Lint
+        run: |
+          make -C internal/envoyinit/rustformations lint
