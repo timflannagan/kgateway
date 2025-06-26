@@ -177,7 +177,7 @@ e2e-lambda: setup deploy-localstack test-e2e-lambda
 test-e2e-lambda: ## Run E2E tests with Lambda support
 	go test $(GO_E2E_TEST_ARGS) -run "^TestKgateway$$/Lambda$$" $(GO_E2E_TEST_PKGS)
 
-e2e-ai: setup kind-build-and-load-kgateway-ai-extension test-e2e-ai
+e2e-ai: setup kind-build-and-load-test-ai-provider kind-build-and-load-kgateway-ai-extension test-e2e-ai
 
 test-e2e-ai: ## Run E2E tests with AI support
 	go test $(GO_E2E_TEST_ARGS) -run '^TestAIExtensions$$' $(GO_E2E_TEST_PKGS)

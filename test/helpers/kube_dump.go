@@ -173,12 +173,12 @@ func recordKubeDump(outDir string, namespaces ...string) {
 	for _, ns := range namespaces {
 		// ...a pod logs subdirectoy
 		if err := recordPods(filepath.Join(outDir, ns, "_pods"), ns); err != nil {
-			fmt.Printf("error recording pod logs: %f, \n", err)
+			fmt.Printf("error recording pod logs: %v, \n", err)
 		}
 
 		// ...and a subdirectory for each kgateway CRD with non-zero resources
 		if err := recordCRs(filepath.Join(outDir, ns), ns); err != nil {
-			fmt.Printf("error recording pod logs: %f, \n", err)
+			fmt.Printf("error recording pod logs: %v, \n", err)
 		}
 	}
 }
