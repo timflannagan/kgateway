@@ -4,11 +4,8 @@ description: run kubernetes gateway api conformance tests
 runs:
   using: "composite"
   steps:
-  - uses: actions/checkout@v4
-  - name: Setup Go
-    uses: actions/setup-go@v5
-    with:
-      go-version-file: go.mod
+  - name: Prep Go Runner
+    uses: ./.github/actions/prep-go-runner
   - uses: azure/setup-kubectl@v4
     id: kubectl
     with:
