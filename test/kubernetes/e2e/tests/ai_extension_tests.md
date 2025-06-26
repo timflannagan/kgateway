@@ -32,7 +32,7 @@ export PYTHON=$(which python)
 
 Spin up the cluster
 ```bash
-CONFORMANCE=true ./hack/kind/setup-kind.sh
+make setup
 ```
 
 ```bash
@@ -45,7 +45,7 @@ You can set the `TEST_PYTHON_STRING_MATCH` to run a specific subset of tests. Fo
 VERSION=1.0.0-ci1 TEST_PYTHON_STRING_MATCH=vertex_ai go test ./test/kubernetes/e2e/tests/ -run AIExtension
 ```
 
-Note: The `VERSION` is required to ensure the correct version of the `test-ai-provider` image is used. It should match the 
+Note: The `VERSION` is required to ensure the correct version of the `test-ai-provider` image is used. It should match the
 version of kgateway being tested.
 
 ## Run the python test

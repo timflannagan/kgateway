@@ -27,6 +27,7 @@ go run cmd/kgateway/main.go
 ## Vscode Debugger
 
 Use the following `launch.json` configuration to run the controller in the debugger:
+
 ```json
 {
   "name": "app",
@@ -47,34 +48,28 @@ Use the following `launch.json` configuration to run the controller in the debug
 
 ## Steps to run and inspect local builds:
 
-Setup a local kind cluster:
-```sh
-VERSION=2.0.0-dev ./hack/kind/setup-kind.sh
-```
+Setup a local environment:
 
-Install the required CRDs:
 ```sh
-helm install kgateway-crds install/helm/kgateway-crds
-```
-
-Create a namespace for testing:
-```sh
-kubectl create ns kgateway-system
+make run VERSION=2.0.0-dev
 ```
 
 Run kgateway locally using one of the methods described above: either `go run` or the vscode debugger.
 
 Create an example gateway:
+
 ```sh
 kubectl -n kgateway-system apply -f examples/example-gw.yaml
 ```
 
 Create an example route:
+
 ```sh
 kubectl -n kgateway-system apply -f examples/example-http-route.yaml
 ```
 
 Using a local web browser:
+
 - GET http://localhost:9097/snapshots/krt to inspect the KRT snapshot.
 - GET http://localhost:9097/snapshots/xds to inspect the XDS snapshot.
 

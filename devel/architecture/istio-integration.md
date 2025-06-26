@@ -78,16 +78,22 @@ If the application that we’re running can logs requests that it receives, we c
 The Istio e2e integration tests automtls functionality with kgateway resources. This
 can be manually tested by following the steps below on a kind cluster:
 
-1. Setup environment and kind cluster
+1. Setup environment with Istio auto-mtls enabled
 
 ```shell
-hack/kind/setup-kind.sh; make kind-build-and-load
+HELM_ADDITIONAL_VALUES=<(cat <<EOF
+controller:
+  logLevel: debug
+  extraEnv:
+    KGW_ENABLE_ISTIO_AUTO_MTLS: "true"
+EOF
+) make run
 ```
 
 2. Install Istio
 
 ```shell
-./internal/kgateway/istio.sh
+./hack/istio.sh
 ```
 
 ```shell

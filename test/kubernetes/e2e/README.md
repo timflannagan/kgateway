@@ -80,8 +80,8 @@ This framework was inspired by the following projects:
 > This framework is not feature complete, and we welcome any improvements to it.
 
 Below are a set of known areas of improvement. The goal is to provide a starting point for developers looking to contribute. There are likely other improvements that are not currently captured, so please add/remove entries to this list as you see fit:
+
 - **Debug Improvements**: On test failure, we should emit a report about the entire state of the cluster. This should be a CLI utility as well.
 - **Curl assertion**: We need a re-usable way to execute Curl requests against a Pod, and assert properties of the response.
-- **Cluster provisioning**: We rely on the [setup-kind](/hack/kind/setup-kind.sh) script to provision a cluster. We should make this more flexible by providing a configurable, declarative way to do this.
 - **Istio action**: We need a way to perform Istio actions against a cluster.
 - **Argo action**: We need an easy utility to perform ArgoCD commands against a cluster.

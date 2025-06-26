@@ -1,4 +1,4 @@
-# Debugging E2e Tests
+# Debugging E2E Tests
 
 This document describes workflows that may be useful when debugging e2e tests with an IDE's debugger.
 
@@ -9,26 +9,41 @@ The entry point for an e2e test is a Go test function of the form `func TestXyz(
 Each feature suite is invoked as a subtest of the top level suite. The subtests use [testify](https://github.com/stretchr/testify) to structure the tests in the feature's test suite and make use of the library's assertions.
 
 ## Step 1: Setting Up A Cluster
-### Using a previously released version
-It is possible to run these tests against a previously released version of Gloo Gateway. This is useful for testing a release candidate, or a nightly build.
-
-There is no setup required for this option, as the test suite will download the helm chart archive and `glooctl` binary from the specified release. You will use the `RELEASED_VERSION` environment variable when running the tests. See the [variable definition](/test/testutils/env.go) for more details.
 
 ### Using a locally built version
+
 For these tests to run, we require the following conditions:
 - kgateway helm chart archive present in the `_test` folder
 - running kind cluster loaded with the images (with correct tags) referenced in the helm chart
 
-#### Option 1: Using setup-kind.sh script
+#### Option 1: Using Makefile targets
 
-[hack/kind/setup-kind.sh](/hack/kind/setup-kind.sh) gets run in CI to setup the test environment for the above requirements.
-The default settings should be sufficient for a working local environment.
-However, the setup script accepts a number of environment variables to control the creation of a kind cluster and deployment of kgateway resources.
-Please refer to the script itself to see what variables are available if you need customization.
+The Makefile provides convenient targets for setting up the test environment. There are two main options:
 
-Basic Example:
+**`setup` target**: Creates the basic infrastructure (kind cluster, builds and loads images, installs CRDs, sets up MetalLB, packages charts) but does not deploy kgateway.
+
 ```bash
-./hack/kind/setup-kind.sh
+make setup
+```
+
+**`run` target**: A superset of `setup` that also deploys the kgateway charts. This is equivalent to running `setup` followed by `deploy-kgateway`.
+
+```bash
+make run
+```
+
+**Note**: For e2e testing, the `setup` target is preferred because the e2e test suite will attempt to install the locally built charts themselves. If you use the `run` target (which pre-installs kgateway), you must also set the `SKIP_INSTALL` environment variable to prevent conflicts:
+
+```bash
+make test-e2e-lambda SKIP_INSTALL="true"
+```
+
+The `run` target is typically what you want for a complete development environment, as it ensures kgateway is deployed and ready for testing.
+
+Both targets accept environment variables to customize the setup. For example:
+
+```bash
+CLUSTER_NAME=my-cluster VERSION=1.0.0-dev make run
 ```
 
 #### Option 2: Using Tilt for development workflow

@@ -86,9 +86,11 @@ Let's bootstrap the test environment with the Istio auto mTLS feature enabled:
 ```shell
 HELM_ADDITIONAL_VALUES=<(cat <<EOF
 controller:
+  logLevel: debug
   extraEnv:
-    KGW_ENABLE_ISTIO_AUTO_MTLS: true
+    KGW_ENABLE_ISTIO_AUTO_MTLS: "true"
 EOF
+) make run
 ```
 
 Next, we need to install Istio in the cluster along with the bookinfo test application in the mesh:
