@@ -151,47 +151,44 @@ envoyversion:
 	echo "Current ABI in envoyinit can be found in the cargo.toml's envoy-proxy-dynamic-modules-rust-sdk"
 
 #----------------------------------------------------------------------------------
-# Ginkgo Tests
+# E2E Tests
 #----------------------------------------------------------------------------------
 
-GINKGO_VERSION ?= $(shell echo $(shell go list -m github.com/onsi/ginkgo/v2) | cut -d' ' -f2)
-GINKGO_ENV ?= ACK_GINKGO_RC=true ACK_GINKGO_DEPRECATIONS=$(GINKGO_VERSION)
-GINKGO_FLAGS ?= -tags=purego --trace -progress -race --fail-fast -fail-on-pending --randomize-all --compilers=5 --flake-attempts=3
-GINKGO_REPORT_FLAGS ?= --json-report=test-report.json --junit-report=junit.xml -output-dir=$(OUTPUT_DIR)
-GINKGO_COVERAGE_FLAGS ?= --cover --covermode=atomic --coverprofile=coverage.cov
-TEST_PKG ?= ./... # Default to run all tests
+GO_E2E_TEST_PKGS ?= ./test/kubernetes/e2e/tests
+GO_E2E_TEST_ARGS ?= -v -timeout=600s -ldflags='$(LDFLAGS)' $(GO_TEST_ARGS)
 
-# This is a way for a user executing `make test` to be able to provide flags which we do not include by default
-# For example, you may want to run tests multiple times, or with various timeouts
-GINKGO_USER_FLAGS ?=
-GINKGO ?= go tool ginkgo
+.PHONY: e2e
+e2e: run test-e2e ## Set up development environment and run E2E tests
 
-.PHONY: test
-test: ## Run all tests, or only run the test package at {TEST_PKG} if it is specified
-	$(GINKGO_ENV) $(GINKGO) -ldflags='$(LDFLAGS)' \
-		$(GINKGO_FLAGS) $(GINKGO_REPORT_FLAGS) $(GINKGO_USER_FLAGS) \
-		$(TEST_PKG)
+.PHONY: test-e2e
+test-e2e: ## Run E2E tests
+	go test $(GO_E2E_TEST_ARGS) $(GO_E2E_TEST_PKGS)
 
-# https://go.dev/blog/cover#heat-maps
-.PHONY: test-with-coverage
-test-with-coverage: GINKGO_FLAGS += $(GINKGO_COVERAGE_FLAGS)
-test-with-coverage: test
-	go tool cover -html $(OUTPUT_DIR)/coverage.cov
+deploy-localstack: ## Deploy LocalStack
+	./hack/kind/setup-localstack.sh
 
-.PHONY: run-tests
-run-tests: GINKGO_FLAGS += -skip-package=e2e,kgateway,test/kubernetes/testutils/helper ## Run all non E2E tests, or only run the test package at {TEST_PKG} if it is specified
-run-tests: GINKGO_FLAGS += --label-filter="!end-to-end && !performance"
-run-tests: test
+e2e-lambda: setup deploy-localstack test-e2e-lambda
 
-.PHONY: run-e2e-tests
-run-e2e-tests: TEST_PKG = ./test/e2e/ ## Run all in-memory E2E tests
-run-e2e-tests: GINKGO_FLAGS += --label-filter="end-to-end && !performance"
-run-e2e-tests: test
+# TODO(tim): Move the lambda to a dedicated AWS suite? The regex works well, and we don't have a need to set
+# any custom helm chart values for lambda functionality, so likely the wrong approach.
+test-e2e-lambda: ## Run E2E tests with Lambda support
+	go test $(GO_E2E_TEST_ARGS) -run "^TestKgateway$$/Lambda$$" $(GO_E2E_TEST_PKGS)
+
+e2e-ai: setup kind-build-and-load-kgateway-ai-extension test-e2e-ai
+
+test-e2e-ai: ## Run E2E tests with AI support
+	go test $(GO_E2E_TEST_ARGS) -run '^TestAIExtensions$$' $(GO_E2E_TEST_PKGS)
+
+e2e-agent-gateway: setup kind-build-and-load-test-a2a-agent test-e2e-agent-gateway
+
+test-e2e-agent-gateway: ## Run E2E tests with Agent Gateway support
+	go test $(GO_E2E_TEST_ARGS) -run '^TestAgentGatewayIntegration$$' $(GO_E2E_TEST_PKGS)
 
 #----------------------------------------------------------------------------------
 # Env test
 #----------------------------------------------------------------------------------
 
+# TODO(tim): Dynamic envtest version based on client-go dependency
 ENVTEST_K8S_VERSION = 1.23
 ENVTEST ?= go tool setup-envtest
 
@@ -216,6 +213,7 @@ unit-go: ## Run Go unit tests with coverage and validation
 unit-go: mod-download kgateway
 	go test -ldflags='$(LDFLAGS)' $(GO_TEST_ARGS) $(GO_UNIT_TEST_PKGS)
 
+# TODO(tim): Needs more thought, but it's passing CI. Cannot run this target locally.
 .PHONY: unit-python
 unit-python: ## Run Python unit tests
 unit-python:
@@ -495,15 +493,15 @@ metallb: ## Install the MetalLB load balancer
 .PHONY: deploy-kgateway
 deploy-kgateway: package-kgateway-charts deploy-kgateway-crd-chart deploy-kgateway-chart ## Deploy the kgateway chart and CRDs
 
+.PHONY: setup
+setup: kind-create kind-build-and-load gw-api-crds metallb ## Set up basic infrastructure (kind cluster, images, CRDs, MetalLB)
+
 .PHONY: run
-run: kind-create kind-build-and-load gw-api-crds metallb deploy-kgateway  ## Set up complete development environment
+run: setup deploy-kgateway  ## Set up complete development environment
 
 #----------------------------------------------------------------------------------
 # Build assets for kubernetes e2e tests
 #----------------------------------------------------------------------------------
-
-kind-setup: ## Set up the KinD cluster. Deprecated: use kind-create instead.
-	VERSION=${VERSION} CLUSTER_NAME=${CLUSTER_NAME} ./hack/kind/setup-kind.sh
 
 kind-load-%:
 	$(KIND) load docker-image $(IMAGE_REGISTRY)/$*:$(VERSION) --name $(CLUSTER_NAME)
@@ -533,26 +531,15 @@ kind-set-image-%:
 # Envoy image may be specified via ENVOY_IMAGE on the command line or at the top of this file
 kind-reload-%: kind-build-and-load-% kind-set-image-% ; ## Use to build specified image, load it into kind, and restart its deployment
 
-# This is an alias to remedy the fact that the deployment is called gateway-proxy
-# but our make targets refer to envoy-wrapper
-kind-reload-envoy-wrapper: kind-build-and-load-envoy-wrapper
-kind-reload-envoy-wrapper:
-	kubectl rollout pause deployment gateway-proxy -n $(INSTALL_NAMESPACE) || true
-	kubectl set image deployment/gateway-proxy gateway-proxy=$(IMAGE_REGISTRY)/envoy-wrapper:$(VERSION) -n $(INSTALL_NAMESPACE)
-	kubectl patch deployment gateway-proxy -n $(INSTALL_NAMESPACE) -p '{"spec": {"template":{"metadata":{"annotations":{"kgateway-kind-last-update":"$(shell date)"}}}} }'
-	kubectl rollout resume deployment gateway-proxy -n $(INSTALL_NAMESPACE)
-
 .PHONY: kind-build-and-load ## Use to build all images and load them into kind
 kind-build-and-load: kind-build-and-load-kgateway
 kind-build-and-load: kind-build-and-load-envoy-wrapper
 kind-build-and-load: kind-build-and-load-sds
-kind-build-and-load: kind-build-and-load-kgateway-ai-extension
 
 .PHONY: kind-load ## Use to load all images into kind
 kind-load: kind-load-kgateway
 kind-load: kind-load-envoy-wrapper
 kind-load: kind-load-sds
-kind-load: kind-load-kgateway-ai-extension
 
 define kind_reload_msg
 The kind-reload-% targets exist in order to assist developers with the work cycle of
@@ -579,7 +566,6 @@ kind-prune-images: ## Remove images in the kind cluster named {CLUSTER_NAME}
 # A2A Test Server (for agentgateway a2a integration in e2e tests)
 #----------------------------------------------------------------------------------
 
-# TODO(tim): Where is this used?
 TEST_A2A_AGENT_SERVER_DIR := $(ROOTDIR)/test/kubernetes/e2e/features/agentgateway/a2a-example
 .PHONY: test-a2a-agent-docker
 test-a2a-agent-docker:
@@ -590,7 +576,6 @@ test-a2a-agent-docker:
 # AI Extensions Test Server (for mocking AI Providers in e2e tests)
 #----------------------------------------------------------------------------------
 
-# TODO(tim): Where is this used?
 TEST_AI_PROVIDER_SERVER_DIR := $(ROOTDIR)/test/mocks/mock-ai-provider-server
 .PHONY: test-ai-provider-docker
 test-ai-provider-docker:

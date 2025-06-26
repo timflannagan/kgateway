@@ -9,11 +9,60 @@ env:
   VERSION: '1.0.0-ci1'
   GITHUB_TOKEN: ${{ github.token }}
 
+# TODO(tim): Figure out how to approach the e2e suite. Some suites have additional dependencies, e.g. AI and lambda,
+# that require additional setup that's now included with the run Makefile target.
+# A couple of inline thoughts:
+#
+# - The run Makefile target is basically responsible for bootstrapping an env the conformance tests required
+# - Most e2e tests should be be able to leverage this target without any additional setup
+# - For the remaining 10%, have dedicated e2e-* targets that are responsible for bootstrapping the env
+#
+# Need to refactor the e2e/remaining test targets to do this properly. Additionally, this may require
+# having to refactor the approach taken in this workflow.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
+  # Agent Gateway E2E Tests
+  agent-gateway-e2e:
+    name: Agent Gateway E2E Tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Prep Go Runner
+      uses: ./.github/actions/prep-go-runner
+    - name: Run Agent Gateway E2E Tests
+      run: make e2e-agent-gateway
+
+  # AI E2E Tests
+  ai-e2e:
+    name: AI E2E Tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Prep Go Runner
+      uses: ./.github/actions/prep-go-runner
+    - name: Run AI E2E Tests
+      run: make e2e-ai
+
+  # Lambda E2E Tests
+  lambda-e2e:
+    name: Lambda E2E Tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Prep Go Runner
+      uses: ./.github/actions/prep-go-runner
+    - name: Run Lambda E2E Tests
+      run: make e2e-lambda
+
   end_to_end_tests:
     name: End-to-End (${{ matrix.test.cluster-name }})
     runs-on: ubuntu-22.04
@@ -22,59 +71,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # We intentionally set an upper threshold of 30 minutes for our End-to-End tests
-        # Our goal is to load balance tests in a way that allows quick iteration on PRs
-        # If tests are exceeding the 30-minute limit, please see:
-        # /test/kubernetes/e2e/load_balancing_tests.md
-        #
-        # Above each test below, we document the latest date/time for the GitHub action step to run
-        # NOTE: We use the GitHub action step time (as opposed to the `go test` time), because it is easier to capture
         test:
         # May 19, 2025: ~19 minutes
         - cluster-name: 'cluster-one'
           go-test-args: '-v -timeout=25m'
           go-test-run-regex: '^TestKgateway$$/^BasicRouting$$|^TestKgateway$$/^HTTPRouteServices$$|^TestKgateway$$/^TLSRouteServices$$|^TestKgateway$$/^GRPCRouteServices$$|^TestListenerSet$$'
-          localstack: 'false'
         # May 19, 2025: ~25 minutes
         - cluster-name: 'cluster-two'
           go-test-args: '-v -timeout=25m'
           go-test-run-regex: '^TestKgateway$$/^Backends$$|^TestKgateway$$/^Transforms$$|^TestKgateway$$/^BackendTLSPolicies$$|^TestKgatewayWaypoint$$'
-          localstack: 'false'
         # June 23, 2025: ~20 minutes
         - cluster-name: 'cluster-three'
           go-test-args: '-v -timeout=25m'
-          go-test-run-regex: '^TestKgateway$$/^DynamicForwardProxy$$|^TestKgateway$$/^Deployer$$|^TestKgateway$$/^RouteDelegation$$|^TestKgateway$$/^Lambda$$|^TestKgateway$$/^AccessLog$$|^TestKgateway$$/^LocalRateLimit$$|^TestKgateway$$/^Cors$$|^TestKgateway$$/^BackendConfigPolicy$$|^TestKgateway$$/^Metrics$$'
-          localstack: 'true'
+          go-test-run-regex: '^TestKgateway$$/^DynamicForwardProxy$$|^TestKgateway$$/^Deployer$$|^TestKgateway$$/^RouteDelegation$$|^TestKgateway$$/^AccessLog$$|^TestKgateway$$/^LocalRateLimit$$|^TestKgateway$$/^Cors$$|^TestKgateway$$/^BackendConfigPolicy$$|^TestKgateway$$/^Metrics$$'
         # May 19, 2025: ~20 minutes
         - cluster-name: 'cluster-four'
           go-test-args: '-v -timeout=25m'
           go-test-run-regex: '^TestKgateway$$/^ExtProc$$|^TestKgateway$$/^ExtAuth$$|^TestKgateway$$/^TCPRouteServices$$|^TestKgateway$$/^PolicySelector$$|^TestInferenceExtension$$|^TestKgateway$$/^CSRF$$'
-          localstack: 'false'
-        # May 19, 2025: ~20 minutes
-        - cluster-name: 'cluster-ai'
-          go-test-args: '-v -timeout=25m'
-          go-test-run-regex: '^TestAIExtension'
-          localstack: 'false'
         - cluster-name: 'cluster-multi-install'
           go-test-args: '-v -timeout=5m'
           go-test-run-regex: '^TestMultipleInstalls'
-          localstack: 'false'
-        # May 19, 2025: ~10 minutes
-        - cluster-name: 'agent-gateway-cluster'
-          go-test-args: '-v -timeout=25m'
-          go-test-run-regex: '^TestAgentGatewayIntegration'
-          agentgateway: 'true'
-
-        # In our PR tests, we run the suite of tests using the upper ends of versions that we claim to support
-        # The versions should mirror: https://kgateway.dev/docs/reference/versions/
         version-files:
           - file: './.github/workflows/.env/pr-tests/versions.env'
     steps:
     - uses: actions/checkout@v4
     - name: Prep Go Runner
       uses: ./.github/actions/prep-go-runner
-    # The dotenv action is used to load key-value pairs from files.
-    # In this case, the file is specified in the matrix and will contain the versions of the tools to use
     - name: Dotenv Action
       uses: falti/dotenv-action@v1.1.4
       id: dotenv
