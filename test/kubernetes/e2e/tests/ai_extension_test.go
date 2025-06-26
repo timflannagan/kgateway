@@ -173,6 +173,7 @@ func cleanupMockProvider(ctx context.Context, testInstallation *e2e.TestInstalla
 	yaml := getMockProviderYAML(namespace, "")
 	err := testInstallation.ClusterContext.Cli.Delete(ctx, []byte(yaml))
 	if err != nil {
+		// TODO(tim): forbidigo linter is firing in my IDE, but isn't being flagged in CI.
 		fmt.Printf("Warning: Failed to cleanup mock provider: %v\n", err)
 	}
 }

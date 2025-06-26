@@ -70,7 +70,7 @@ ifeq ($(MULTIARCH), true)
 endif
 
 GOOS ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
-GO_BUILD_FLAGS := GO111MODULE=on CGO_ENABLED=0 GOARCH=$(GOARCH)
+GO_BUILD_FLAGS := CGO_ENABLED=0 GOARCH=$(GOARCH)
 
 TEST_ASSET_DIR ?= $(ROOTDIR)/_test
 
@@ -129,6 +129,9 @@ mod-tidy: mod-download  ## Tidy the go mod file
 #----------------------------------------------------------------------------
 # Analyze
 #----------------------------------------------------------------------------
+
+# TODO: No need for a dedicated section or an analyze esq target name. Move
+# to the lint section.
 
 GO_VERSION := $(shell cat go.mod | grep -E '^go' | awk '{print $$2}')
 GOTOOLCHAIN ?= go$(GO_VERSION)
@@ -494,7 +497,7 @@ metallb: ## Install the MetalLB load balancer
 deploy-kgateway: package-kgateway-charts deploy-kgateway-crd-chart deploy-kgateway-chart ## Deploy the kgateway chart and CRDs
 
 .PHONY: setup
-setup: kind-create kind-build-and-load gw-api-crds metallb ## Set up basic infrastructure (kind cluster, images, CRDs, MetalLB)
+setup: kind-create kind-build-and-load gw-api-crds metallb package-kgateway-charts ## Set up basic infrastructure (kind cluster, images, CRDs, MetalLB)
 
 .PHONY: run
 run: setup deploy-kgateway  ## Set up complete development environment
