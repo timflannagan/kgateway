@@ -159,13 +159,14 @@ envoyversion:
 
 GO_E2E_TEST_PKGS ?= ./test/kubernetes/e2e/tests
 GO_E2E_TEST_ARGS ?= -v -timeout=600s -ldflags='$(LDFLAGS)' $(GO_TEST_ARGS)
+GO_E2E_USER_TEST_ARGS ?=
 
 .PHONY: e2e
-e2e: run test-e2e ## Set up development environment and run E2E tests
+e2e: setup test-e2e ## Set up development environment and run E2E tests
 
 .PHONY: test-e2e
 test-e2e: ## Run E2E tests
-	go test $(GO_E2E_TEST_ARGS) $(GO_E2E_TEST_PKGS)
+	go test $(GO_E2E_TEST_ARGS) $(GO_E2E_USER_TEST_ARGS) $(GO_E2E_TEST_PKGS)
 
 deploy-localstack: ## Deploy LocalStack
 	./hack/kind/setup-localstack.sh

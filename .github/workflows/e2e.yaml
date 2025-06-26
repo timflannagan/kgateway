@@ -65,62 +65,36 @@ jobs:
     - name: Run Lambda E2E Tests
       run: make e2e-lambda
 
-  # end_to_end_tests:
-  #   name: End-to-End (${{ matrix.test.cluster-name }})
-  #   runs-on: ubuntu-22.04
-  #   timeout-minutes: 60
-  #   if: ${{ !github.event.pull_request.draft }}
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       test:
-  #       # May 19, 2025: ~19 minutes
-  #       - cluster-name: 'cluster-one'
-  #         go-test-args: '-v -timeout=25m'
-  #         go-test-run-regex: '^TestKgateway$$/^BasicRouting$$|^TestKgateway$$/^HTTPRouteServices$$|^TestKgateway$$/^TLSRouteServices$$|^TestKgateway$$/^GRPCRouteServices$$|^TestListenerSet$$'
-  #       # May 19, 2025: ~25 minutes
-  #       - cluster-name: 'cluster-two'
-  #         go-test-args: '-v -timeout=25m'
-  #         go-test-run-regex: '^TestKgateway$$/^Backends$$|^TestKgateway$$/^Transforms$$|^TestKgateway$$/^BackendTLSPolicies$$|^TestKgatewayWaypoint$$'
-  #       # June 23, 2025: ~20 minutes
-  #       - cluster-name: 'cluster-three'
-  #         go-test-args: '-v -timeout=25m'
-  #         go-test-run-regex: '^TestKgateway$$/^DynamicForwardProxy$$|^TestKgateway$$/^Deployer$$|^TestKgateway$$/^RouteDelegation$$|^TestKgateway$$/^AccessLog$$|^TestKgateway$$/^LocalRateLimit$$|^TestKgateway$$/^Cors$$|^TestKgateway$$/^BackendConfigPolicy$$|^TestKgateway$$/^Metrics$$'
-  #       # May 19, 2025: ~20 minutes
-  #       - cluster-name: 'cluster-four'
-  #         go-test-args: '-v -timeout=25m'
-  #         go-test-run-regex: '^TestKgateway$$/^ExtProc$$|^TestKgateway$$/^ExtAuth$$|^TestKgateway$$/^TCPRouteServices$$|^TestKgateway$$/^PolicySelector$$|^TestInferenceExtension$$|^TestKgateway$$/^CSRF$$'
-  #       - cluster-name: 'cluster-multi-install'
-  #         go-test-args: '-v -timeout=5m'
-  #         go-test-run-regex: '^TestMultipleInstalls'
-  #       version-files:
-  #         - file: './.github/workflows/.env/pr-tests/versions.env'
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - name: Prep Go Runner
-  #     uses: ./.github/actions/prep-go-runner
-  #   - name: Dotenv Action
-  #     uses: falti/dotenv-action@v1.1.4
-  #     id: dotenv
-  #     with:
-  #       path: ${{ matrix.version-files.file }}
-  #       log-variables: true
-  #   - id: setup-kind-cluster
-  #     name: Setup KinD Cluster
-  #     uses: ./.github/actions/setup-kind-cluster
-  #     with:
-  #       cluster-name: ${{ matrix.test.cluster-name }}
-  #       kind-node-version: ${{ steps.dotenv.outputs.node_version }}
-  #       kind-version: ${{ steps.dotenv.outputs.kind_version }}
-  #       kubectl-version: ${{ steps.dotenv.outputs.kubectl_version }}
-  #       istio-version: ${{ steps.dotenv.outputs.istio_version }}
-  #       localstack: ${{ matrix.test.localstack }}
-  #       agentgateway: ${{ matrix.test.agentgateway }}
-  #   - id: run-tests
-  #     uses: ./.github/actions/kubernetes-e2e-tests
-  #     with:
-  #       cluster-name: ${{ matrix.test.cluster-name }}
-  #       test-args: ${{ matrix.test.go-test-args }}
-  #       run-regex: ${{ matrix.test.go-test-run-regex }}
-  #       istio-version: ${{ steps.dotenv.outputs.istio_version }}
-  #       matrix-label: "pr"
+  end_to_end_tests:
+    name: End-to-End (${{ matrix.test.cluster-name }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    if: ${{ !github.event.pull_request.draft }}
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+        # May 19, 2025: ~19 minutes
+        - cluster-name: 'cluster-one'
+          go-test-run-regex: '^TestKgateway$$/^BasicRouting$$|^TestKgateway$$/^HTTPRouteServices$$|^TestKgateway$$/^TLSRouteServices$$|^TestKgateway$$/^GRPCRouteServices$$|^TestListenerSet$$'
+        # May 19, 2025: ~25 minutes
+        - cluster-name: 'cluster-two'
+          go-test-run-regex: '^TestKgateway$$/^Backends$$|^TestKgateway$$/^Transforms$$|^TestKgateway$$/^BackendTLSPolicies$$|^TestKgatewayWaypoint$$'
+        # June 23, 2025: ~20 minutes
+        - cluster-name: 'cluster-three'
+          go-test-run-regex: '^TestKgateway$$/^DynamicForwardProxy$$|^TestKgateway$$/^Deployer$$|^TestKgateway$$/^RouteDelegation$$|^TestKgateway$$/^AccessLog$$|^TestKgateway$$/^LocalRateLimit$$|^TestKgateway$$/^Cors$$|^TestKgateway$$/^BackendConfigPolicy$$|^TestKgateway$$/^Metrics$$'
+        # May 19, 2025: ~20 minutes
+        - cluster-name: 'cluster-four'
+          go-test-run-regex: '^TestKgateway$$/^ExtProc$$|^TestKgateway$$/^ExtAuth$$|^TestKgateway$$/^TCPRouteServices$$|^TestKgateway$$/^PolicySelector$$|^TestInferenceExtension$$|^TestKgateway$$/^CSRF$$'
+        - cluster-name: 'cluster-multi-install'
+          go-test-run-regex: '^TestMultipleInstalls'
+    steps:
+    - uses: actions/checkout@v4
+    - name: Prep Go Runner
+      uses: ./.github/actions/prep-go-runner
+    - name: Run E2E Tests
+      shell: bash
+      run: |
+        make e2e \
+        CLUSTER_NAME="${{ matrix.test['cluster-name'] }}" \
+        GO_E2E_USER_TEST_ARGS="-run '${{ matrix.test['go-test-run-regex'] }}'"
