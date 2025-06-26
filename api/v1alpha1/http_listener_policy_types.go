@@ -34,6 +34,10 @@ type HTTPListenerPolicyList struct {
 	Items           []HTTPListenerPolicy `json:"items"`
 }
 
+// HTTPListenerPolicySpec defines the desired state of a HTTP listener policy.
+//
+// +kubebuilder:validation:XValidation:message="targetRefs may only reference Gateway or HTTPRoute resources",rule="!has(self.targetRefs) || self.targetRefs.all(r, (r.kind == 'Gateway' || r.kind == 'HTTPRoute') && (!has(r.group) || r.group == 'gateway.networking.k8s.io'))"
+// +kubebuilder:validation:XValidation:message="targetSelectors may only reference Gateway or HTTPRoute resources",rule="!has(self.targetSelectors) || self.targetSelectors.all(r, (r.kind == 'Gateway' || r.kind == 'HTTPRoute') && (!has(r.group) || r.group == 'gateway.networking.k8s.io'))"
 type HTTPListenerPolicySpec struct {
 	// TargetRefs specifies the target resources by reference to attach the policy to.
 	// +optional

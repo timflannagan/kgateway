@@ -30,6 +30,7 @@ type BackendConfigPolicyList struct {
 }
 
 // BackendConfigPolicySpec defines the desired state of BackendConfigPolicy.
+//
 // +kubebuilder:validation:AtMostOneOf=http1ProtocolOptions;http2ProtocolOptions
 type BackendConfigPolicySpec struct {
 	// TargetRefs specifies the target references to attach the policy to.
