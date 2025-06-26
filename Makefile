@@ -195,11 +195,18 @@ test-e2e-agent-gateway: ## Run E2E tests with Agent Gateway support
 # TODO(tim): Dynamic envtest version based on client-go dependency
 ENVTEST_K8S_VERSION = 1.23
 ENVTEST ?= go tool setup-envtest
+# The setup suite is the envtest-based suite right now.
+ENVTEST_PKGS ?= ./internal/kgateway/setup
+# Provide a way to override the test to run, e.g. ENVTEST_ARGS='-run TestWithStandardSettings'
+ENVTEST_ARGS ?=
 
-# FIXME(tim): Separate envtests/setup package from unit suite!
 .PHONY: envtest-path
 envtest-path: ## Set the envtest path
 	@$(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path --arch=amd64
+
+.PHONY: envtest
+envtest: envtest-path ## Run envtest suite (controller-runtime integration tests)
+	go test -v -ldflags='$(LDFLAGS)' $(GO_TEST_ARGS) $(ENVTEST_PKGS) $(ENVTEST_ARGS)
 
 #----------------------------------------------------------------------------------
 # Unit Tests
@@ -490,7 +497,7 @@ CONFORMANCE_VERSION ?= v1.3.0
 gw-api-crds: ## Install the Gateway API CRDs
 	kubectl apply --kustomize "https://github.com/kubernetes-sigs/gateway-api/config/crd/$(CONFORMANCE_CHANNEL)?ref=$(CONFORMANCE_VERSION)"
 
-.PHONY: kind-metallb
+.PHONY: metallb
 metallb: ## Install the MetalLB load balancer
 	./hack/kind/setup-metalllb-on-kind.sh
 

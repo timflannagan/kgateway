@@ -1,0 +1,27 @@
+name: EnvTest Suite
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+    types: [checks_requested]
+
+env:
+  VERSION: '1.0.0-ci1'
+  GITHUB_TOKEN: ${{ github.token }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  envtest:
+    name: EnvTest Suite
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Prep Go Runner
+      uses: ./.github/actions/prep-go-runner
+    - name: Run EnvTest Suite
+      run: make envtest
