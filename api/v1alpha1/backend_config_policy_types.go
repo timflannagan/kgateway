@@ -28,6 +28,7 @@ type BackendConfigPolicyList struct {
 	Items           []BackendConfigPolicy `json:"items"`
 }
 
+// BackendConfigPolicySpec defines the desired state of a backend config policy.
 type BackendConfigPolicySpec struct {
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=16
