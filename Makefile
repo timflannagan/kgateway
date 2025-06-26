@@ -161,6 +161,10 @@ GO_E2E_TEST_PKGS ?= ./test/kubernetes/e2e/tests
 GO_E2E_TEST_ARGS ?= -v -timeout=600s -ldflags='$(LDFLAGS)' $(GO_TEST_ARGS)
 GO_E2E_USER_TEST_ARGS ?=
 
+# TODO(tim): I think we'll need to either explicitly skip the tests that need additional setup, or
+# add build tags that allow us to determine which tests to run. I think I'm leaning towards the latter.
+# Note: this isn't a problem with CI as we're explicitly configuring which suites are run, but a problem
+# if you run this locally.
 .PHONY: e2e
 e2e: setup test-e2e ## Set up development environment and run E2E tests
 
