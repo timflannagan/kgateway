@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"regexp"
 	"slices"
 
@@ -202,15 +203,20 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 			Reason:  gwv1.RouteReasonUnsupportedValue,
 			Message: fmt.Sprintf("Dropped Rule (%d): %v", in.MatchIndex, err),
 		})
-		//  TODO: we currently drop the route which is not good;
-		//    we should implement route replacement.
-		// out.Reset()
-		// out.Action = &envoy_config_route_v3.Route_DirectResponse{
-		// 	DirectResponse: &envoy_config_route_v3.DirectResponseAction{
-		// 		Status: http.StatusInternalServerError,
-		// 	},
-		// }
-		out = nil
+
+		switch h.routeReplacementMode {
+		case settings.RouteReplacementStandard, settings.RouteReplacementStrict:
+			// Replace invalid route with a direct response
+			out.Action = &envoy_config_route_v3.Route_DirectResponse{
+				DirectResponse: &envoy_config_route_v3.DirectResponseAction{
+					Status: http.StatusInternalServerError,
+				},
+			}
+			return out
+		default:
+			// Drop the route entirely (legacy behavior, will be removed in the future)
+			return nil
+		}
 	}
 
 	return out
