@@ -35,9 +35,6 @@ type TrafficPolicyList struct {
 }
 
 // TrafficPolicySpec defines the desired state of a traffic policy.
-//
-// +kubebuilder:validation:XValidation:message="targetRefs may only reference Gateway, HTTPRoute, or XListenerSet resources",rule="!has(self.targetRefs) || self.targetRefs.all(r, (r.kind == 'Gateway' || r.kind == 'HTTPRoute' || (r.kind == 'XListenerSet' && r.group == 'gateway.networking.x-k8s.io')) && (!has(r.group) || r.group == 'gateway.networking.k8s.io' || r.group == 'gateway.networking.x-k8s.io'))"
-// +kubebuilder:validation:XValidation:message="targetSelectors may only reference Gateway, HTTPRoute, or XListenerSet resources",rule="!has(self.targetSelectors) || self.targetSelectors.all(r, (r.kind == 'Gateway' || r.kind == 'HTTPRoute' || (r.kind == 'XListenerSet' && r.group == 'gateway.networking.x-k8s.io')) && (!has(r.group) || r.group == 'gateway.networking.k8s.io' || r.group == 'gateway.networking.x-k8s.io'))"
 type TrafficPolicySpec struct {
 	// TargetRefs specifies the target resources by reference to attach the policy to.
 	// +optional
