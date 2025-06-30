@@ -65,6 +65,141 @@ spec:
 `,
 			wantError: "at most one of the fields in [http1ProtocolOptions http2ProtocolOptions] may be set",
 		},
+		{
+			name: "BackendConfigPolicy: valid target references",
+			input: `---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: BackendConfigPolicy
+metadata:
+  name: backend-config-valid-targets
+spec:
+  targetRefs:
+  - group: ""
+    kind: Service
+    name: test-service
+  - group: gateway.kgateway.dev
+    kind: Backend
+    name: test-backend
+  - group: networking.istio.io
+    kind: ServiceEntry
+    name: test-service-entry
+  targetSelectors:
+  - group: ""
+    kind: Service
+    matchLabels:
+      app: myapp
+  http1ProtocolOptions:
+    enableTrailers: true
+`,
+		},
+		{
+			name: "BackendConfigPolicy: invalid target reference",
+			input: `---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: BackendConfigPolicy
+metadata:
+  name: backend-config-invalid-target
+spec:
+  targetRefs:
+  - group: apps
+    kind: Deployment
+    name: test-deployment
+`,
+			wantError: "TargetRefs must reference either a Kubernetes Service, a Backend API, or an Istio ServiceEntry",
+		},
+		{
+			name: "BackendConfigPolicy: invalid target selector",
+			input: `---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: BackendConfigPolicy
+metadata:
+  name: backend-config-invalid-selector
+spec:
+  targetSelectors:
+  - group: apps
+    kind: Deployment
+    matchLabels:
+      app: myapp
+`,
+			wantError: "TargetSelectors must reference either a Kubernetes Service, a Backend API, or an Istio ServiceEntry",
+		},
+		{
+			name: "TrafficPolicy: valid target references",
+			input: `---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: traffic-policy-valid-targets
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: test-gateway
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: test-route
+  - group: gateway.networking.x-k8s.io
+    kind: XListenerSet
+    name: test-listener
+  targetSelectors:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    matchLabels:
+      app: myapp
+`,
+		},
+		{
+			name: "TrafficPolicy: invalid target reference",
+			input: `---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: traffic-policy-invalid-target
+spec:
+  targetRefs:
+  - group: apps
+    kind: Deployment
+    name: test-deployment
+`,
+			wantError: "targetRefs may only reference Gateway, HTTPRoute, or XListenerSet resources",
+		},
+		{
+			name: "HTTPListenerPolicy: valid target references",
+			input: `---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: HTTPListenerPolicy
+metadata:
+  name: http-listener-policy-valid-targets
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: test-gateway
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: test-route
+  targetSelectors:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    matchLabels:
+      app: myapp
+`,
+		},
+		{
+			name: "HTTPListenerPolicy: invalid target reference",
+			input: `---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: HTTPListenerPolicy
+metadata:
+  name: http-listener-policy-invalid-target
+spec:
+  targetRefs:
+  - group: gateway.networking.x-k8s.io
+    kind: XListenerSet
+    name: test-listener
+`,
+			wantError: "targetRefs may only reference Gateway or HTTPRoute resources",
+		},
 	}
 
 	t.Cleanup(func() {
