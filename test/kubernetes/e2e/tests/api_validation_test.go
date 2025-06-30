@@ -80,9 +80,6 @@ spec:
   - group: gateway.kgateway.dev
     kind: Backend
     name: test-backend
-  - group: networking.istio.io
-    kind: ServiceEntry
-    name: test-service-entry
   targetSelectors:
   - group: ""
     kind: Service
@@ -105,7 +102,7 @@ spec:
     kind: Deployment
     name: test-deployment
 `,
-			wantError: "TargetRefs must reference either a Kubernetes Service, a Backend API, or an Istio ServiceEntry",
+			wantError: "TargetRefs must reference either a Kubernetes Service or a Backend API",
 		},
 		{
 			name: "BackendConfigPolicy: invalid target selector",
@@ -121,7 +118,7 @@ spec:
     matchLabels:
       app: myapp
 `,
-			wantError: "TargetSelectors must reference either a Kubernetes Service, a Backend API, or an Istio ServiceEntry",
+			wantError: "TargetSelectors must reference either a Kubernetes Service or a Backend API",
 		},
 		{
 			name: "TrafficPolicy: valid target references",
