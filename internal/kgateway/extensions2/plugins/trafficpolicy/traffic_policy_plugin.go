@@ -43,6 +43,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	pluginsdkutils "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/utils"
+	"github.com/kgateway-dev/kgateway/v2/pkg/settings"
 	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
@@ -218,8 +219,12 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 		}
 
 		policyIR, errors := translator.Translate(krtctx, policyCR)
-		if err := policyIR.Validate(ctx, v, policyCR); err != nil {
-			errors = append(errors, err)
+		switch commoncol.Settings.RouteReplacementMode {
+		case settings.RouteReplacementStrict:
+			if err := policyIR.Validate(ctx, v, policyCR); err != nil {
+				logger.Error("strict mode validation failed", "policy", policyCR.Name, "error", err)
+				errors = append(errors, err)
+			}
 		}
 		pol := &ir.PolicyWrapper{
 			ObjectSource: objSrc,
