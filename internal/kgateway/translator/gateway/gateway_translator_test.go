@@ -12,10 +12,10 @@ import (
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gwv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
-	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/reports"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/reporter"
+	"github.com/kgateway-dev/kgateway/v2/pkg/settings"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/fsutils"
 	translatortest "github.com/kgateway-dev/kgateway/v2/test/translator"
 )
@@ -746,17 +746,119 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 				assertPolicyStatusWithGeneration(reportsMap, expectedPolicies, 42)
 			},
 		}),
-	// TODO: Add this once istio adds support for listener sets
-	// Entry(
-	// 	"listener sets",
-	// 	translatorTestCase{
-	// 		inputFile:  "listener-sets/manifest.yaml",
-	// 		outputFile: "listener-sets-proxy.yaml",
-	// 		gwNN: types.NamespacedName{
-	// 			Namespace: "default",
-	// 			Name:      "example-gateway",
-	// 		},
-	// 	}),
+)
+
+var _ = DescribeTable("Route Replacement Tests",
+	func(in translatorTestCase, settingOpts ...translatortest.SettingsOpts) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		dir := fsutils.MustGetThisDir()
+
+		inputFiles := []string{filepath.Join(dir, "testutils/inputs/", in.inputFile)}
+		expectedProxyFile := filepath.Join(dir, "testutils/outputs/", in.outputFile)
+		translatortest.TestTranslation(GinkgoT(), ctx, inputFiles, expectedProxyFile, in.gwNN, in.assertReports, settingOpts...)
+	},
+	Entry("Standard Mode - Invalid HTTPRoute Prefix Match",
+		translatorTestCase{
+			inputFile:  "route-replacement/standard/invalid-httproute-prefix-match.yaml",
+			outputFile: "route-replacement/standard/invalid-httproute-prefix-match-out.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "gwtest",
+				Name:      "example-gateway",
+			},
+			assertReports: func(gwNN types.NamespacedName, reportsMap reports.ReportMap) {
+				route := &gwv1.HTTPRoute{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "invalid-traffic-policy-route",
+						Namespace: "gwtest",
+					},
+				}
+				routeStatus := reportsMap.BuildRouteStatus(context.Background(), route, wellknown.GatewayControllerName)
+				Expect(routeStatus).NotTo(BeNil())
+				Expect(routeStatus.Parents).To(HaveLen(1))
+
+				partiallyInvalid := meta.FindStatusCondition(routeStatus.Parents[0].Conditions, string(gwv1.RouteConditionPartiallyInvalid))
+				Expect(partiallyInvalid).NotTo(BeNil())
+				Expect(partiallyInvalid.Status).To(Equal(metav1.ConditionTrue))
+				Expect(partiallyInvalid.Reason).To(Equal(string(gwv1.RouteReasonUnsupportedValue)))
+				Expect(partiallyInvalid.Message).To(ContainSubstring("Dropped Rule (0)"))
+			},
+		},
+		func(s *settings.Settings) {
+			s.RouteReplacementMode = settings.RouteReplacementStandard
+		}),
+	Entry("Standard Mode - Invalid Policy Single Rule",
+		translatorTestCase{
+			inputFile:  "route-replacement/standard/invalid-policy-single-rule.yaml",
+			outputFile: "route-replacement/standard/invalid-policy-single-rule-out.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "gwtest",
+				Name:      "example-gateway",
+			},
+		},
+		func(s *settings.Settings) {
+			s.RouteReplacementMode = settings.RouteReplacementStandard
+		}),
+	Entry("Strict Mode - Invalid Policy Single Rule",
+		translatorTestCase{
+			inputFile:  "route-replacement/strict/invalid-policy-single-rule.yaml",
+			outputFile: "route-replacement/strict/invalid-policy-single-rule-out.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "gwtest",
+				Name:      "example-gateway",
+			},
+		},
+		func(s *settings.Settings) {
+			s.RouteReplacementMode = settings.RouteReplacementStrict
+		}),
+	Entry("Strict Mode - Valid Structure Invalid Template Policy",
+		translatorTestCase{
+			inputFile:  "route-replacement/strict/valid-structure-invalid-template-policy.yaml",
+			outputFile: "route-replacement/strict/valid-structure-invalid-template-policy-out.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "gwtest",
+				Name:      "example-gateway",
+			},
+		},
+		func(s *settings.Settings) {
+			s.RouteReplacementMode = settings.RouteReplacementStrict
+		}),
+	Entry("Strict Mode - Invalid Header Manipulation",
+		translatorTestCase{
+			inputFile:  "route-replacement/strict/invalid-header-manipulation-policy.yaml",
+			outputFile: "route-replacement/strict/invalid-header-manipulation-policy-out.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "gwtest",
+				Name:      "example-gateway",
+			},
+		},
+		func(s *settings.Settings) {
+			s.RouteReplacementMode = settings.RouteReplacementStrict
+		}),
+	Entry("Strict Mode - Invalid Body Template",
+		translatorTestCase{
+			inputFile:  "route-replacement/strict/invalid-body-template-policy.yaml",
+			outputFile: "route-replacement/strict/invalid-body-template-policy-out.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "gwtest",
+				Name:      "example-gateway",
+			},
+		},
+		func(s *settings.Settings) {
+			s.RouteReplacementMode = settings.RouteReplacementStrict
+		}),
+	Entry("Strict Mode - Invalid Path Manipulation",
+		translatorTestCase{
+			inputFile:  "route-replacement/strict/invalid-path-manipulation-policy.yaml",
+			outputFile: "route-replacement/strict/invalid-path-manipulation-policy-out.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "gwtest",
+				Name:      "example-gateway",
+			},
+		},
+		func(s *settings.Settings) {
+			s.RouteReplacementMode = settings.RouteReplacementStrict
+		}),
 )
 
 var _ = DescribeTable("Route Delegation translator",
