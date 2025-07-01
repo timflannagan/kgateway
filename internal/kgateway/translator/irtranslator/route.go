@@ -210,6 +210,11 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 			out.Action = &envoy_config_route_v3.Route_DirectResponse{
 				DirectResponse: &envoy_config_route_v3.DirectResponseAction{
 					Status: http.StatusInternalServerError,
+					Body: &envoy_config_core_v3.DataSource{
+						Specifier: &envoy_config_core_v3.DataSource_InlineString{
+							InlineString: "Kgateway detected an invalid route configuration and replaced it with a direct response.",
+						},
+					},
 				},
 			}
 			return out

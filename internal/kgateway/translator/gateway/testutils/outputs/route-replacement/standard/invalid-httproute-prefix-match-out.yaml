@@ -46,6 +46,9 @@ Routes:
     name: listener~8080~www_example_com
     routes:
     - directResponse:
+        body:
+          inlineString: Kgateway detected an invalid route configuration and replaced
+            it with a direct response.
         status: 500
       match:
         prefix: /
