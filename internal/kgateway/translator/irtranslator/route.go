@@ -315,8 +315,7 @@ func (h *httpRouteConfigurationTranslator) runRoutePlugins(
 			TypedFilterConfig: typedPerFilterConfig,
 		}
 		for _, pol := range mergePolicies(pass, pols) {
-			// TODO: should we append pol.Error to errs?
-			// i.e. errs = append(errs, pol.Error)
+			errs = append(errs, pol.Errors...)
 			pctx.Policy = pol.PolicyIr
 			applyForPolicy(ctx, pass, pctx, out)
 		}
