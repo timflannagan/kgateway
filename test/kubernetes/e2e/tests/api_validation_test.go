@@ -172,9 +172,6 @@ spec:
   - group: gateway.networking.k8s.io
     kind: Gateway
     name: test-gateway
-  - group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    name: test-route
   targetSelectors:
   - group: gateway.networking.k8s.io
     kind: Gateway
@@ -183,7 +180,22 @@ spec:
 `,
 		},
 		{
-			name: "HTTPListenerPolicy: invalid target reference",
+			name: "HTTPListenerPolicy: invalid target reference - HTTPRoute not allowed",
+			input: `---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: HTTPListenerPolicy
+metadata:
+  name: http-listener-policy-invalid-target-httproute
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: test-route
+`,
+			wantError: "targetRefs may only reference Gateway resources",
+		},
+		{
+			name: "HTTPListenerPolicy: invalid target reference - wrong resource type",
 			input: `---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: HTTPListenerPolicy
@@ -195,7 +207,7 @@ spec:
     kind: XListenerSet
     name: test-listener
 `,
-			wantError: "targetRefs may only reference Gateway or HTTPRoute resources",
+			wantError: "targetRefs may only reference Gateway resources",
 		},
 	}
 
