@@ -530,7 +530,7 @@ func (h *httpRouteConfigurationTranslator) initRoutes(
 	//	}
 
 	out := &envoy_config_route_v3.Route{
-		Match: translateGlooMatcher(in.Match),
+		Match: translateMatcher(in.Match),
 	}
 	name := in.Name
 	if name != "" {
@@ -542,7 +542,7 @@ func (h *httpRouteConfigurationTranslator) initRoutes(
 	return out
 }
 
-func translateGlooMatcher(matcher gwv1.HTTPRouteMatch) *envoy_config_route_v3.RouteMatch {
+func translateMatcher(matcher gwv1.HTTPRouteMatch) *envoy_config_route_v3.RouteMatch {
 	match := &envoy_config_route_v3.RouteMatch{
 		Headers:         envoyHeaderMatcher(matcher.Headers),
 		QueryParameters: envoyQueryMatcher(matcher.QueryParams),
