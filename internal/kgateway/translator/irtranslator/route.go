@@ -205,7 +205,7 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 
 		switch h.routeReplacementMode {
 		case settings.RouteReplacementStandard, settings.RouteReplacementStrict:
-			// Replace invalid route with a direct response
+			out.TypedPerFilterConfig = nil
 			out.Action = &envoy_config_route_v3.Route_DirectResponse{
 				DirectResponse: &envoy_config_route_v3.DirectResponseAction{
 					Status: http.StatusInternalServerError,

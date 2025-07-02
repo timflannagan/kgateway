@@ -58,16 +58,3 @@ Routes:
       match:
         pathSeparatedPrefix: /test
       name: listener~80~*-route-0-httproute-test-route-gwtest-0-0-matcher-0
-      typedPerFilterConfig:
-        envoy.filters.http.csrf:
-          '@type': type.googleapis.com/envoy.extensions.filters.http.csrf.v3.CsrfPolicy
-          additionalOrigins:
-          - exact: https://valid.example.com
-          - safeRegex:
-              googleRe2: {}
-              regex: '['
-          - prefix: https://another.example.com
-          filterEnabled:
-            defaultValue:
-              numerator: 50
-            runtimeKey: envoy.csrf.filter_enabled
