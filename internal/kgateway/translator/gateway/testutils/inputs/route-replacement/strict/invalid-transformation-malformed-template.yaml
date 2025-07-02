@@ -54,4 +54,4 @@ spec:
     request:
       body:
         parseAs: AsJson
-        value: "{{ invalid_template }"
+        value: "{{ invalid_template }"  ## invalid template syntax that envoy will reject

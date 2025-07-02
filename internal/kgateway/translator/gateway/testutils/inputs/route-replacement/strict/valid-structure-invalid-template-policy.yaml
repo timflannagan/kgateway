@@ -54,4 +54,4 @@ spec:
     request:
       body:
         parseAs: AsJson
-        value: "{{ invalid_template }}"
+        value: "{{ invalid_template }}"  ## technically valid since it passes xDS validation and won't NACK, but will fail at request time

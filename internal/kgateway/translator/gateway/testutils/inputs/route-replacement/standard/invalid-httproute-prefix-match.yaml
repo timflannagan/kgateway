@@ -46,7 +46,7 @@ spec:
       urlRewrite:
         path:
           type: ReplacePrefixMatch
-          replacePrefixMatch: /new//../path
+          replacePrefixMatch: /new//../path  ## validation in the route translator will fail on this
     backendRefs:
     - name: example-svc
       port: 80

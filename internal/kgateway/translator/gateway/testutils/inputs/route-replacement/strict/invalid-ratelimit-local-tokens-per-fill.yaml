@@ -44,5 +44,5 @@ spec:
     local:
       tokenBucket:
         maxTokens: 10
-        tokensPerFill: 0
+        tokensPerFill: 0  # Currently allowed but creates a broken rate limiter that will never refill
         fillInterval: "1s"
