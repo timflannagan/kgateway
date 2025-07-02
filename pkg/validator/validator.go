@@ -19,6 +19,8 @@ var ErrInvalidXDS = errors.New("invalid xds configuration")
 
 // Validator validates an Envoy bootstrap/partial YAML.
 type Validator interface {
+	// Validate validates the given YAML configuration. Returns an error
+	// if the configuration is invalid.
 	Validate(context.Context, string) error
 }
 
@@ -91,13 +93,13 @@ func (d *dockerValidator) Validate(ctx context.Context, yaml string) error {
 	return fmt.Errorf("envoy validate invocation failed: %v", err)
 }
 
-// stripDockerWarn drops the platform-mismatch line docker prints on ARM hosts.
+// stripDockerWarn removes the platform-mismatch warning Docker prints on ARM hosts.
 func stripDockerWarn(s string) string {
-	var cleaned []string
-	// TODO(tim): fix the linter violation below.
-	for _, l := range strings.Split(s, "\n") {
-		if !strings.HasPrefix(l, "WARNING: The requested image's platform") {
-			cleaned = append(cleaned, l)
+	lines := strings.Split(s, "\n")
+	cleaned := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "WARNING: The requested image's platform") {
+			cleaned = append(cleaned, line)
 		}
 	}
 	return strings.TrimSpace(strings.Join(cleaned, "\n"))
