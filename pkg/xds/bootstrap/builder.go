@@ -1,7 +1,8 @@
-// pkg/xds/bootstrap/config.go
 package bootstrap
 
 import (
+	"fmt"
+
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -66,7 +67,7 @@ func (b *ConfigBuilder) Build() (*envoy_config_bootstrap_v3.Bootstrap, error) {
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal HttpConnectionManager: %w", err)
 	}
 
 	staticResources := &envoy_config_bootstrap_v3.Bootstrap_StaticResources{
