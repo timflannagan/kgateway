@@ -13,7 +13,6 @@ import (
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gwv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -71,7 +70,7 @@ func (h *httpRouteConfigurationTranslator) ComputeRouteConfiguration(ctx context
 	}
 
 	cfg.VirtualHosts = h.computeVirtualHosts(ctx, vhosts)
-	cfg.TypedPerFilterConfig = toPerFilterConfigMap(typedPerFilterConfigRoute)
+	cfg.TypedPerFilterConfig = typedPerFilterConfigRoute.ToAnyMap()
 
 	// Gateway API spec requires that port values in HTTP Host headers be ignored when performing a match
 	// See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteSpec - hostnames field
@@ -134,7 +133,7 @@ func (h *httpRouteConfigurationTranslator) computeVirtualHost(
 	typedPerFilterConfigRoute := ir.TypedFilterConfigMap(map[string]proto.Message{})
 	// run the http plugins that are attached to the listener or gateway on the virtual host
 	h.runVhostPlugins(ctx, virtualHost, out, typedPerFilterConfigRoute)
-	out.TypedPerFilterConfig = toPerFilterConfigMap(typedPerFilterConfigRoute)
+	out.TypedPerFilterConfig = typedPerFilterConfigRoute.ToAnyMap()
 
 	return out
 }
@@ -172,7 +171,7 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 	}
 
 	// apply typed per filter config from translating route action and route plugins
-	typedPerFilterConfig := toPerFilterConfigMap(backendConfigCtx.typedPerFilterConfigRoute)
+	typedPerFilterConfig := backendConfigCtx.typedPerFilterConfigRoute.ToAnyMap()
 	if out.GetTypedPerFilterConfig() == nil {
 		out.TypedPerFilterConfig = typedPerFilterConfig
 	} else {
@@ -225,24 +224,6 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 	}
 
 	return out
-}
-
-func toPerFilterConfigMap(typedPerFilterConfig ir.TypedFilterConfigMap) map[string]*anypb.Any {
-	typedPerFilterConfigAny := map[string]*anypb.Any{}
-	for k, v := range typedPerFilterConfig {
-		if anyMsg, ok := v.(*anypb.Any); ok {
-			typedPerFilterConfigAny[k] = anyMsg
-			continue
-		}
-		config, err := utils.MessageToAny(v)
-		if err != nil {
-			// TODO: error on status? this should never happen..
-			logger.Error("unexpected marshalling error", "error", err)
-			continue
-		}
-		typedPerFilterConfigAny[k] = config
-	}
-	return typedPerFilterConfigAny
 }
 
 func (h *httpRouteConfigurationTranslator) runVhostPlugins(ctx context.Context, virtualHost *ir.VirtualHost, out *envoy_config_route_v3.VirtualHost,
@@ -443,7 +424,7 @@ func (h *httpRouteConfigurationTranslator) translateRouteAction(
 		backendConfigCtx.ResponseHeadersToRemove = pCtx.ResponseHeadersToRemove
 
 		// Translating weighted clusters needs the typed per filter config on each cluster
-		cw.TypedPerFilterConfig = toPerFilterConfigMap(backendConfigCtx.typedPerFilterConfigRoute)
+		cw.TypedPerFilterConfig = backendConfigCtx.typedPerFilterConfigRoute.ToAnyMap()
 		cw.RequestHeadersToAdd = backendConfigCtx.RequestHeadersToAdd
 		cw.RequestHeadersToRemove = backendConfigCtx.RequestHeadersToRemove
 		cw.ResponseHeadersToAdd = backendConfigCtx.ResponseHeadersToAdd
