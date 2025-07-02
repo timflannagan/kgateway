@@ -226,7 +226,10 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 	return out
 }
 
-func (h *httpRouteConfigurationTranslator) runVhostPlugins(ctx context.Context, virtualHost *ir.VirtualHost, out *envoy_config_route_v3.VirtualHost,
+func (h *httpRouteConfigurationTranslator) runVhostPlugins(
+	ctx context.Context,
+	virtualHost *ir.VirtualHost,
+	out *envoy_config_route_v3.VirtualHost,
 	typedPerFilterConfig ir.TypedFilterConfigMap,
 ) {
 	for _, gk := range virtualHost.AttachedPolicies.ApplyOrderedGroupKinds() {
