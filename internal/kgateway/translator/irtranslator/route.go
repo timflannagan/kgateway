@@ -211,7 +211,7 @@ func (h *httpRouteConfigurationTranslator) envoyRoutes(
 					Status: http.StatusInternalServerError,
 					Body: &envoy_config_core_v3.DataSource{
 						Specifier: &envoy_config_core_v3.DataSource_InlineString{
-							InlineString: "Kgateway detected an invalid route configuration and replaced it with a direct response.",
+							InlineString: `kgateway detected an invalid route configuration and replaced it with a direct response.`,
 						},
 					},
 				},

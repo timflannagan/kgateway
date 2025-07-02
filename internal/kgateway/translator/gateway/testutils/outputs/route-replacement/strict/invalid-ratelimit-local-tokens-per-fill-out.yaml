@@ -43,7 +43,7 @@ Routes:
     routes:
     - directResponse:
         body:
-          inlineString: Kgateway detected an invalid route configuration and replaced
+          inlineString: kgateway detected an invalid route configuration and replaced
             it with a direct response.
         status: 500
       match:
