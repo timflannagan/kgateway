@@ -746,6 +746,18 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 				assertPolicyStatusWithGeneration(reportsMap, expectedPolicies, 42)
 			},
 		}),
+	// TODO: Add this once istio adds support for listener sets
+	// Entry(
+	//
+	//	"listener sets",
+	//	translatorTestCase{
+	//		inputFile:  "listener-sets/manifest.yaml",
+	//		outputFile: "listener-sets-proxy.yaml",
+	//		gwNN: types.NamespacedName{
+	//			Namespace: "default",
+	//			Name:      "example-gateway",
+	//		},
+	//	}),
 )
 
 var _ = DescribeTable("Route Replacement Tests",
