@@ -1,0 +1,1 @@
+error: "failed to validate xDS configuration: transformation template parse error: expected closing brace '}}' in template"

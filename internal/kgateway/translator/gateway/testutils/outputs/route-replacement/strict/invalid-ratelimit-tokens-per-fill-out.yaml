@@ -1,0 +1,67 @@
+Clusters:
+- connectTimeout: 5s
+  metadata: {}
+  name: test-backend-plugin_default_example-svc_80
+Listeners:
+- address:
+    socketAddress:
+      address: '::'
+      ipv4Compat: true
+      portValue: 8080
+  filterChains:
+  - filters:
+    - name: envoy.filters.network.http_connection_manager
+      typedConfig:
+        '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+        httpFilters:
+        - disabled: true
+          name: ratelimit/local
+          typedConfig:
+            '@type': type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+            statPrefix: http_local_rate_limiter
+        - name: envoy.filters.http.router
+          typedConfig:
+            '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+        mergeSlashes: true
+        normalizePath: true
+        rds:
+          configSource:
+            ads: {}
+            resourceApiVersion: V3
+          routeConfigName: listener~80
+        statPrefix: http
+        useRemoteAddress: true
+    name: listener~80
+  name: listener~80
+Routes:
+- ignorePortInHostMatching: true
+  name: listener~80
+  virtualHosts:
+  - domains:
+    - '*'
+    name: listener~80~*
+    routes:
+    - directResponse:
+        body:
+          inlineString: Kgateway detected an invalid route configuration and replaced
+            it with a direct response.
+        status: 500
+      match:
+        pathSeparatedPrefix: /test
+      name: listener~80~*-route-0-httproute-test-route-gwtest-0-0-matcher-0
+      typedPerFilterConfig:
+        ratelimit/local:
+          '@type': type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+          filterEnabled:
+            defaultValue:
+              numerator: 100
+            runtimeKey: local_rate_limit_enabled
+          filterEnforced:
+            defaultValue:
+              numerator: 100
+            runtimeKey: local_rate_limit_enforced
+          statPrefix: http_local_rate_limiter
+          tokenBucket:
+            fillInterval: 1s
+            maxTokens: 10
+            tokensPerFill: 0
