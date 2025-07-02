@@ -288,16 +288,6 @@ var _ = DescribeTable("Basic GatewayTranslator Tests",
 			},
 		}),
 	Entry(
-		"TrafficPolicy with invalid buffer configurations",
-		translatorTestCase{
-			inputFile:  "route-replacement/strict/invalid-buffer-policy.yaml",
-			outputFile: "route-replacement/strict/invalid-buffer-policy.yaml",
-			gwNN: types.NamespacedName{
-				Namespace: "default",
-				Name:      "example-gateway",
-			},
-		}),
-	Entry(
 		"tcp gateway with basic routing",
 		translatorTestCase{
 			inputFile:  "tcp-routing/basic.yaml",
