@@ -11,6 +11,7 @@ import (
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -19,18 +20,41 @@ const (
 	localRatelimitFilterDisabledRuntimeKey = "local_rate_limit_disabled"
 )
 
+type LocalRateLimitIR struct {
+	Config *localratelimitv3.LocalRateLimit
+}
+
+func (l *LocalRateLimitIR) Equals(other *LocalRateLimitIR) bool {
+	if l == nil && other == nil {
+		return true
+	}
+	if l == nil || other == nil {
+		return false
+	}
+	return proto.Equal(l.Config, other.Config)
+}
+
+func (l *LocalRateLimitIR) Validate() error {
+	if l == nil || l.Config == nil {
+		return nil
+	}
+	return l.Config.ValidateAll()
+}
+
 func localRateLimitForSpec(spec v1alpha1.TrafficPolicySpec, out *trafficPolicySpecIr) error {
 	if spec.RateLimit == nil || spec.RateLimit.Local == nil {
 		return nil
 	}
 
-	var err error
 	if spec.RateLimit.Local != nil {
-		out.localRateLimit, err = toLocalRateLimitFilterConfig(spec.RateLimit.Local)
+		cfg, err := toLocalRateLimitFilterConfig(spec.RateLimit.Local)
 		if err != nil {
 			// In case of an error with translating the local rate limit configuration,
 			// the route will be dropped
 			return err
+		}
+		if cfg != nil {
+			out.localRateLimit = &LocalRateLimitIR{Config: cfg}
 		}
 	}
 	return nil
@@ -105,11 +129,11 @@ func createDisabledRateLimit() *localratelimitv3.LocalRateLimit {
 	}
 }
 
-func (p *trafficPolicyPluginGwPass) handleLocalRateLimit(fcn string, typedFilterConfig *ir.TypedFilterConfigMap, localRateLimit *localratelimitv3.LocalRateLimit) {
-	if localRateLimit == nil {
+func (p *trafficPolicyPluginGwPass) handleLocalRateLimit(fcn string, typedFilterConfig *ir.TypedFilterConfigMap, localRateLimit *LocalRateLimitIR) {
+	if localRateLimit == nil || localRateLimit.Config == nil {
 		return
 	}
-	typedFilterConfig.AddTypedConfig(localRateLimitFilterNamePrefix, localRateLimit)
+	typedFilterConfig.AddTypedConfig(localRateLimitFilterNamePrefix, localRateLimit.Config)
 
 	// Add a filter to the chain. When having a rate limit for a route we need to also have a
 	// globally disabled rate limit filter in the chain otherwise it will be ignored.

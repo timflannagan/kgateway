@@ -39,6 +39,45 @@ type AIPolicyIR struct {
 	Transformation *envoytransformation.RouteTransformations
 }
 
+func (a *AIPolicyIR) Equals(b *AIPolicyIR) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if (a.AISecret == nil) != (b.AISecret == nil) {
+		return false
+	}
+	if a.AISecret != nil && !a.AISecret.Equals(*b.AISecret) {
+		return false
+	}
+	if !proto.Equal(a.Extproc, b.Extproc) {
+		return false
+	}
+	if !proto.Equal(a.Transformation, b.Transformation) {
+		return false
+	}
+	return true
+}
+
+func (a *AIPolicyIR) Validate() error {
+	if a == nil {
+		return nil
+	}
+	if a.Extproc != nil {
+		if err := a.Extproc.ValidateAll(); err != nil {
+			return fmt.Errorf("extproc: %w", err)
+		}
+	}
+	if a.Transformation != nil {
+		if err := a.Transformation.ValidateAll(); err != nil {
+			return fmt.Errorf("transformation: %w", err)
+		}
+	}
+	return nil
+}
+
 func (p *trafficPolicyPluginGwPass) processAITrafficPolicy(
 	configMap *ir.TypedFilterConfigMap,
 	inIr *AIPolicyIR,

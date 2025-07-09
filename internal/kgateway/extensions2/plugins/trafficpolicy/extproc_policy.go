@@ -37,6 +37,18 @@ func (e *ExtprocIR) Equals(other *ExtprocIR) bool {
 	return true
 }
 
+func (e *ExtprocIR) Validate() error {
+	if e == nil || e.ExtProcPerRoute == nil {
+		return nil
+	}
+	if e.provider != nil {
+		if err := e.provider.Validate(); err != nil {
+			return err
+		}
+	}
+	return e.ExtProcPerRoute.ValidateAll()
+}
+
 // toEnvoyExtProc converts an ExtProcPolicy to an ExternalProcessor
 func (b *TrafficPolicyBuilder) toEnvoyExtProc(
 	krtctx krt.HandlerContext,

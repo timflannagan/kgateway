@@ -15,6 +15,57 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 )
 
+// TransformationIR represents a transformation configuration.
+type TransformationIR struct {
+	Config *transformationpb.RouteTransformations
+}
+
+func (t *TransformationIR) Equals(o *TransformationIR) bool {
+	if t == nil && o == nil {
+		return true
+	}
+	if t == nil || o == nil {
+		return false
+	}
+	return proto.Equal(t.Config, o.Config)
+}
+
+func (t *TransformationIR) Validate() error {
+	if t == nil || t.Config == nil {
+		return nil
+	}
+	return t.Config.ValidateAll()
+}
+
+// RustformationIR represents a rustformation filter configuration.
+type RustformationIR struct {
+	Config        proto.Message
+	StringToStash string
+}
+
+func (r *RustformationIR) Equals(o *RustformationIR) bool {
+	if r == nil && o == nil {
+		return true
+	}
+	if r == nil || o == nil {
+		return false
+	}
+	if r.StringToStash != o.StringToStash {
+		return false
+	}
+	return proto.Equal(r.Config, o.Config)
+}
+
+func (r *RustformationIR) Validate() error {
+	if r == nil || r.Config == nil {
+		return nil
+	}
+	if v, ok := r.Config.(interface{ ValidateAll() error }); ok {
+		return v.ValidateAll()
+	}
+	return nil
+}
+
 // transformationForSpec translates the transformation spec into and onto the IR policy
 func transformationForSpec(spec v1alpha1.TrafficPolicySpec, out *trafficPolicySpecIr) error {
 	if spec.Transformation == nil {
@@ -22,9 +73,12 @@ func transformationForSpec(spec v1alpha1.TrafficPolicySpec, out *trafficPolicySp
 	}
 	var err error
 	if !useRustformations {
-		out.transform, err = toTransformFilterConfig(spec.Transformation)
+		cfg, err := toTransformFilterConfig(spec.Transformation)
 		if err != nil {
 			return err
+		}
+		if cfg != nil {
+			out.transform = &TransformationIR{Config: cfg}
 		}
 		return nil
 	}
@@ -33,8 +87,9 @@ func transformationForSpec(spec v1alpha1.TrafficPolicySpec, out *trafficPolicySp
 	if err != nil {
 		return err
 	}
-	out.rustformation = rustformation
-	out.rustformationStringToStash = toStash
+	if rustformation != nil {
+		out.rustformation = &RustformationIR{Config: rustformation, StringToStash: toStash}
+	}
 	return nil
 }
 
@@ -262,11 +317,11 @@ func convertClassicRouteToListener(
 	listenerFilter.Transformations = append(listenerFilter.GetTransformations(), &transform)
 }
 
-func (p *trafficPolicyPluginGwPass) handleTransformation(fcn string, typedFilterConfig *ir.TypedFilterConfigMap, transform *transformationpb.RouteTransformations) {
-	if transform == nil {
+func (p *trafficPolicyPluginGwPass) handleTransformation(fcn string, typedFilterConfig *ir.TypedFilterConfigMap, transform *TransformationIR) {
+	if transform == nil || transform.Config == nil {
 		return
 	}
 
-	typedFilterConfig.AddTypedConfig(transformationFilterNamePrefix, transform)
+	typedFilterConfig.AddTypedConfig(transformationFilterNamePrefix, transform.Config)
 	p.setTransformationInChain[fcn] = true
 }

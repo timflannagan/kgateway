@@ -3,8 +3,8 @@ package trafficpolicy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"maps"
 	"strconv"
 	"time"
 
@@ -16,7 +16,6 @@ import (
 	dynamicmodulesv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/dynamic_modules/v3"
 	localratelimitv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/local_ratelimit/v3"
 	envoy_wellknown "github.com/envoyproxy/go-control-plane/pkg/wellknown"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	skubeclient "istio.io/istio/pkg/config/schema/kubeclient"
@@ -30,7 +29,6 @@ import (
 	// TODO(nfuden): remove once rustformations are able to be used in a production environment
 	transformationpb "github.com/solo-io/envoy-gloo/go/config/filter/http/transformation/v2"
 
-	apiannotations "github.com/kgateway-dev/kgateway/v2/api/annotations"
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/common"
 	extensionsplug "github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugin"
@@ -41,7 +39,6 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
-	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	pluginsdkutils "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/utils"
 )
 
@@ -74,19 +71,16 @@ type TrafficPolicy struct {
 }
 
 type trafficPolicySpecIr struct {
-	AI        *AIPolicyIR
-	ExtProc   *ExtprocIR
-	transform *transformationpb.RouteTransformations
-	// rustformation is currently a *dynamicmodulesv3.DynamicModuleFilter, but can potentially change at some point
-	// in the future so we use proto.Message here
-	rustformation              proto.Message
-	rustformationStringToStash string
-	extAuth                    *extAuthIR
-	localRateLimit             *localratelimitv3.LocalRateLimit
-	rateLimit                  *GlobalRateLimitIR
-	cors                       *CorsIR
-	csrf                       *CsrfIR
-	buffer                     *BufferIR
+	AI             *AIPolicyIR
+	ExtProc        *ExtprocIR
+	transform      *TransformationIR
+	rustformation  *RustformationIR
+	extAuth        *extAuthIR
+	localRateLimit *LocalRateLimitIR
+	rateLimit      *GlobalRateLimitIR
+	cors           *CorsIR
+	csrf           *CsrfIR
+	buffer         *BufferIR
 }
 
 func (d *TrafficPolicy) CreationTime() time.Time {
@@ -102,29 +96,14 @@ func (d *TrafficPolicy) Equals(in any) bool {
 	if d.ct != d2.ct {
 		return false
 	}
-	if !proto.Equal(d.spec.transform, d2.spec.transform) {
+	if !d.spec.transform.Equals(d2.spec.transform) {
 		return false
 	}
-	if !proto.Equal(d.spec.rustformation, d2.spec.rustformation) {
+	if !d.spec.rustformation.Equals(d2.spec.rustformation) {
 		return false
 	}
 
-	// AI equality checks
-	if d.spec.AI != nil && d2.spec.AI != nil {
-		if d.spec.AI.AISecret != nil && d2.spec.AI.AISecret != nil && !d.spec.AI.AISecret.Equals(*d2.spec.AI.AISecret) {
-			return false
-		}
-		if (d.spec.AI.AISecret != nil) != (d2.spec.AI.AISecret != nil) {
-			return false
-		}
-		if !proto.Equal(d.spec.AI.Extproc, d2.spec.AI.Extproc) {
-			return false
-		}
-		if !proto.Equal(d.spec.AI.Transformation, d2.spec.AI.Transformation) {
-			return false
-		}
-	} else if d.spec.AI != d2.spec.AI {
-		// If one of the AI IR values is nil and the other isn't, not equal
+	if !d.spec.AI.Equals(d2.spec.AI) {
 		return false
 	}
 
@@ -136,7 +115,7 @@ func (d *TrafficPolicy) Equals(in any) bool {
 		return false
 	}
 
-	if !proto.Equal(d.spec.localRateLimit, d2.spec.localRateLimit) {
+	if !d.spec.localRateLimit.Equals(d2.spec.localRateLimit) {
 		return false
 	}
 
@@ -157,6 +136,61 @@ func (d *TrafficPolicy) Equals(in any) bool {
 	}
 
 	return true
+}
+
+func (d *TrafficPolicy) Validate() error {
+	var errs []error
+	if d.spec.AI != nil {
+		if err := d.spec.AI.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if d.spec.buffer != nil {
+		if err := d.spec.buffer.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if d.spec.cors != nil {
+		if err := d.spec.cors.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if d.spec.csrf != nil {
+		if err := d.spec.csrf.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if d.spec.extAuth != nil {
+		if err := d.spec.extAuth.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if d.spec.ExtProc != nil {
+		if err := d.spec.ExtProc.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if d.spec.localRateLimit != nil {
+		if err := d.spec.localRateLimit.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if d.spec.rateLimit != nil {
+		if err := d.spec.rateLimit.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if d.spec.transform != nil {
+		if err := d.spec.transform.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if d.spec.rustformation != nil {
+		if err := d.spec.rustformation.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 type trafficPolicyPluginGwPass struct {
@@ -288,7 +322,7 @@ func (p *trafficPolicyPluginGwPass) ApplyForRoute(ctx context.Context, pCtx *ir.
 			p.rustformationStash = make(map[string]string)
 		}
 		// encode the configuration that would be route level and stash the serialized version in a map
-		p.rustformationStash[routeHash] = string(policy.spec.rustformationStringToStash)
+		p.rustformationStash[routeHash] = string(policy.spec.rustformation.StringToStash)
 
 		// augment the dynamic metadata so that we can do our route hack
 		// set_dynamic_metadata filter DOES NOT have a route level configuration
@@ -568,125 +602,4 @@ func (p *trafficPolicyPluginGwPass) handlePolicies(fcn string, typedFilterConfig
 
 func (p *trafficPolicyPluginGwPass) SupportsPolicyMerge() bool {
 	return true
-}
-
-// mergePolicies merges the given policy ordered from high to low priority (both hierarchically
-// and within the same hierarchy) based on the constraints defined per PolicyAtt.
-//
-// It iterates policies in reverse order (low to high) to ensure higher priority policies can
-// always use an OverridableMerge strategy to override lower priority ones. Iterating policies
-// in the given priority order (high to low) requires more complex merging for delegated chains
-// because policies anywhere in the chain may enable policy overrides for their children but we
-// still need to ensure these children cannot override any policies set by their ancestors that
-// are not marked as overridable, i.e., (r1,p1)-delegate->(r2,p2)-delegate->(r3,p3) where
-// r=route p=policy needs to ensure p3 does not override p1 (assuming p1 does not enable overrides)
-// even if p2 allows overrides. This is easier to guarantee by using an OverridableMerge strategy
-// by merging in higher priority policies with different HierarchicalPriority.
-func mergePolicies(policies []ir.PolicyAtt) ir.PolicyAtt {
-	var out ir.PolicyAtt
-	if len(policies) == 0 {
-		return out
-	}
-	_, ok := policies[0].PolicyIr.(*TrafficPolicy)
-	// ignore unknown types
-	if !ok {
-		return out
-	}
-
-	// base policy to merge into has an empty PolicyIr so it can always be merged into
-	out = ir.PolicyAtt{
-		GroupKind:    policies[0].GroupKind,
-		PolicyRef:    policies[0].PolicyRef,
-		MergeOrigins: map[string]*ir.AttachedPolicyRef{},
-		PolicyIr:     &TrafficPolicy{},
-	}
-	merged := out.PolicyIr.(*TrafficPolicy)
-
-	for i := len(policies) - 1; i >= 0; i-- {
-		mergeOpts := policy.MergeOptions{
-			Strategy: policy.OverridableMerge,
-		}
-		// If merging a policy lower in the hierarchy with a policy higher in the hierarchy AND
-		// the policy higher in the hierarchy enables policy overrides, use an AugmentedMerge strategy
-		// to preserve existing fields set by lower levels.
-		// NOTE: the HierarchicalPriority check is necessary to prevent enabling override behavior among
-		// policies in the same hierarchy, e.g., ExtensionRef vs TargetRef policy attached to the same route, as
-		// DelegationInheritedPolicyPriorityPreferChild strictly applies to parent->child policy inheritance and is not applicable
-		// outside delegated policy inheritance.
-		if out.HierarchicalPriority < policies[i].HierarchicalPriority && policies[i].DelegationInheritedPolicyPriority == apiannotations.DelegationInheritedPolicyPriorityPreferChild {
-			mergeOpts.Strategy = policy.AugmentedMerge
-		}
-
-		p2 := policies[i].PolicyIr.(*TrafficPolicy)
-		p2Ref := policies[i].PolicyRef
-
-		mergeOrigins := MergeTrafficPolicies(merged, p2, p2Ref, mergeOpts)
-		maps.Copy(out.MergeOrigins, mergeOrigins)
-		out.HierarchicalPriority = policies[i].HierarchicalPriority
-		out.Errors = append(out.Errors, policies[i].Errors...)
-	}
-
-	return out
-}
-
-// MergeTrafficPolicies merges two TrafficPolicy IRs, returning a map that contains information
-// about the origin policy reference for each merged field.
-func MergeTrafficPolicies(
-	p1, p2 *TrafficPolicy,
-	p2Ref *ir.AttachedPolicyRef,
-	mergeOpts policy.MergeOptions,
-) map[string]*ir.AttachedPolicyRef {
-	if p1 == nil || p2 == nil {
-		return nil
-	}
-	mergeOrigins := make(map[string]*ir.AttachedPolicyRef)
-	if policy.IsMergeable(p1.spec.AI, p2.spec.AI, mergeOpts) {
-		p1.spec.AI = p2.spec.AI
-		mergeOrigins["ai"] = p2Ref
-	}
-	if policy.IsMergeable(p1.spec.ExtProc, p2.spec.ExtProc, mergeOpts) {
-		p1.spec.ExtProc = p2.spec.ExtProc
-		mergeOrigins["extProc"] = p2Ref
-	}
-	if policy.IsMergeable(p1.spec.transform, p2.spec.transform, mergeOpts) {
-		p1.spec.transform = p2.spec.transform
-		mergeOrigins["transformation"] = p2Ref
-	}
-	if policy.IsMergeable(p1.spec.rustformation, p2.spec.rustformation, mergeOpts) {
-		p1.spec.rustformation = p2.spec.rustformation
-		p1.spec.rustformationStringToStash = p2.spec.rustformationStringToStash
-		mergeOrigins["rustformation"] = p2Ref
-	}
-	if policy.IsMergeable(p1.spec.extAuth, p2.spec.extAuth, mergeOpts) {
-		p1.spec.extAuth = p2.spec.extAuth
-		mergeOrigins["extAuth"] = p2Ref
-	}
-	if policy.IsMergeable(p1.spec.localRateLimit, p2.spec.localRateLimit, mergeOpts) {
-		p1.spec.localRateLimit = p2.spec.localRateLimit
-		mergeOrigins["rateLimit"] = p2Ref
-	}
-	// Handle global rate limit merging
-	if policy.IsMergeable(p1.spec.rateLimit, p2.spec.rateLimit, mergeOpts) {
-		p1.spec.rateLimit = p2.spec.rateLimit
-		mergeOrigins["rateLimit"] = p2Ref
-	}
-	// Handle cors merging
-	if policy.IsMergeable(p1.spec.cors, p2.spec.cors, mergeOpts) {
-		p1.spec.cors = p2.spec.cors
-		mergeOrigins["cors"] = p2Ref
-	}
-
-	// Handle CSRF policy merging
-	if policy.IsMergeable(p1.spec.csrf, p2.spec.csrf, mergeOpts) {
-		p1.spec.csrf = p2.spec.csrf
-		mergeOrigins["csrf"] = p2Ref
-	}
-
-	// Handle buffer policy merging
-	if policy.IsMergeable(p1.spec.buffer, p2.spec.buffer, mergeOpts) {
-		p1.spec.buffer = p2.spec.buffer
-		mergeOrigins["buffer"] = p2Ref
-	}
-
-	return mergeOrigins
 }

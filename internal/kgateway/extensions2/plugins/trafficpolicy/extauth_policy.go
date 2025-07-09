@@ -79,8 +79,19 @@ func (e *extAuthIR) Equals(other *extAuthIR) bool {
 	return true
 }
 
-// extAuthForSpec translates the ExtAuthz spec into the Envoy configuration
+func (e *extAuthIR) Validate() error {
+	if e == nil || e.extauthPerRoute == nil {
+		return nil
+	}
+	if e.provider != nil {
+		if err := e.provider.Validate(); err != nil {
+			return err
+		}
+	}
+	return e.extauthPerRoute.ValidateAll()
+}
 
+// extAuthForSpec translates the ExtAuthz spec into the Envoy configuration
 func (b *TrafficPolicyBuilder) extAuthForSpec(
 	krtctx krt.HandlerContext,
 	trafficPolicy *v1alpha1.TrafficPolicy,

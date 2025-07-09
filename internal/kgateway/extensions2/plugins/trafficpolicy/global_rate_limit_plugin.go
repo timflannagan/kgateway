@@ -51,6 +51,23 @@ func (r *GlobalRateLimitIR) Equals(other *GlobalRateLimitIR) bool {
 	return true
 }
 
+func (r *GlobalRateLimitIR) Validate() error {
+	if r == nil {
+		return nil
+	}
+	if r.provider != nil {
+		if err := r.provider.Validate(); err != nil {
+			return err
+		}
+	}
+	for _, act := range r.rateLimitActions {
+		if err := act.ValidateAll(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // globalRateLimitForSpec translates the global rate limit spec into and onto the IR policy.
 func (b *TrafficPolicyBuilder) globalRateLimitForSpec(
 	krtctx krt.HandlerContext,

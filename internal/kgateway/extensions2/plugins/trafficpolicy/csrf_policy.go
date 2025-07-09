@@ -32,6 +32,13 @@ func (c *CsrfIR) Equals(other *CsrfIR) bool {
 	return proto.Equal(c.csrfPolicy, other.csrfPolicy)
 }
 
+func (c *CsrfIR) Validate() error {
+	if c == nil {
+		return nil
+	}
+	return c.csrfPolicy.ValidateAll()
+}
+
 // handleCsrf adds CSRF configuration to routes
 func (p *trafficPolicyPluginGwPass) handleCsrf(fcn string, typedFilterConfig *ir.TypedFilterConfigMap, ir *CsrfIR) {
 	if typedFilterConfig == nil || ir == nil {
