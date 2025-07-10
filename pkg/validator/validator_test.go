@@ -89,10 +89,10 @@ func TestNew(t *testing.T) {
 					}
 					tt.expectedPath = tmpFile.Name()
 				} else if tt.options == nil {
-					// For default tests, modify global envoyPath temporarily
-					origEnvoyPath := envoyPath
-					envoyPath = tmpFile.Name()
-					defer func() { envoyPath = origEnvoyPath }()
+					// For default tests, modify global defaultEnvoyPath temporarily
+					origEnvoyPath := defaultEnvoyPath
+					defaultEnvoyPath = tmpFile.Name()
+					defer func() { defaultEnvoyPath = origEnvoyPath }()
 				}
 			}
 
@@ -306,7 +306,7 @@ static_resources:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validator := &dockerValidator{img: envoyImage}
+			validator := &dockerValidator{img: defaultEnvoyImage}
 			err := validator.Validate(context.Background(), tt.yaml)
 
 			if tt.expectError {

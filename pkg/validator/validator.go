@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	envoyPath = "/usr/local/bin/envoy"
+	defaultEnvoyPath = "/usr/local/bin/envoy"
 	// TODO(tim): avoid hardcoding the envoy image version in multiple places.
-	envoyImage = "quay.io/solo-io/envoy-gloo:1.34.1-patch3"
+	defaultEnvoyImage = "quay.io/solo-io/envoy-gloo:1.34.1-patch3"
 )
 
 // ErrInvalidXDS is returned when Envoy rejects the supplied YAML.
@@ -49,11 +49,11 @@ func New(o ...Option) Validator {
 	// use defaults if not set by options
 	binaryPath := c.binaryPath
 	if binaryPath == "" {
-		binaryPath = envoyPath
+		binaryPath = defaultEnvoyPath
 	}
 	dockerImage := c.dockerImage
 	if dockerImage == "" {
-		dockerImage = envoyImage
+		dockerImage = defaultEnvoyImage
 	}
 	// check if envoy is in the path
 	if _, err := exec.LookPath(binaryPath); err == nil {
