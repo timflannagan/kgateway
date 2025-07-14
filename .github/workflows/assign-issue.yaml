@@ -1,0 +1,80 @@
+name: Auto-assign Issues
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  assign-issue:
+    runs-on: ubuntu-latest
+    if: github.event.issue.pull_request == null && contains(github.event.comment.body, '/assign')
+
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Check if comment contains /assign
+        id: check_assign
+        run: |
+          COMMENT_BODY="${{ github.event.comment.body }}"
+          if [[ "$COMMENT_BODY" =~ ^[[:space:]]*\/assign[[:space:]]*$ ]]; then
+            echo "should_assign=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_assign=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Assign issue
+        if: steps.check_assign.outputs.should_assign == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const assignee = context.payload.comment.user.login;
+
+            try {
+              // Check if the issue is already assigned
+              const { data: issue } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number
+              });
+
+              if (issue.assignees && issue.assignees.length > 0) {
+                // Issue is already assigned
+                const currentAssignees = issue.assignees.map(a => a.login).join(', ');
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number,
+                  body: `❌ This issue is already assigned to: ${currentAssignees}`
+                });
+                return;
+              }
+
+              // Assign the issue
+              await github.rest.issues.addAssignees({
+                owner,
+                repo,
+                issue_number,
+                assignees: [assignee]
+              });
+
+              // Add a confirmation comment
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: `✅ Issue assigned to @${assignee}. Thanks for contributing!`
+              });
+
+            } catch (error) {
+              console.error('Error assigning issue:', error);
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: `❌ Failed to assign issue. Error: ${error.message}`
+              });
+            }
