@@ -1,348 +1,58 @@
 package trafficpolicy
 
 import (
-	"slices"
-
-	transformationpb "github.com/solo-io/envoy-gloo/go/config/filter/http/transformation/v2"
-
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
 
-func mergeAI(
+// MergeTrafficPolicies merges two traffic policies together, with the second policy taking precedence where applicable.
+// The mergeOrigins parameter is used to track merge origins and should be populated with information
+// about the origin policy reference for each merged field.
+func MergeTrafficPolicies(
 	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
+	p2Ref *ir.AttachedPolicyRef,
+	mergeOpts policy.MergeOptions,
 	mergeOrigins pluginsdkir.MergeOrigins,
 ) {
-	if !policy.IsMergeable(p1.spec.ai, p2.spec.ai, opts) {
+	if p1 == nil || p2 == nil {
 		return
 	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.ai != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.ai = p2.spec.ai
-		mergeOrigins.SetOne("ai", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for ai policy", "strategy", opts.Strategy, "policy", p2Ref)
+	// Call MergeInto method on each policy sub-IR type
+	if p2.spec.ai != nil {
+		p2.spec.ai.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-}
-
-func mergeExtProc(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.extProc, p2.spec.extProc, opts) {
-		return
+	if p2.spec.extProc != nil {
+		p2.spec.extProc.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.extProc != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.extProc = p2.spec.extProc
-		mergeOrigins.SetOne("extProc", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for extProc policy", "strategy", opts.Strategy, "policy", p2Ref)
+	if p2.spec.transformation != nil {
+		p2.spec.transformation.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-}
-
-func mergeTransformation(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.transformation, p2.spec.transformation, opts) {
-		return
+	if p2.spec.rustformation != nil {
+		p2.spec.rustformation.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-
-	switch opts.Strategy {
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		if p1.spec.transformation == nil {
-			p1.spec.transformation = &TransformationIR{transformation: &transformationpb.RouteTransformations{}}
-		}
-		if p2.spec.transformation != nil && p2.spec.transformation.transformation != nil {
-			// Always clone so that the original policy in p2 is not modified when
-			// the merge is invoked multiple times
-			p1.spec.transformation.transformation.Transformations = slices.Clone(p2.spec.transformation.transformation.GetTransformations())
-		}
-		mergeOrigins.SetOne("transformation", p2Ref)
-
-	case policy.AugmentedDeepMerge:
-		if p1.spec.transformation == nil {
-			p1.spec.transformation = &TransformationIR{transformation: &transformationpb.RouteTransformations{}}
-		}
-		if p2.spec.transformation != nil && p2.spec.transformation.transformation != nil {
-			// Always Concat so that the original policy in p1 is not modified when
-			// the merge is invoked multiple times
-			existing := p1.spec.transformation.transformation.GetTransformations()
-			additional := p2.spec.transformation.transformation.GetTransformations()
-			p1.spec.transformation.transformation.Transformations = slices.Concat(existing, additional)
-		}
-		mergeOrigins.Append("transformation", p2Ref)
-
-	case policy.OverridableDeepMerge:
-		if p1.spec.transformation == nil {
-			p1.spec.transformation = &TransformationIR{transformation: &transformationpb.RouteTransformations{}}
-		}
-		if p2.spec.transformation != nil && p2.spec.transformation.transformation != nil {
-			// Prepend so that p2 takes precedence
-			existing := p1.spec.transformation.transformation.GetTransformations()
-			additional := p2.spec.transformation.transformation.GetTransformations()
-			p1.spec.transformation.transformation.Transformations = slices.Concat(additional, existing)
-		}
-		mergeOrigins.SetOne("transformation", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for transformation policy", "strategy", opts.Strategy, "policy", p2Ref)
+	if p2.spec.extAuth != nil {
+		p2.spec.extAuth.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-}
-
-func mergeRustformation(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.rustformation, p2.spec.rustformation, opts) {
-		return
+	if p2.spec.localRateLimit != nil {
+		p2.spec.localRateLimit.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.rustformation != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.rustformation = p2.spec.rustformation
-		mergeOrigins.SetOne("rustformation", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for rustformation policy", "strategy", opts.Strategy, "policy", p2Ref)
+	if p2.spec.rateLimit != nil {
+		p2.spec.rateLimit.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-}
-
-func mergeExtAuth(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.extAuth, p2.spec.extAuth, opts) {
-		return
+	if p2.spec.cors != nil {
+		p2.spec.cors.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.extAuth != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.extAuth = p2.spec.extAuth
-		mergeOrigins.SetOne("extAuth", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for extAuth policy", "strategy", opts.Strategy, "policy", p2Ref)
+	if p2.spec.csrf != nil {
+		p2.spec.csrf.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-}
-
-func mergeLocalRateLimit(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.localRateLimit, p2.spec.localRateLimit, opts) {
-		return
+	if p2.spec.buffer != nil {
+		p2.spec.buffer.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.localRateLimit != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.localRateLimit = p2.spec.localRateLimit
-		mergeOrigins.SetOne("rateLimit.local", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for localRateLimit policy", "strategy", opts.Strategy, "policy", p2Ref)
+	if p2.spec.autoHostRewrite != nil {
+		p2.spec.autoHostRewrite.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-}
-
-func mergeGlobalRateLimit(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.rateLimit, p2.spec.rateLimit, opts) {
-		return
-	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.rateLimit != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.rateLimit = p2.spec.rateLimit
-		mergeOrigins.SetOne("rateLimit.global", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for rateLimit policy", "strategy", opts.Strategy, "policy", p2Ref)
-	}
-}
-
-func mergeCORS(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.cors, p2.spec.cors, opts) {
-		return
-	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.cors != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.cors = p2.spec.cors
-		mergeOrigins.SetOne("cors", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for cors policy", "strategy", opts.Strategy, "policy", p2Ref)
-	}
-}
-
-func mergeCSRF(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.csrf, p2.spec.csrf, opts) {
-		return
-	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.csrf != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.csrf = p2.spec.csrf
-		mergeOrigins.SetOne("csrf", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for csrf policy", "strategy", opts.Strategy, "policy", p2Ref)
-	}
-}
-
-func mergeBuffer(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.buffer, p2.spec.buffer, opts) {
-		return
-	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.buffer != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.buffer = p2.spec.buffer
-		mergeOrigins.SetOne("buffer", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for buffer policy", "strategy", opts.Strategy, "policy", p2Ref)
-	}
-}
-
-func mergeAutoHostRewrite(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.autoHostRewrite, p2.spec.autoHostRewrite, opts) {
-		return
-	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.autoHostRewrite != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.autoHostRewrite = p2.spec.autoHostRewrite
-		mergeOrigins.SetOne("autoHostRewrite", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for AutoHostRewrite policy", "strategy", opts.Strategy, "policy", p2Ref)
-	}
-}
-
-func mergeHashPolicies(
-	p1, p2 *TrafficPolicy,
-	p2Ref *pluginsdkir.AttachedPolicyRef,
-	opts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if !policy.IsMergeable(p1.spec.hashPolicies, p2.spec.hashPolicies, opts) {
-		return
-	}
-
-	switch opts.Strategy {
-	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.hashPolicies != nil {
-			return
-		}
-		fallthrough // can override p1 if it is unset
-
-	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.hashPolicies = p2.spec.hashPolicies
-		mergeOrigins.SetOne("hashPolicies", p2Ref)
-
-	default:
-		logger.Warn("unsupported merge strategy for hashPolicies policy", "strategy", opts.Strategy, "policy", p2Ref)
+	if p2.spec.hashPolicies != nil {
+		p2.spec.hashPolicies.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
 }

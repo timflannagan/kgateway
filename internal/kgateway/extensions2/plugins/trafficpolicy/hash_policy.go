@@ -9,6 +9,8 @@ import (
 	envoyroutev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
 
 type HashPolicyIR struct {
@@ -22,7 +24,6 @@ func (h *HashPolicyIR) Equals(other *HashPolicyIR) bool {
 	if h == nil || other == nil {
 		return false
 	}
-
 	if len(h.hashPolicies) != len(other.hashPolicies) {
 		return false
 	}
@@ -45,6 +46,33 @@ func (h *HashPolicyIR) Validate() error {
 		}
 	}
 	return nil
+}
+
+// MergeInto handles merging hash policies from p2 into p1
+func (h *HashPolicyIR) MergeInto(
+	p1, p2 *TrafficPolicy,
+	p2Ref *pluginsdkir.AttachedPolicyRef,
+	opts policy.MergeOptions,
+	mergeOrigins pluginsdkir.MergeOrigins,
+) {
+	if !policy.IsMergeable(p1.spec.hashPolicies, p2.spec.hashPolicies, opts) {
+		return
+	}
+
+	switch opts.Strategy {
+	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
+		if p1.spec.hashPolicies != nil {
+			return
+		}
+		fallthrough // can override p1 if it is unset
+
+	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
+		p1.spec.hashPolicies = p2.spec.hashPolicies
+		mergeOrigins.SetOne("hashPolicies", p2Ref)
+
+	default:
+		logger.Warn("unsupported merge strategy for hashPolicies policy", "strategy", opts.Strategy, "policy", p2Ref)
+	}
 }
 
 func (h *HashPolicyIR) HashPolicies() []*envoyroutev3.RouteAction_HashPolicy {

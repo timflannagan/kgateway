@@ -10,6 +10,8 @@ import (
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
 
 const (
@@ -38,6 +40,33 @@ func (l *LocalRateLimitIR) Validate() error {
 		return nil
 	}
 	return l.localRateLimit.Validate()
+}
+
+// MergeInto handles merging local rate limit policy from p2 into p1
+func (l *LocalRateLimitIR) MergeInto(
+	p1, p2 *TrafficPolicy,
+	p2Ref *pluginsdkir.AttachedPolicyRef,
+	opts policy.MergeOptions,
+	mergeOrigins pluginsdkir.MergeOrigins,
+) {
+	if !policy.IsMergeable(p1.spec.localRateLimit, p2.spec.localRateLimit, opts) {
+		return
+	}
+
+	switch opts.Strategy {
+	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
+		if p1.spec.localRateLimit != nil {
+			return
+		}
+		fallthrough // can override p1 if it is unset
+
+	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
+		p1.spec.localRateLimit = p2.spec.localRateLimit
+		mergeOrigins.SetOne("rateLimit.local", p2Ref)
+
+	default:
+		logger.Warn("unsupported merge strategy for localRateLimit policy", "strategy", opts.Strategy, "policy", p2Ref)
+	}
 }
 
 func localRateLimitForSpec(in *v1alpha1.TrafficPolicy, out *trafficPolicySpecIr) error {

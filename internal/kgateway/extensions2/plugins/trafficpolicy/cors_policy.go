@@ -8,6 +8,8 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
 
 type CorsIR struct {
@@ -31,6 +33,33 @@ func (c *CorsIR) Validate() error {
 		return nil
 	}
 	return c.corsConfig.Validate()
+}
+
+// MergeInto handles merging CORS policy from p2 into p1
+func (c *CorsIR) MergeInto(
+	p1, p2 *TrafficPolicy,
+	p2Ref *pluginsdkir.AttachedPolicyRef,
+	opts policy.MergeOptions,
+	mergeOrigins pluginsdkir.MergeOrigins,
+) {
+	if !policy.IsMergeable(p1.spec.cors, p2.spec.cors, opts) {
+		return
+	}
+
+	switch opts.Strategy {
+	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
+		if p1.spec.cors != nil {
+			return
+		}
+		fallthrough // can override p1 if it is unset
+
+	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
+		p1.spec.cors = p2.spec.cors
+		mergeOrigins.SetOne("cors", p2Ref)
+
+	default:
+		logger.Warn("unsupported merge strategy for cors policy", "strategy", opts.Strategy, "policy", p2Ref)
+	}
 }
 
 // corsForSpec translates the cors spec into an envoy cors policy and stores it in the traffic policy IR

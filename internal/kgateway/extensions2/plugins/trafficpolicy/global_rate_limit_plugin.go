@@ -12,6 +12,8 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/cmputils"
 )
 
@@ -68,6 +70,33 @@ func (r *GlobalRateLimitIR) Validate() error {
 		}
 	}
 	return nil
+}
+
+// MergeInto handles merging global rate limit policy from p2 into p1
+func (r *GlobalRateLimitIR) MergeInto(
+	p1, p2 *TrafficPolicy,
+	p2Ref *pluginsdkir.AttachedPolicyRef,
+	opts policy.MergeOptions,
+	mergeOrigins pluginsdkir.MergeOrigins,
+) {
+	if !policy.IsMergeable(p1.spec.rateLimit, p2.spec.rateLimit, opts) {
+		return
+	}
+
+	switch opts.Strategy {
+	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
+		if p1.spec.rateLimit != nil {
+			return
+		}
+		fallthrough // can override p1 if it is unset
+
+	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
+		p1.spec.rateLimit = p2.spec.rateLimit
+		mergeOrigins.SetOne("rateLimit.global", p2Ref)
+
+	default:
+		logger.Warn("unsupported merge strategy for rateLimit policy", "strategy", opts.Strategy, "policy", p2Ref)
+	}
 }
 
 // globalRateLimitForSpec translates the global rate limit spec into and onto the IR policy.

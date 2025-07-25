@@ -2,6 +2,7 @@ package trafficpolicy
 
 import (
 	"encoding/json"
+	"slices"
 
 	envoyroutev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	exteniondynamicmodulev3 "github.com/envoyproxy/go-control-plane/envoy/extensions/dynamic_modules/v3"
@@ -13,6 +14,8 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
 
 type TransformationIR struct {
@@ -35,6 +38,59 @@ func (t *TransformationIR) Validate() error {
 		return nil
 	}
 	return t.transformation.Validate()
+}
+
+// MergeInto handles merging transformation policy from p2 into p1
+func (t *TransformationIR) MergeInto(
+	p1, p2 *TrafficPolicy,
+	p2Ref *pluginsdkir.AttachedPolicyRef,
+	opts policy.MergeOptions,
+	mergeOrigins pluginsdkir.MergeOrigins,
+) {
+	if !policy.IsMergeable(p1.spec.transformation, p2.spec.transformation, opts) {
+		return
+	}
+
+	switch opts.Strategy {
+	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
+		if p1.spec.transformation == nil {
+			p1.spec.transformation = &TransformationIR{transformation: &transformationpb.RouteTransformations{}}
+		}
+		if p2.spec.transformation != nil && p2.spec.transformation.transformation != nil {
+			// Always clone so that the original policy in p2 is not modified when
+			// the merge is invoked multiple times
+			p1.spec.transformation.transformation.Transformations = slices.Clone(p2.spec.transformation.transformation.GetTransformations())
+		}
+		mergeOrigins.SetOne("transformation", p2Ref)
+
+	case policy.AugmentedDeepMerge:
+		if p1.spec.transformation == nil {
+			p1.spec.transformation = &TransformationIR{transformation: &transformationpb.RouteTransformations{}}
+		}
+		if p2.spec.transformation != nil && p2.spec.transformation.transformation != nil {
+			// Always Concat so that the original policy in p1 is not modified when
+			// the merge is invoked multiple times
+			existing := p1.spec.transformation.transformation.GetTransformations()
+			additional := p2.spec.transformation.transformation.GetTransformations()
+			p1.spec.transformation.transformation.Transformations = slices.Concat(existing, additional)
+		}
+		mergeOrigins.Append("transformation", p2Ref)
+
+	case policy.OverridableDeepMerge:
+		if p1.spec.transformation == nil {
+			p1.spec.transformation = &TransformationIR{transformation: &transformationpb.RouteTransformations{}}
+		}
+		if p2.spec.transformation != nil && p2.spec.transformation.transformation != nil {
+			// Prepend so that p2 takes precedence
+			existing := p1.spec.transformation.transformation.GetTransformations()
+			additional := p2.spec.transformation.transformation.GetTransformations()
+			p1.spec.transformation.transformation.Transformations = slices.Concat(additional, existing)
+		}
+		mergeOrigins.SetOne("transformation", p2Ref)
+
+	default:
+		logger.Warn("unsupported merge strategy for transformation policy", "strategy", opts.Strategy, "policy", p2Ref)
+	}
 }
 
 func transformationForSpec(in *v1alpha1.TrafficPolicy, out *trafficPolicySpecIr) error {
@@ -182,6 +238,33 @@ func (r *RustformationIR) Validate() error {
 		return nil
 	}
 	return r.rustformation.Validate()
+}
+
+// MergeInto handles merging rustformation policy from p2 into p1
+func (r *RustformationIR) MergeInto(
+	p1, p2 *TrafficPolicy,
+	p2Ref *pluginsdkir.AttachedPolicyRef,
+	opts policy.MergeOptions,
+	mergeOrigins pluginsdkir.MergeOrigins,
+) {
+	if !policy.IsMergeable(p1.spec.rustformation, p2.spec.rustformation, opts) {
+		return
+	}
+
+	switch opts.Strategy {
+	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
+		if p1.spec.rustformation != nil {
+			return
+		}
+		fallthrough // can override p1 if it is unset
+
+	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
+		p1.spec.rustformation = p2.spec.rustformation
+		mergeOrigins.SetOne("rustformation", p2Ref)
+
+	default:
+		logger.Warn("unsupported merge strategy for rustformation policy", "strategy", opts.Strategy, "policy", p2Ref)
+	}
 }
 
 func rustformationForSpec(in *v1alpha1.TrafficPolicy, out *trafficPolicySpecIr) error {

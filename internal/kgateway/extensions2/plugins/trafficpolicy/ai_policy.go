@@ -24,6 +24,8 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/krtcollections"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
 
 const (
@@ -503,4 +505,31 @@ func aiSecretForSpec(
 		return nil, err
 	}
 	return secret, nil
+}
+
+// MergeInto handles merging AI policy from p2 into p1
+func (a *AIPolicyIR) MergeInto(
+	p1, p2 *TrafficPolicy,
+	p2Ref *pluginsdkir.AttachedPolicyRef,
+	opts policy.MergeOptions,
+	mergeOrigins pluginsdkir.MergeOrigins,
+) {
+	if !policy.IsMergeable(p1.spec.ai, p2.spec.ai, opts) {
+		return
+	}
+
+	switch opts.Strategy {
+	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
+		if p1.spec.ai != nil {
+			return
+		}
+		fallthrough // can override p1 if it is unset
+
+	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
+		p1.spec.ai = p2.spec.ai
+		mergeOrigins.SetOne("ai", p2Ref)
+
+	default:
+		logger.Warn("unsupported merge strategy for ai policy", "strategy", opts.Strategy, "policy", p2Ref)
+	}
 }

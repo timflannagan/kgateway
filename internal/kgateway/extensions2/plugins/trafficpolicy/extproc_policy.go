@@ -10,6 +10,8 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/pluginutils"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/cmputils"
 )
 
@@ -53,6 +55,33 @@ func (e *ExtprocIR) Validate() error {
 		}
 	}
 	return nil
+}
+
+// MergeInto handles merging extproc policy from p2 into p1
+func (e *ExtprocIR) MergeInto(
+	p1, p2 *TrafficPolicy,
+	p2Ref *pluginsdkir.AttachedPolicyRef,
+	opts policy.MergeOptions,
+	mergeOrigins pluginsdkir.MergeOrigins,
+) {
+	if !policy.IsMergeable(p1.spec.extProc, p2.spec.extProc, opts) {
+		return
+	}
+
+	switch opts.Strategy {
+	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
+		if p1.spec.extProc != nil {
+			return
+		}
+		fallthrough // can override p1 if it is unset
+
+	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
+		p1.spec.extProc = p2.spec.extProc
+		mergeOrigins.SetOne("extProc", p2Ref)
+
+	default:
+		logger.Warn("unsupported merge strategy for extProc policy", "strategy", opts.Strategy, "policy", p2Ref)
+	}
 }
 
 // toEnvoyExtProc converts an ExtProcPolicy to an ExternalProcessor

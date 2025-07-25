@@ -8,6 +8,8 @@ import (
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
 
 const bufferFilterName = "envoy.filters.http.buffer"
@@ -31,6 +33,33 @@ func (b *BufferIR) Equals(other *BufferIR) bool {
 // Note: buffer validation is not needed as it's a single uint32 field
 func (b *BufferIR) Validate() error {
 	return nil
+}
+
+// MergeInto handles merging buffer policy from p2 into p1
+func (b *BufferIR) MergeInto(
+	p1, p2 *TrafficPolicy,
+	p2Ref *pluginsdkir.AttachedPolicyRef,
+	opts policy.MergeOptions,
+	mergeOrigins pluginsdkir.MergeOrigins,
+) {
+	if !policy.IsMergeable(p1.spec.buffer, p2.spec.buffer, opts) {
+		return
+	}
+
+	switch opts.Strategy {
+	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
+		if p1.spec.buffer != nil {
+			return
+		}
+		fallthrough // can override p1 if it is unset
+
+	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
+		p1.spec.buffer = p2.spec.buffer
+		mergeOrigins.SetOne("buffer", p2Ref)
+
+	default:
+		logger.Warn("unsupported merge strategy for buffer policy", "strategy", opts.Strategy, "policy", p2Ref)
+	}
 }
 
 // bufferForSpec translates the buffer spec into an envoy buffer policy and stores it in the traffic policy IR

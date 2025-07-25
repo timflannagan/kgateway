@@ -37,7 +37,6 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
-	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	pluginsdkutils "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/utils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/reports"
@@ -136,7 +135,6 @@ func (d *TrafficPolicy) Equals(in any) bool {
 	if !d.spec.hashPolicies.Equals(d2.spec.hashPolicies) {
 		return false
 	}
-
 	return true
 }
 
@@ -583,36 +581,4 @@ func (p *trafficPolicyPluginGwPass) handlePolicies(fcn string, typedFilterConfig
 
 func (p *trafficPolicyPluginGwPass) SupportsPolicyMerge() bool {
 	return true
-}
-
-// MergeTrafficPolicies merges two TrafficPolicy IRs, returning a map that contains information
-// about the origin policy reference for each merged field.
-func MergeTrafficPolicies(
-	p1, p2 *TrafficPolicy,
-	p2Ref *ir.AttachedPolicyRef,
-	mergeOpts policy.MergeOptions,
-	mergeOrigins pluginsdkir.MergeOrigins,
-) {
-	if p1 == nil || p2 == nil {
-		return
-	}
-
-	mergeFuncs := []func(*TrafficPolicy, *TrafficPolicy, *ir.AttachedPolicyRef, policy.MergeOptions, pluginsdkir.MergeOrigins){
-		mergeAI,
-		mergeExtProc,
-		mergeTransformation,
-		mergeRustformation,
-		mergeExtAuth,
-		mergeLocalRateLimit,
-		mergeGlobalRateLimit,
-		mergeCORS,
-		mergeCSRF,
-		mergeBuffer,
-		mergeAutoHostRewrite,
-		mergeHashPolicies,
-	}
-
-	for _, mergeFunc := range mergeFuncs {
-		mergeFunc(p1, p2, p2Ref, mergeOpts, mergeOrigins)
-	}
 }
