@@ -37,6 +37,24 @@ func (e *ExtprocIR) Equals(other *ExtprocIR) bool {
 	return true
 }
 
+// Validate performs PGV-based validation on the extproc components
+func (e *ExtprocIR) Validate() error {
+	if e == nil {
+		return nil
+	}
+	if e.perRoute != nil {
+		if err := e.perRoute.Validate(); err != nil {
+			return err
+		}
+	}
+	if e.provider != nil {
+		if err := e.provider.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // toEnvoyExtProc converts an ExtProcPolicy to an ExternalProcessor
 func extProcForSpec(
 	krtctx krt.HandlerContext,

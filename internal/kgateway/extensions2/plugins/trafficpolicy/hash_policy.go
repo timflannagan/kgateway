@@ -34,6 +34,19 @@ func (h *HashPolicyIR) Equals(other *HashPolicyIR) bool {
 	return true
 }
 
+// Validate performs validation on the hash policy components
+func (h *HashPolicyIR) Validate() error {
+	if h == nil || h.hashPolicies == nil {
+		return nil
+	}
+	for _, policy := range h.hashPolicies {
+		if err := policy.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (h *HashPolicyIR) HashPolicies() []*envoyroutev3.RouteAction_HashPolicy {
 	if h == nil {
 		return nil

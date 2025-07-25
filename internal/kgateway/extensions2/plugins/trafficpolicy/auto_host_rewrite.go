@@ -11,6 +11,7 @@ type AutoHostRewriteIR struct {
 	autoHostRewrite *wrapperspb.BoolValue
 }
 
+// Equals compares two AutoHostRewriteIRs for equality.
 func (a *AutoHostRewriteIR) Equals(other *AutoHostRewriteIR) bool {
 	if a == nil && other == nil {
 		return true
@@ -19,6 +20,11 @@ func (a *AutoHostRewriteIR) Equals(other *AutoHostRewriteIR) bool {
 		return false
 	}
 	return proto.Equal(a.autoHostRewrite, other.autoHostRewrite)
+}
+
+// Validate performs validation on the auto host rewrite component
+func (a *AutoHostRewriteIR) Validate() error {
+	return nil
 }
 
 func (a *AutoHostRewriteIR) AutoHostRewrite() *wrapperspb.BoolValue {

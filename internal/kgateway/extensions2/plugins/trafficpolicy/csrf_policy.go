@@ -32,6 +32,14 @@ func (c *CsrfIR) Equals(other *CsrfIR) bool {
 	return proto.Equal(c.csrfPolicy, other.csrfPolicy)
 }
 
+// Validate performs PGV-based validation on the CSRF policy component
+func (c *CsrfIR) Validate() error {
+	if c == nil || c.csrfPolicy == nil {
+		return nil
+	}
+	return c.csrfPolicy.Validate()
+}
+
 // handleCsrf adds CSRF configuration to routes
 func (p *trafficPolicyPluginGwPass) handleCsrf(fcn string, typedFilterConfig *ir.TypedFilterConfigMap, ir *CsrfIR) {
 	if typedFilterConfig == nil || ir == nil {

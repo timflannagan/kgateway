@@ -79,6 +79,24 @@ func (a *AIPolicyIR) Equals(in *AIPolicyIR) bool {
 	return true
 }
 
+// Validate performs PGV-based validation on the AI policy components
+func (a *AIPolicyIR) Validate() error {
+	if a == nil {
+		return nil
+	}
+	if a.Transformation != nil {
+		if err := a.Transformation.Validate(); err != nil {
+			return err
+		}
+	}
+	if a.Extproc != nil {
+		if err := a.Extproc.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // aiForSpec processes the AI policy specification and sets the corresponding IR in the output spec
 func aiForSpec(
 	krtctx krt.HandlerContext,

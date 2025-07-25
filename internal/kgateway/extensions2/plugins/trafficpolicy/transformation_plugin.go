@@ -29,6 +29,14 @@ func (t *TransformationIR) Equals(other *TransformationIR) bool {
 	return proto.Equal(t.transformation, other.transformation)
 }
 
+// Validate performs PGV-based validation on the transformation component
+func (t *TransformationIR) Validate() error {
+	if t == nil || t.transformation == nil {
+		return nil
+	}
+	return t.transformation.Validate()
+}
+
 func transformationForSpec(in *v1alpha1.TrafficPolicy, out *trafficPolicySpecIr) error {
 	if in.Spec.Transformation == nil && !useRustformations {
 		return nil
@@ -166,6 +174,14 @@ func (r *RustformationIR) Equals(other *RustformationIR) bool {
 		return false
 	}
 	return proto.Equal(r.rustformation, other.rustformation) && r.toStash == other.toStash
+}
+
+// Validate performs PGV-based validation on the rustformation component
+func (r *RustformationIR) Validate() error {
+	if r == nil || r.rustformation == nil {
+		return nil
+	}
+	return r.rustformation.Validate()
 }
 
 func rustformationForSpec(in *v1alpha1.TrafficPolicy, out *trafficPolicySpecIr) error {

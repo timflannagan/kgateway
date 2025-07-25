@@ -77,6 +77,24 @@ func (e *ExtAuthIR) Equals(other *ExtAuthIR) bool {
 	return true
 }
 
+// Validate performs PGV-based validation on the extauth components
+func (e *ExtAuthIR) Validate() error {
+	if e == nil {
+		return nil
+	}
+	if e.extauthPerRoute != nil {
+		if err := e.extauthPerRoute.Validate(); err != nil {
+			return err
+		}
+	}
+	if e.provider != nil {
+		if err := e.provider.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // extAuthForSpec translates the ExtAuthz spec into the Envoy configuration
 func extAuthForSpec(
 	krtctx krt.HandlerContext,

@@ -27,6 +27,12 @@ func (b *BufferIR) Equals(other *BufferIR) bool {
 	return b.maxRequestBytes == other.maxRequestBytes
 }
 
+// Validate performs validation on the buffer component
+// Note: buffer validation is not needed as it's a single uint32 field
+func (b *BufferIR) Validate() error {
+	return nil
+}
+
 // bufferForSpec translates the buffer spec into an envoy buffer policy and stores it in the traffic policy IR
 func bufferForSpec(spec v1alpha1.TrafficPolicySpec, out *trafficPolicySpecIr) {
 	if spec.Buffer == nil {

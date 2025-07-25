@@ -25,6 +25,14 @@ func (c *CorsIR) Equals(other *CorsIR) bool {
 	return proto.Equal(c.corsConfig, other.corsConfig)
 }
 
+// Validate performs validation on the CORS policy component
+func (c *CorsIR) Validate() error {
+	if c == nil || c.corsConfig == nil {
+		return nil
+	}
+	return c.corsConfig.Validate()
+}
+
 // corsForSpec translates the cors spec into an envoy cors policy and stores it in the traffic policy IR
 func corsForSpec(in *v1alpha1.TrafficPolicy, out *trafficPolicySpecIr) error {
 	if in.Spec.Cors == nil {

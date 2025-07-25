@@ -36,44 +36,45 @@ func (p *TrafficPolicy) validateStrict(ctx context.Context, v validator.Validato
 }
 
 // validateProto performs basic proto validation that runs in STANDARD mode.
-// TODO(tim): this logic will be refactored in the future to be less brittle,
-// easier to read/maintain/etc. but requires additional traffic policy plugin
-// refactoring to do properly.
+// Each policy sub-IR maintains its own Validate() method following the sub-IR pattern.
 func (p *TrafficPolicy) validateProto() error {
-	// TODO: rustformations, and ext auth/rate limit provider validation
-	// Note: no need for buffer validation as it's a single int field, right?
 	var validators []func() error
+	// Collect validation functions from each policy sub-IR
 	if p.spec.ai != nil {
-		if p.spec.ai.Transformation != nil {
-			validators = append(validators, p.spec.ai.Transformation.Validate)
-		}
-		if p.spec.ai.Extproc != nil {
-			validators = append(validators, p.spec.ai.Extproc.Validate)
-		}
+		validators = append(validators, p.spec.ai.Validate)
 	}
-	if p.spec.transformation != nil && p.spec.transformation.transformation != nil {
-		validators = append(validators, p.spec.transformation.transformation.Validate)
+	if p.spec.transformation != nil {
+		validators = append(validators, p.spec.transformation.Validate)
 	}
-	if p.spec.localRateLimit != nil && p.spec.localRateLimit.localRateLimit != nil {
-		validators = append(validators, p.spec.localRateLimit.localRateLimit.Validate)
+	if p.spec.rustformation != nil {
+		validators = append(validators, p.spec.rustformation.Validate)
+	}
+	if p.spec.localRateLimit != nil {
+		validators = append(validators, p.spec.localRateLimit.Validate)
 	}
 	if p.spec.rateLimit != nil {
-		for _, rateLimit := range p.spec.rateLimit.rateLimitActions {
-			validators = append(validators, rateLimit.Validate)
-		}
+		validators = append(validators, p.spec.rateLimit.Validate)
 	}
 	if p.spec.extProc != nil {
-		if p.spec.extProc.perRoute != nil {
-			validators = append(validators, p.spec.extProc.perRoute.Validate)
-		}
+		validators = append(validators, p.spec.extProc.Validate)
 	}
 	if p.spec.extAuth != nil {
-		if p.spec.extAuth.extauthPerRoute != nil {
-			validators = append(validators, p.spec.extAuth.extauthPerRoute.Validate)
-		}
+		validators = append(validators, p.spec.extAuth.Validate)
 	}
 	if p.spec.csrf != nil {
-		validators = append(validators, p.spec.csrf.csrfPolicy.Validate)
+		validators = append(validators, p.spec.csrf.Validate)
+	}
+	if p.spec.cors != nil {
+		validators = append(validators, p.spec.cors.Validate)
+	}
+	if p.spec.buffer != nil {
+		validators = append(validators, p.spec.buffer.Validate)
+	}
+	if p.spec.hashPolicies != nil {
+		validators = append(validators, p.spec.hashPolicies.Validate)
+	}
+	if p.spec.autoHostRewrite != nil {
+		validators = append(validators, p.spec.autoHostRewrite.Validate)
 	}
 	for _, validator := range validators {
 		if err := validator(); err != nil {

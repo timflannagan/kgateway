@@ -32,6 +32,14 @@ func (l *LocalRateLimitIR) Equals(other *LocalRateLimitIR) bool {
 	return proto.Equal(l.localRateLimit, other.localRateLimit)
 }
 
+// Validate performs PGV-based validation on the local rate limit component
+func (l *LocalRateLimitIR) Validate() error {
+	if l == nil || l.localRateLimit == nil {
+		return nil
+	}
+	return l.localRateLimit.Validate()
+}
+
 func localRateLimitForSpec(in *v1alpha1.TrafficPolicy, out *trafficPolicySpecIr) error {
 	if in.Spec.RateLimit == nil || in.Spec.RateLimit.Local == nil {
 		return nil

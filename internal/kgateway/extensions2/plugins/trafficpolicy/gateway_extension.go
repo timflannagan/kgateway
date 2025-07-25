@@ -61,6 +61,30 @@ func (e TrafficPolicyGatewayExtensionIR) Equals(other TrafficPolicyGatewayExtens
 	return true
 }
 
+// Validate performs PGV-based validation on the gateway extension components
+func (e TrafficPolicyGatewayExtensionIR) Validate() error {
+	if e.Err != nil {
+		// If there's an error in the IR, validation doesn't make sense.
+		return nil
+	}
+	if e.ExtAuth != nil {
+		if err := e.ExtAuth.Validate(); err != nil {
+			return err
+		}
+	}
+	if e.ExtProc != nil {
+		if err := e.ExtProc.Validate(); err != nil {
+			return err
+		}
+	}
+	if e.RateLimit != nil {
+		if err := e.RateLimit.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func TranslateGatewayExtensionBuilder(commoncol *common.CommonCollections) func(krtctx krt.HandlerContext, gExt ir.GatewayExtension) *TrafficPolicyGatewayExtensionIR {
 	return func(krtctx krt.HandlerContext, gExt ir.GatewayExtension) *TrafficPolicyGatewayExtensionIR {
 		p := &TrafficPolicyGatewayExtensionIR{
@@ -116,7 +140,13 @@ func TranslateGatewayExtensionBuilder(commoncol *common.CommonCollections) func(
 	}
 }
 
-func ResolveExtGrpcService(krtctx krt.HandlerContext, backends *krtcollections.BackendIndex, disableExtensionRefValidation bool, objectSource ir.ObjectSource, grpcService *v1alpha1.ExtGrpcService) (*envoycorev3.GrpcService, error) {
+func ResolveExtGrpcService(
+	krtctx krt.HandlerContext,
+	backends *krtcollections.BackendIndex,
+	disableExtensionRefValidation bool,
+	objectSource ir.ObjectSource,
+	grpcService *v1alpha1.ExtGrpcService,
+) (*envoycorev3.GrpcService, error) {
 	var clusterName string
 	var authority string
 	if grpcService != nil {
@@ -156,7 +186,7 @@ func ResolveExtGrpcService(krtctx krt.HandlerContext, backends *krtcollections.B
 	return envoyGrpcService, nil
 }
 
-// FIXME: Should this live here instead of the global rate limit plugin?
+// TODO(tim): Should this live here instead of the global rate limit plugin?
 func resolveRateLimitService(grpcService *envoycorev3.GrpcService, rateLimit *v1alpha1.RateLimitProvider) *ratev3.RateLimit {
 	envoyRateLimit := &ratev3.RateLimit{
 		Domain:          rateLimit.Domain,

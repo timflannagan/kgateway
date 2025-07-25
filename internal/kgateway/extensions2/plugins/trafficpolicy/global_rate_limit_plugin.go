@@ -50,6 +50,26 @@ func (r *GlobalRateLimitIR) Equals(other *GlobalRateLimitIR) bool {
 	return true
 }
 
+// Validate performs PGV-based validation on the global rate limit components
+func (r *GlobalRateLimitIR) Validate() error {
+	if r == nil {
+		return nil
+	}
+	for _, rateLimit := range r.rateLimitActions {
+		if rateLimit != nil {
+			if err := rateLimit.Validate(); err != nil {
+				return err
+			}
+		}
+	}
+	if r.provider != nil {
+		if err := r.provider.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // globalRateLimitForSpec translates the global rate limit spec into and onto the IR policy.
 func globalRateLimitForSpec(
 	krtctx krt.HandlerContext,
