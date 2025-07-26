@@ -17,10 +17,270 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
 
+func TestAIPolicyIREquals(t *testing.T) {
+	// Create shared secret instances to avoid complex initialization issues
+	secret1 := &ir.Secret{}
+	secret2 := &ir.Secret{}
+
+	createSimpleSecret := func(name string) *ir.Secret {
+		if name == "secret1" {
+			return secret1
+		}
+		return secret2
+	}
+	createSimpleExtproc := func(metadataKey string) *envoy_ext_proc_v3.ExtProcPerRoute {
+		return &envoy_ext_proc_v3.ExtProcPerRoute{
+			Override: &envoy_ext_proc_v3.ExtProcPerRoute_Overrides{
+				Overrides: &envoy_ext_proc_v3.ExtProcOverrides{
+					GrpcInitialMetadata: []*envoycorev3.HeaderValue{
+						{
+							Key:   metadataKey,
+							Value: "test-value",
+						},
+					},
+				},
+			},
+		}
+	}
+	createSimpleTransformation := func(headerName string) *envoytransformation.RouteTransformations {
+		return &envoytransformation.RouteTransformations{
+			Transformations: []*envoytransformation.RouteTransformations_RouteTransformation{
+				{
+					Match: &envoytransformation.RouteTransformations_RouteTransformation_RequestMatch_{
+						RequestMatch: &envoytransformation.RouteTransformations_RouteTransformation_RequestMatch{
+							RequestTransformation: &envoytransformation.Transformation{
+								TransformationType: &envoytransformation.Transformation_TransformationTemplate{
+									TransformationTemplate: &envoytransformation.TransformationTemplate{
+										Headers: map[string]*envoytransformation.InjaTemplate{
+											headerName: {Text: "test-value"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name     string
+		ai1      *AIPolicyIR
+		ai2      *AIPolicyIR
+		expected bool
+	}{
+		{
+			name:     "both nil are equal",
+			ai1:      nil,
+			ai2:      nil,
+			expected: true,
+		},
+		{
+			name:     "nil vs non-nil are not equal",
+			ai1:      nil,
+			ai2:      &AIPolicyIR{AISecret: createSimpleSecret("secret1")},
+			expected: false,
+		},
+		{
+			name:     "non-nil vs nil are not equal",
+			ai1:      &AIPolicyIR{AISecret: createSimpleSecret("secret1")},
+			ai2:      nil,
+			expected: false,
+		},
+		{
+			name:     "same instance without secrets is equal",
+			ai1:      &AIPolicyIR{AISecret: nil},
+			ai2:      &AIPolicyIR{AISecret: nil},
+			expected: true,
+		},
+		{
+			name:     "one with secret, one without are not equal",
+			ai1:      &AIPolicyIR{AISecret: secret1},
+			ai2:      &AIPolicyIR{AISecret: nil},
+			expected: false,
+		},
+		{
+			name:     "different extproc configs are not equal",
+			ai1:      &AIPolicyIR{Extproc: createSimpleExtproc("key1")},
+			ai2:      &AIPolicyIR{Extproc: createSimpleExtproc("key2")},
+			expected: false,
+		},
+		{
+			name:     "same extproc configs are equal",
+			ai1:      &AIPolicyIR{Extproc: createSimpleExtproc("key1")},
+			ai2:      &AIPolicyIR{Extproc: createSimpleExtproc("key1")},
+			expected: true,
+		},
+		{
+			name:     "different transformations are not equal",
+			ai1:      &AIPolicyIR{Transformation: createSimpleTransformation("header1")},
+			ai2:      &AIPolicyIR{Transformation: createSimpleTransformation("header2")},
+			expected: false,
+		},
+		{
+			name:     "same transformations are equal",
+			ai1:      &AIPolicyIR{Transformation: createSimpleTransformation("header1")},
+			ai2:      &AIPolicyIR{Transformation: createSimpleTransformation("header1")},
+			expected: true,
+		},
+		{
+			name:     "nil fields are equal",
+			ai1:      &AIPolicyIR{AISecret: nil, Extproc: nil, Transformation: nil},
+			ai2:      &AIPolicyIR{AISecret: nil, Extproc: nil, Transformation: nil},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.ai1.Equals(tt.ai2)
+			assert.Equal(t, tt.expected, result)
+
+			// Test symmetry: a.Equals(b) should equal b.Equals(a)
+			reverseResult := tt.ai2.Equals(tt.ai1)
+			assert.Equal(t, result, reverseResult, "Equals should be symmetric")
+		})
+	}
+
+	// Test reflexivity: x.Equals(x) should always be true for non-nil values
+	t.Run("reflexivity", func(t *testing.T) {
+		ai := &AIPolicyIR{AISecret: nil} // Use nil to avoid secret equality issues
+		assert.True(t, ai.Equals(ai), "ai should equal itself")
+	})
+
+	// Test transitivity: if a.Equals(b) && b.Equals(c), then a.Equals(c)
+	t.Run("transitivity", func(t *testing.T) {
+		createSameAI := func() *AIPolicyIR {
+			return &AIPolicyIR{AISecret: nil} // Use nil to avoid secret equality issues
+		}
+
+		a := createSameAI()
+		b := createSameAI()
+		c := createSameAI()
+
+		assert.True(t, a.Equals(b), "a should equal b")
+		assert.True(t, b.Equals(c), "b should equal c")
+		assert.True(t, a.Equals(c), "a should equal c (transitivity)")
+	})
+}
+
+func TestAIPolicyIRValidate(t *testing.T) {
+	// Note: AI policy validation delegates to its sub-components (Transformation and Extproc).
+	// Sub-components may have their own validation constraints.
+	tests := []struct {
+		name string
+		ai   *AIPolicyIR
+	}{
+		{
+			name: "nil ai policy is valid",
+			ai:   nil,
+		},
+		{
+			name: "ai policy with nil components is valid",
+			ai: &AIPolicyIR{
+				AISecret:       nil,
+				Extproc:        nil,
+				Transformation: nil,
+			},
+		},
+		{
+			name: "ai policy with just secret is valid",
+			ai: &AIPolicyIR{
+				AISecret:       &ir.Secret{},
+				Extproc:        nil,
+				Transformation: nil,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.ai.Validate()
+			assert.NoError(t, err, "AI policy validation should not fail for nil/empty components")
+		})
+	}
+}
+
+func TestAIPolicyIRMergeInto(t *testing.T) {
+	createAIConfig := func(secretName string) *AIPolicyIR {
+		return &AIPolicyIR{
+			AISecret: &ir.Secret{
+				ObjectSource: pluginsdkir.ObjectSource{
+					Name:      secretName,
+					Namespace: "test-namespace",
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name            string
+		p1AI            *AIPolicyIR
+		p2AI            *AIPolicyIR
+		strategy        policy.MergeOptions
+		expectOriginSet bool
+		expectP1Content string // Check actual content instead of just nil
+	}{
+		{
+			name:            "shallow merge with nil p1",
+			p1AI:            nil,
+			p2AI:            createAIConfig("secret2"),
+			strategy:        policy.MergeOptions{Strategy: policy.AugmentedShallowMerge},
+			expectOriginSet: true,
+			expectP1Content: "secret2",
+		},
+		{
+			name:            "deep merge preserves p1 content when set",
+			p1AI:            createAIConfig("secret1"),
+			p2AI:            createAIConfig("secret2"),
+			strategy:        policy.MergeOptions{Strategy: policy.AugmentedDeepMerge},
+			expectOriginSet: false,     // No merge should happen
+			expectP1Content: "secret1", // Original content should be preserved
+		},
+		{
+			name:            "overridable shallow merge overwrites p1",
+			p1AI:            createAIConfig("secret1"),
+			p2AI:            createAIConfig("secret2"),
+			strategy:        policy.MergeOptions{Strategy: policy.OverridableShallowMerge},
+			expectOriginSet: true,
+			expectP1Content: "secret2",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p1 := &TrafficPolicy{spec: trafficPolicySpecIr{ai: tt.p1AI}}
+			p2 := &TrafficPolicy{spec: trafficPolicySpecIr{ai: tt.p2AI}}
+			p2Ref := &pluginsdkir.AttachedPolicyRef{Name: "test-policy"}
+			mergeOrigins := make(pluginsdkir.MergeOrigins)
+
+			if tt.p2AI != nil {
+				tt.p2AI.MergeInto(p1, p2, p2Ref, tt.strategy, mergeOrigins)
+			}
+
+			if tt.expectP1Content != "" {
+				assert.NotNil(t, p1.spec.ai, "p1.ai should not be nil")
+				assert.NotNil(t, p1.spec.ai.AISecret, "p1.ai.AISecret should not be nil")
+				assert.Equal(t, tt.expectP1Content, p1.spec.ai.AISecret.Name, "p1 content should match expected")
+			}
+
+			if tt.expectOriginSet {
+				origins := mergeOrigins.Get("ai")
+				assert.NotEmpty(t, origins, "merge origin should be set")
+			} else {
+				origins := mergeOrigins.Get("ai")
+				assert.Empty(t, origins, "merge origin should not be set")
+			}
+		})
+	}
+}
+
 func TestProcessAITrafficPolicy(t *testing.T) {
-	// extproc config from backend plugin
 	backendExtprocSettings := &envoy_ext_proc_v3.ExtProcPerRoute{
 		Override: &envoy_ext_proc_v3.ExtProcPerRoute_Overrides{
 			Overrides: &envoy_ext_proc_v3.ExtProcOverrides{
@@ -394,21 +654,21 @@ func TestDefault(t *testing.T) {
 	}
 }
 
-// Mock implementation of RouteBackendContext for testing
+type RouteBackendContext struct {
+	configs map[string]any
+}
+
+// NewRouteBackendContext is a mock implementation of RouteBackendContext for testing
 func (ir *RouteBackendContext) NewRouteBackendContext() *RouteBackendContext {
 	return &RouteBackendContext{
-		configs: make(map[string]interface{}),
+		configs: make(map[string]any),
 	}
 }
 
-func (ir *RouteBackendContext) AddTypedConfig(name string, config interface{}) {
+func (ir *RouteBackendContext) AddTypedConfig(name string, config any) {
 	ir.configs[name] = config
 }
 
-func (ir *RouteBackendContext) GetTypedConfig(name string) interface{} {
+func (ir *RouteBackendContext) GetTypedConfig(name string) any {
 	return ir.configs[name]
-}
-
-type RouteBackendContext struct {
-	configs map[string]interface{}
 }

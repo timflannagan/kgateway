@@ -20,7 +20,296 @@ import (
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/ir"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
+	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
+
+func TestGlobalRateLimitIREquals(t *testing.T) {
+	// Helper to create simple rate limit configurations for testing
+	createSimpleRateLimit := func(key string) []*envoyroutev3.RateLimit {
+		return []*envoyroutev3.RateLimit{
+			{
+				Actions: []*envoyroutev3.RateLimit_Action{
+					{
+						ActionSpecifier: &envoyroutev3.RateLimit_Action_GenericKey_{
+							GenericKey: &envoyroutev3.RateLimit_Action_GenericKey{
+								DescriptorKey:   key,
+								DescriptorValue: "test-value",
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	createProvider := func(name string) *TrafficPolicyGatewayExtensionIR {
+		return &TrafficPolicyGatewayExtensionIR{
+			Name: name,
+			RateLimit: &ratev3.RateLimit{
+				Domain: "test-domain",
+				RateLimitService: &envoyratelimitv3.RateLimitServiceConfig{
+					GrpcService: &envoycorev3.GrpcService{
+						TargetSpecifier: &envoycorev3.GrpcService_EnvoyGrpc_{
+							EnvoyGrpc: &envoycorev3.GrpcService_EnvoyGrpc{
+								ClusterName: name,
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name       string
+		rateLimit1 *GlobalRateLimitIR
+		rateLimit2 *GlobalRateLimitIR
+		expected   bool
+	}{
+		{
+			name:       "both nil are equal",
+			rateLimit1: nil,
+			rateLimit2: nil,
+			expected:   true,
+		},
+		{
+			name:       "nil vs non-nil are not equal",
+			rateLimit1: nil,
+			rateLimit2: &GlobalRateLimitIR{rateLimitActions: createSimpleRateLimit("key1")},
+			expected:   false,
+		},
+		{
+			name:       "non-nil vs nil are not equal",
+			rateLimit1: &GlobalRateLimitIR{rateLimitActions: createSimpleRateLimit("key1")},
+			rateLimit2: nil,
+			expected:   false,
+		},
+		{
+			name:       "same instance is equal",
+			rateLimit1: &GlobalRateLimitIR{rateLimitActions: createSimpleRateLimit("key1")},
+			rateLimit2: &GlobalRateLimitIR{rateLimitActions: createSimpleRateLimit("key1")},
+			expected:   true,
+		},
+		{
+			name:       "different rate limit keys are not equal",
+			rateLimit1: &GlobalRateLimitIR{rateLimitActions: createSimpleRateLimit("key1")},
+			rateLimit2: &GlobalRateLimitIR{rateLimitActions: createSimpleRateLimit("key2")},
+			expected:   false,
+		},
+		{
+			name:       "different providers are not equal",
+			rateLimit1: &GlobalRateLimitIR{provider: createProvider("service1")},
+			rateLimit2: &GlobalRateLimitIR{provider: createProvider("service2")},
+			expected:   false,
+		},
+		{
+			name:       "same providers are equal",
+			rateLimit1: &GlobalRateLimitIR{provider: createProvider("service1")},
+			rateLimit2: &GlobalRateLimitIR{provider: createProvider("service1")},
+			expected:   true,
+		},
+		{
+			name:       "different length action slices are not equal",
+			rateLimit1: &GlobalRateLimitIR{rateLimitActions: createSimpleRateLimit("key1")},
+			rateLimit2: &GlobalRateLimitIR{rateLimitActions: append(createSimpleRateLimit("key1"), createSimpleRateLimit("key2")...)},
+			expected:   false,
+		},
+		{
+			name:       "nil fields are equal",
+			rateLimit1: &GlobalRateLimitIR{rateLimitActions: nil, provider: nil},
+			rateLimit2: &GlobalRateLimitIR{rateLimitActions: nil, provider: nil},
+			expected:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.rateLimit1.Equals(tt.rateLimit2)
+			assert.Equal(t, tt.expected, result)
+
+			// Test symmetry: a.Equals(b) should equal b.Equals(a)
+			reverseResult := tt.rateLimit2.Equals(tt.rateLimit1)
+			assert.Equal(t, result, reverseResult, "Equals should be symmetric")
+		})
+	}
+
+	// Test reflexivity: x.Equals(x) should always be true for non-nil values
+	t.Run("reflexivity", func(t *testing.T) {
+		rateLimit := &GlobalRateLimitIR{rateLimitActions: createSimpleRateLimit("test")}
+		assert.True(t, rateLimit.Equals(rateLimit), "rateLimit should equal itself")
+	})
+
+	// Test transitivity: if a.Equals(b) && b.Equals(c), then a.Equals(c)
+	t.Run("transitivity", func(t *testing.T) {
+		createSameRateLimit := func() *GlobalRateLimitIR {
+			return &GlobalRateLimitIR{rateLimitActions: createSimpleRateLimit("test")}
+		}
+
+		a := createSameRateLimit()
+		b := createSameRateLimit()
+		c := createSameRateLimit()
+
+		assert.True(t, a.Equals(b), "a should equal b")
+		assert.True(t, b.Equals(c), "b should equal c")
+		assert.True(t, a.Equals(c), "a should equal c (transitivity)")
+	})
+}
+
+func TestGlobalRateLimitIRValidate(t *testing.T) {
+	// Note: Global rate limit validation is permissive at the protobuf level.
+	// Provider validation is tested separately.
+	tests := []struct {
+		name      string
+		rateLimit *GlobalRateLimitIR
+	}{
+		{
+			name:      "nil rate limit is valid",
+			rateLimit: nil,
+		},
+		{
+			name: "rate limit with nil fields is valid",
+			rateLimit: &GlobalRateLimitIR{
+				rateLimitActions: nil,
+				provider:         nil,
+			},
+		},
+		{
+			name: "valid rate limit config passes validation",
+			rateLimit: &GlobalRateLimitIR{
+				rateLimitActions: []*envoyroutev3.RateLimit{
+					{
+						Actions: []*envoyroutev3.RateLimit_Action{
+							{
+								ActionSpecifier: &envoyroutev3.RateLimit_Action_GenericKey_{
+									GenericKey: &envoyroutev3.RateLimit_Action_GenericKey{
+										DescriptorKey:   "api",
+										DescriptorValue: "test-value",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "rate limit config with empty descriptor key is valid",
+			rateLimit: &GlobalRateLimitIR{
+				rateLimitActions: []*envoyroutev3.RateLimit{
+					{
+						Actions: []*envoyroutev3.RateLimit_Action{
+							{
+								ActionSpecifier: &envoyroutev3.RateLimit_Action_GenericKey_{
+									GenericKey: &envoyroutev3.RateLimit_Action_GenericKey{
+										DescriptorKey:   "", // Empty key is valid at protobuf level
+										DescriptorValue: "api",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.rateLimit.Validate()
+			assert.NoError(t, err, "Global rate limit validation should never fail at protobuf level")
+		})
+	}
+}
+
+func TestGlobalRateLimitIRMergeInto(t *testing.T) {
+	// Helper to create rate limit configurations
+	createRateLimitConfig := func(key string) *GlobalRateLimitIR {
+		return &GlobalRateLimitIR{
+			rateLimitActions: []*envoyroutev3.RateLimit{
+				{
+					Actions: []*envoyroutev3.RateLimit_Action{
+						{
+							ActionSpecifier: &envoyroutev3.RateLimit_Action_GenericKey_{
+								GenericKey: &envoyroutev3.RateLimit_Action_GenericKey{
+									DescriptorKey:   key,
+									DescriptorValue: "test-value",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name              string
+		p1RateLimit       *GlobalRateLimitIR
+		p2RateLimit       *GlobalRateLimitIR
+		strategy          policy.MergeOptions
+		expectOriginSet   bool
+		expectActionCount *int
+	}{
+		{
+			name:              "shallow merge with nil p1",
+			p1RateLimit:       nil,
+			p2RateLimit:       createRateLimitConfig("service"),
+			strategy:          policy.MergeOptions{Strategy: policy.AugmentedShallowMerge},
+			expectOriginSet:   true,
+			expectActionCount: ptr.To(1),
+		},
+		{
+			name:              "deep merge preserves p1 when set",
+			p1RateLimit:       createRateLimitConfig("service1"),
+			p2RateLimit:       createRateLimitConfig("service2"),
+			strategy:          policy.MergeOptions{Strategy: policy.AugmentedDeepMerge},
+			expectOriginSet:   false,     // No merge should happen
+			expectActionCount: ptr.To(1), // Should keep p1
+		},
+		{
+			name:              "overridable shallow merge overwrites p1",
+			p1RateLimit:       createRateLimitConfig("service1"),
+			p2RateLimit:       createRateLimitConfig("service2"),
+			strategy:          policy.MergeOptions{Strategy: policy.OverridableShallowMerge},
+			expectOriginSet:   true,
+			expectActionCount: ptr.To(1),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test policies
+			p1 := &TrafficPolicy{spec: trafficPolicySpecIr{rateLimit: tt.p1RateLimit}}
+			p2 := &TrafficPolicy{spec: trafficPolicySpecIr{rateLimit: tt.p2RateLimit}}
+			p2Ref := &pluginsdkir.AttachedPolicyRef{Name: "test-policy"}
+			mergeOrigins := make(pluginsdkir.MergeOrigins)
+
+			// Perform merge
+			if tt.p2RateLimit != nil {
+				tt.p2RateLimit.MergeInto(p1, p2, p2Ref, tt.strategy, mergeOrigins)
+			}
+
+			// Validate actual content instead of just nil checking
+			if tt.expectActionCount != nil {
+				assert.NotNil(t, p1.spec.rateLimit, "p1.rateLimit should not be nil")
+				assert.NotNil(t, p1.spec.rateLimit.rateLimitActions, "p1.rateLimit.rateLimitActions should not be nil")
+
+				// Verify action count
+				assert.Equal(t, *tt.expectActionCount, len(p1.spec.rateLimit.rateLimitActions))
+			}
+
+			// Verify origin tracking
+			if tt.expectOriginSet {
+				origins := mergeOrigins.Get("rateLimit.global")
+				assert.NotEmpty(t, origins, "merge origin should be set")
+			} else {
+				origins := mergeOrigins.Get("rateLimit.global")
+				assert.Empty(t, origins, "merge origin should not be set")
+			}
+		})
+	}
+}
 
 func TestCreateRateLimitActions(t *testing.T) {
 	tests := []struct {
