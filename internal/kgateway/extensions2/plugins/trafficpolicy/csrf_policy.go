@@ -39,7 +39,7 @@ func (c *CsrfIR) Validate() error {
 	if c == nil || c.csrfPolicy == nil {
 		return nil
 	}
-	return c.csrfPolicy.Validate()
+	return c.csrfPolicy.ValidateAll()
 }
 
 // MergeInto handles merging CSRF policy from p2 into p1

@@ -45,7 +45,7 @@ func (e *ExtprocIR) Validate() error {
 		return nil
 	}
 	if e.perRoute != nil {
-		if err := e.perRoute.Validate(); err != nil {
+		if err := e.perRoute.ValidateAll(); err != nil {
 			return err
 		}
 	}

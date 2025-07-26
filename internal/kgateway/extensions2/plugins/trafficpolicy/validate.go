@@ -12,82 +12,27 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/xds/bootstrap"
 )
 
-func (p *TrafficPolicy) Validate(ctx context.Context, v validator.Validator, mode settings.RouteReplacementMode) error {
+// validateWithRouteReplacementMode performs validation based on route replacement mode.
+// Callers who need route replacement mode behavior should use this method instead of calling
+// the Validate() method on the TrafficPolicy type directly.
+func validateWithRouteReplacementMode(ctx context.Context, p *TrafficPolicy, v validator.Validator, mode settings.RouteReplacementMode) error {
 	switch mode {
 	case settings.RouteReplacementStandard:
-		return p.validateStandard()
+		return p.Validate()
 	case settings.RouteReplacementStrict:
-		return p.validateStrict(ctx, v)
-	}
-	return nil
-}
-
-// validateStandard performs basic proto validation that runs in STANDARD mode
-func (p *TrafficPolicy) validateStandard() error {
-	return p.validateProto()
-}
-
-// validateStrict performs both proto and xDS validation that runs in STRICT mode
-func (p *TrafficPolicy) validateStrict(ctx context.Context, v validator.Validator) error {
-	if err := p.validateStandard(); err != nil {
-		return err
-	}
-	return p.validateXDS(ctx, v)
-}
-
-// validateProto performs basic proto validation that runs in STANDARD mode.
-// Each policy sub-IR maintains its own Validate() method following the sub-IR pattern.
-func (p *TrafficPolicy) validateProto() error {
-	var validators []func() error
-	// Collect validation functions from each policy sub-IR
-	if p.spec.ai != nil {
-		validators = append(validators, p.spec.ai.Validate)
-	}
-	if p.spec.transformation != nil {
-		validators = append(validators, p.spec.transformation.Validate)
-	}
-	if p.spec.rustformation != nil {
-		validators = append(validators, p.spec.rustformation.Validate)
-	}
-	if p.spec.localRateLimit != nil {
-		validators = append(validators, p.spec.localRateLimit.Validate)
-	}
-	if p.spec.rateLimit != nil {
-		validators = append(validators, p.spec.rateLimit.Validate)
-	}
-	if p.spec.extProc != nil {
-		validators = append(validators, p.spec.extProc.Validate)
-	}
-	if p.spec.extAuth != nil {
-		validators = append(validators, p.spec.extAuth.Validate)
-	}
-	if p.spec.csrf != nil {
-		validators = append(validators, p.spec.csrf.Validate)
-	}
-	if p.spec.cors != nil {
-		validators = append(validators, p.spec.cors.Validate)
-	}
-	if p.spec.buffer != nil {
-		validators = append(validators, p.spec.buffer.Validate)
-	}
-	if p.spec.hashPolicies != nil {
-		validators = append(validators, p.spec.hashPolicies.Validate)
-	}
-	if p.spec.autoHostRewrite != nil {
-		validators = append(validators, p.spec.autoHostRewrite.Validate)
-	}
-	for _, validator := range validators {
-		if err := validator(); err != nil {
+		if err := p.Validate(); err != nil {
 			return err
 		}
+		return validateXDS(ctx, p, v)
 	}
 	return nil
 }
 
-// validateXDS builds a partial bootstrap config and validates it via envoy
-// validate mode. It re-uses the ApplyForRoute method to ensure that the translation
+// validateXDS performs only xDS validation by building a partial bootstrap config and validating
+// it via envoy validate mode. It re-uses the ApplyForRoute method to ensure that the translation
 // and validation logic go through the same code path as normal.
-func (p *TrafficPolicy) validateXDS(ctx context.Context, v validator.Validator) error {
+// This method can be called independently when only xDS validation is needed.
+func validateXDS(ctx context.Context, p *TrafficPolicy, v validator.Validator) error {
 	// use a fake translation pass to ensure we have the desired typed filter config
 	// on the placeholder vhost.
 	typedPerFilterConfig := ir.TypedFilterConfigMap(map[string]proto.Message{})

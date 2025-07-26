@@ -68,17 +68,17 @@ func (e TrafficPolicyGatewayExtensionIR) Validate() error {
 		return nil
 	}
 	if e.ExtAuth != nil {
-		if err := e.ExtAuth.Validate(); err != nil {
+		if err := e.ExtAuth.ValidateAll(); err != nil {
 			return err
 		}
 	}
 	if e.ExtProc != nil {
-		if err := e.ExtProc.Validate(); err != nil {
+		if err := e.ExtProc.ValidateAll(); err != nil {
 			return err
 		}
 	}
 	if e.RateLimit != nil {
-		if err := e.RateLimit.Validate(); err != nil {
+		if err := e.RateLimit.ValidateAll(); err != nil {
 			return err
 		}
 	}

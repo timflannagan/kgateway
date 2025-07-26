@@ -6,9 +6,14 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 )
 
-// MergeTrafficPolicies merges two traffic policies together, with the second policy taking precedence where applicable.
-// The mergeOrigins parameter is used to track merge origins and should be populated with information
-// about the origin policy reference for each merged field.
+// MergeTrafficPolicies merges p2 into p1 according to the merge strategy by delegating
+// to each policy sub-IR's MergeInto() method following the sub-IR pattern.
+//
+// MAINTAINABILITY NOTE: When adding a new policy type, you must update ALL of these locations:
+// 1. Validate() method in traffic_policy_plugin.go
+// 2. Equals() method in traffic_policy_plugin.go
+// 3. Translate() method in builder.go
+// 4. MergeTrafficPolicies() function in merge.go (this function)
 func MergeTrafficPolicies(
 	p1, p2 *TrafficPolicy,
 	p2Ref *ir.AttachedPolicyRef,

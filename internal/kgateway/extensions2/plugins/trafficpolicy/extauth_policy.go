@@ -85,7 +85,7 @@ func (e *ExtAuthIR) Validate() error {
 		return nil
 	}
 	if e.extauthPerRoute != nil {
-		if err := e.extauthPerRoute.Validate(); err != nil {
+		if err := e.extauthPerRoute.ValidateAll(); err != nil {
 			return err
 		}
 	}

@@ -39,7 +39,7 @@ func (l *LocalRateLimitIR) Validate() error {
 	if l == nil || l.localRateLimit == nil {
 		return nil
 	}
-	return l.localRateLimit.Validate()
+	return l.localRateLimit.ValidateAll()
 }
 
 // MergeInto handles merging local rate limit policy from p2 into p1

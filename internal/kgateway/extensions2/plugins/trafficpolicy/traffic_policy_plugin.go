@@ -90,6 +90,14 @@ func (d *TrafficPolicy) CreationTime() time.Time {
 	return d.ct
 }
 
+// Equals compares two TrafficPolicy instances for equality by delegating to each
+// policy sub-IR's Equals() method following the sub-IR pattern.
+//
+// MAINTAINABILITY NOTE: When adding a new policy type, you must update ALL of these locations:
+// 1. ValidateProto() method in validate.go
+// 2. Equals() method in traffic_policy_plugin.go (this method)
+// 3. Translate() method in builder.go
+// 4. MergeTrafficPolicies() function in merge.go
 func (d *TrafficPolicy) Equals(in any) bool {
 	d2, ok := in.(*TrafficPolicy)
 	if !ok {
@@ -136,6 +144,62 @@ func (d *TrafficPolicy) Equals(in any) bool {
 		return false
 	}
 	return true
+}
+
+// Validate performs PGV (protobuf-generated validation) validation by delegating
+// to each policy sub-IR's Validate() method. This follows the exact same pattern as the Equals() method.
+// PGV validation is always performed regardless of route replacement mode.
+//
+// MAINTAINABILITY NOTE: When adding a new policy type, you must update ALL of these locations:
+// 1. Validate() method in validate.go (this method)
+// 2. Equals() method in traffic_policy_plugin.go
+// 3. Translate() method in builder.go
+// 4. MergeTrafficPolicies() function in merge.go
+func (p *TrafficPolicy) Validate() error {
+	var validators []func() error
+	// Collect validation functions from each policy sub-IR - mirrors the Equals() pattern exactly
+	if p.spec.ai != nil {
+		validators = append(validators, p.spec.ai.Validate)
+	}
+	if p.spec.transformation != nil {
+		validators = append(validators, p.spec.transformation.Validate)
+	}
+	if p.spec.rustformation != nil {
+		validators = append(validators, p.spec.rustformation.Validate)
+	}
+	if p.spec.localRateLimit != nil {
+		validators = append(validators, p.spec.localRateLimit.Validate)
+	}
+	if p.spec.rateLimit != nil {
+		validators = append(validators, p.spec.rateLimit.Validate)
+	}
+	if p.spec.extProc != nil {
+		validators = append(validators, p.spec.extProc.Validate)
+	}
+	if p.spec.extAuth != nil {
+		validators = append(validators, p.spec.extAuth.Validate)
+	}
+	if p.spec.csrf != nil {
+		validators = append(validators, p.spec.csrf.Validate)
+	}
+	if p.spec.cors != nil {
+		validators = append(validators, p.spec.cors.Validate)
+	}
+	if p.spec.buffer != nil {
+		validators = append(validators, p.spec.buffer.Validate)
+	}
+	if p.spec.hashPolicies != nil {
+		validators = append(validators, p.spec.hashPolicies.Validate)
+	}
+	if p.spec.autoHostRewrite != nil {
+		validators = append(validators, p.spec.autoHostRewrite.Validate)
+	}
+	for _, validator := range validators {
+		if err := validator(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type trafficPolicyPluginGwPass struct {
@@ -196,7 +260,7 @@ func NewPlugin(ctx context.Context, commoncol *common.CommonCollections) extensi
 		}
 
 		policyIR, errors := translator.Translate(krtctx, policyCR)
-		if err := policyIR.Validate(ctx, v, commoncol.Settings.RouteReplacementMode); err != nil {
+		if err := validateWithRouteReplacementMode(ctx, policyIR, v, commoncol.Settings.RouteReplacementMode); err != nil {
 			logger.Error("validation failed", "policy", policyCR.Name, "error", err)
 			errors = append(errors, err)
 		}

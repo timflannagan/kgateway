@@ -37,7 +37,7 @@ func (t *TransformationIR) Validate() error {
 	if t == nil || t.transformation == nil {
 		return nil
 	}
-	return t.transformation.Validate()
+	return t.transformation.ValidateAll()
 }
 
 // MergeInto handles merging transformation policy from p2 into p1
@@ -237,7 +237,7 @@ func (r *RustformationIR) Validate() error {
 	if r == nil || r.rustformation == nil {
 		return nil
 	}
-	return r.rustformation.Validate()
+	return r.rustformation.ValidateAll()
 }
 
 // MergeInto handles merging rustformation policy from p2 into p1

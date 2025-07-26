@@ -59,7 +59,7 @@ func (r *GlobalRateLimitIR) Validate() error {
 	}
 	for _, rateLimit := range r.rateLimitActions {
 		if rateLimit != nil {
-			if err := rateLimit.Validate(); err != nil {
+			if err := rateLimit.ValidateAll(); err != nil {
 				return err
 			}
 		}

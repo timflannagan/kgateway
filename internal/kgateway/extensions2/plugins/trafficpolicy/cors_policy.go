@@ -32,7 +32,7 @@ func (c *CorsIR) Validate() error {
 	if c == nil || c.corsConfig == nil {
 		return nil
 	}
-	return c.corsConfig.Validate()
+	return c.corsConfig.ValidateAll()
 }
 
 // MergeInto handles merging CORS policy from p2 into p1

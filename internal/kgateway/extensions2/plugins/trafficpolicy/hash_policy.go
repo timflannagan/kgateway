@@ -41,7 +41,7 @@ func (h *HashPolicyIR) Validate() error {
 		return nil
 	}
 	for _, policy := range h.hashPolicies {
-		if err := policy.Validate(); err != nil {
+		if err := policy.ValidateAll(); err != nil {
 			return err
 		}
 	}
