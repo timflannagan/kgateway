@@ -22,14 +22,20 @@ type TransformationIR struct {
 	transformation *transformationpb.RouteTransformations
 }
 
-func (t *TransformationIR) Equals(other *TransformationIR) bool {
-	if t == nil && other == nil {
-		return true
-	}
-	if t == nil || other == nil {
+var _ PolicySubIR = &TransformationIR{}
+
+func (t *TransformationIR) Equals(other PolicySubIR) bool {
+	otherTransformation, ok := other.(*TransformationIR)
+	if !ok {
 		return false
 	}
-	return proto.Equal(t.transformation, other.transformation)
+	if t == nil && otherTransformation == nil {
+		return true
+	}
+	if t == nil || otherTransformation == nil {
+		return false
+	}
+	return proto.Equal(t.transformation, otherTransformation.transformation)
 }
 
 // Validate performs PGV-based validation on the transformation component
@@ -222,14 +228,21 @@ type RustformationIR struct {
 	toStash       string
 }
 
-func (r *RustformationIR) Equals(other *RustformationIR) bool {
-	if r == nil && other == nil {
-		return true
-	}
-	if r == nil || other == nil {
+// Ensure RustformationIR implements PolicySubIR interface
+var _ PolicySubIR = &RustformationIR{}
+
+func (r *RustformationIR) Equals(other PolicySubIR) bool {
+	otherRust, ok := other.(*RustformationIR)
+	if !ok {
 		return false
 	}
-	return proto.Equal(r.rustformation, other.rustformation) && r.toStash == other.toStash
+	if r == nil && otherRust == nil {
+		return true
+	}
+	if r == nil || otherRust == nil {
+		return false
+	}
+	return proto.Equal(r.rustformation, otherRust.rustformation) && r.toStash == otherRust.toStash
 }
 
 // Validate performs PGV-based validation on the rustformation component

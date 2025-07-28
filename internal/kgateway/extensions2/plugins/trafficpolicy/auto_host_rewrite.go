@@ -14,15 +14,21 @@ type AutoHostRewriteIR struct {
 	autoHostRewrite *wrapperspb.BoolValue
 }
 
+var _ PolicySubIR = &AutoHostRewriteIR{}
+
 // Equals compares two AutoHostRewriteIRs for equality.
-func (a *AutoHostRewriteIR) Equals(other *AutoHostRewriteIR) bool {
-	if a == nil && other == nil {
-		return true
-	}
-	if a == nil || other == nil {
+func (a *AutoHostRewriteIR) Equals(other PolicySubIR) bool {
+	otherAutoHostRewrite, ok := other.(*AutoHostRewriteIR)
+	if !ok {
 		return false
 	}
-	return proto.Equal(a.autoHostRewrite, other.autoHostRewrite)
+	if a == nil && otherAutoHostRewrite == nil {
+		return true
+	}
+	if a == nil || otherAutoHostRewrite == nil {
+		return false
+	}
+	return proto.Equal(a.autoHostRewrite, otherAutoHostRewrite.autoHostRewrite)
 }
 
 // Validate performs validation on the auto host rewrite component

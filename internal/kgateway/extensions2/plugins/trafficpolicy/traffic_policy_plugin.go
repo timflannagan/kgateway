@@ -37,6 +37,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	"github.com/kgateway-dev/kgateway/v2/pkg/client/clientset/versioned"
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
+	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/policy"
 	pluginsdkutils "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/utils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/reports"
@@ -71,19 +72,33 @@ type TrafficPolicy struct {
 	spec trafficPolicySpecIr
 }
 
+// PolicySubIR documents the expected interface that all policy sub-IRs should implement.
+type PolicySubIR interface {
+	// Equals compares this policy with another policy
+	Equals(other PolicySubIR) bool
+
+	// Validate performs PGV validation on the policy
+	Validate() error
+
+	// MergeInto merges this policy into another TrafficPolicy
+	MergeInto(p1, p2 *TrafficPolicy, p2Ref *pluginsdkir.AttachedPolicyRef, opts policy.MergeOptions, mergeOrigins pluginsdkir.MergeOrigins)
+}
+
+// trafficPolicySpecIr is the internal representation of the TrafficPolicy spec. It stores
+// all the policy sub-IRs.
 type trafficPolicySpecIr struct {
 	ai              *AIPolicyIR
+	autoHostRewrite *AutoHostRewriteIR
 	buffer          *BufferIR
-	extProc         *ExtprocIR
-	transformation  *TransformationIR
-	rustformation   *RustformationIR
-	extAuth         *ExtAuthIR
-	localRateLimit  *LocalRateLimitIR
-	rateLimit       *GlobalRateLimitIR
 	cors            *CorsIR
 	csrf            *CsrfIR
+	extProc         *ExtprocIR
+	extAuth         *ExtAuthIR
 	hashPolicies    *HashPolicyIR
-	autoHostRewrite *AutoHostRewriteIR
+	localRateLimit  *LocalRateLimitIR
+	globalRateLimit *GlobalRateLimitIR
+	transformation  *TransformationIR
+	rustformation   *RustformationIR
 }
 
 func (d *TrafficPolicy) CreationTime() time.Time {
@@ -106,7 +121,6 @@ func (d *TrafficPolicy) Equals(in any) bool {
 	if d.ct != d2.ct {
 		return false
 	}
-
 	if !d.spec.ai.Equals(d2.spec.ai) {
 		return false
 	}
@@ -125,7 +139,7 @@ func (d *TrafficPolicy) Equals(in any) bool {
 	if !d.spec.localRateLimit.Equals(d2.spec.localRateLimit) {
 		return false
 	}
-	if !d.spec.rateLimit.Equals(d2.spec.rateLimit) {
+	if !d.spec.globalRateLimit.Equals(d2.spec.globalRateLimit) {
 		return false
 	}
 	if !d.spec.cors.Equals(d2.spec.cors) {
@@ -157,43 +171,18 @@ func (d *TrafficPolicy) Equals(in any) bool {
 // 4. MergeTrafficPolicies() function in merge.go
 func (p *TrafficPolicy) Validate() error {
 	var validators []func() error
-	// Collect validation functions from each policy sub-IR - mirrors the Equals() pattern exactly
-	if p.spec.ai != nil {
-		validators = append(validators, p.spec.ai.Validate)
-	}
-	if p.spec.transformation != nil {
-		validators = append(validators, p.spec.transformation.Validate)
-	}
-	if p.spec.rustformation != nil {
-		validators = append(validators, p.spec.rustformation.Validate)
-	}
-	if p.spec.localRateLimit != nil {
-		validators = append(validators, p.spec.localRateLimit.Validate)
-	}
-	if p.spec.rateLimit != nil {
-		validators = append(validators, p.spec.rateLimit.Validate)
-	}
-	if p.spec.extProc != nil {
-		validators = append(validators, p.spec.extProc.Validate)
-	}
-	if p.spec.extAuth != nil {
-		validators = append(validators, p.spec.extAuth.Validate)
-	}
-	if p.spec.csrf != nil {
-		validators = append(validators, p.spec.csrf.Validate)
-	}
-	if p.spec.cors != nil {
-		validators = append(validators, p.spec.cors.Validate)
-	}
-	if p.spec.buffer != nil {
-		validators = append(validators, p.spec.buffer.Validate)
-	}
-	if p.spec.hashPolicies != nil {
-		validators = append(validators, p.spec.hashPolicies.Validate)
-	}
-	if p.spec.autoHostRewrite != nil {
-		validators = append(validators, p.spec.autoHostRewrite.Validate)
-	}
+	validators = append(validators, p.spec.ai.Validate)
+	validators = append(validators, p.spec.transformation.Validate)
+	validators = append(validators, p.spec.rustformation.Validate)
+	validators = append(validators, p.spec.localRateLimit.Validate)
+	validators = append(validators, p.spec.globalRateLimit.Validate)
+	validators = append(validators, p.spec.extProc.Validate)
+	validators = append(validators, p.spec.extAuth.Validate)
+	validators = append(validators, p.spec.csrf.Validate)
+	validators = append(validators, p.spec.cors.Validate)
+	validators = append(validators, p.spec.buffer.Validate)
+	validators = append(validators, p.spec.hashPolicies.Validate)
+	validators = append(validators, p.spec.autoHostRewrite.Validate)
 	for _, validator := range validators {
 		if err := validator(); err != nil {
 			return err
@@ -633,13 +622,10 @@ func (p *trafficPolicyPluginGwPass) handlePolicies(fcn string, typedFilterConfig
 	// to be set at the route level so we need to smuggle info upwards.
 	p.handleExtAuth(fcn, typedFilterConfig, spec.extAuth)
 	p.handleExtProc(fcn, typedFilterConfig, spec.extProc)
-	p.handleGlobalRateLimit(fcn, typedFilterConfig, spec.rateLimit)
+	p.handleGlobalRateLimit(fcn, typedFilterConfig, spec.globalRateLimit)
 	p.handleLocalRateLimit(fcn, typedFilterConfig, spec.localRateLimit)
 	p.handleCors(fcn, typedFilterConfig, spec.cors)
-
-	// Apply CSRF configuration if present
 	p.handleCsrf(fcn, typedFilterConfig, spec.csrf)
-
 	p.handleBuffer(fcn, typedFilterConfig, spec.buffer)
 }
 

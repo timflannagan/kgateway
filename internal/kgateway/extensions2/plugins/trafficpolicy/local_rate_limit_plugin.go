@@ -24,14 +24,20 @@ type LocalRateLimitIR struct {
 	localRateLimit *localratelimitv3.LocalRateLimit
 }
 
-func (l *LocalRateLimitIR) Equals(other *LocalRateLimitIR) bool {
-	if l == nil && other == nil {
-		return true
-	}
-	if l == nil || other == nil {
+var _ PolicySubIR = &LocalRateLimitIR{}
+
+func (l *LocalRateLimitIR) Equals(other PolicySubIR) bool {
+	otherLocalRateLimit, ok := other.(*LocalRateLimitIR)
+	if !ok {
 		return false
 	}
-	return proto.Equal(l.localRateLimit, other.localRateLimit)
+	if l == nil && otherLocalRateLimit == nil {
+		return true
+	}
+	if l == nil || otherLocalRateLimit == nil {
+		return false
+	}
+	return proto.Equal(l.localRateLimit, otherLocalRateLimit.localRateLimit)
 }
 
 // Validate performs PGV-based validation on the local rate limit component

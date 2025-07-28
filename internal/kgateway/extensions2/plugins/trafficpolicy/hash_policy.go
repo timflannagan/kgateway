@@ -17,18 +17,24 @@ type HashPolicyIR struct {
 	hashPolicies []*envoyroutev3.RouteAction_HashPolicy
 }
 
-func (h *HashPolicyIR) Equals(other *HashPolicyIR) bool {
-	if h == nil && other == nil {
-		return true
-	}
-	if h == nil || other == nil {
+var _ PolicySubIR = &HashPolicyIR{}
+
+func (h *HashPolicyIR) Equals(other PolicySubIR) bool {
+	otherHashPolicy, ok := other.(*HashPolicyIR)
+	if !ok {
 		return false
 	}
-	if len(h.hashPolicies) != len(other.hashPolicies) {
+	if h == nil && otherHashPolicy == nil {
+		return true
+	}
+	if h == nil || otherHashPolicy == nil {
+		return false
+	}
+	if len(h.hashPolicies) != len(otherHashPolicy.hashPolicies) {
 		return false
 	}
 	for i, policy := range h.hashPolicies {
-		if !proto.Equal(policy, other.hashPolicies[i]) {
+		if !proto.Equal(policy, otherHashPolicy.hashPolicies[i]) {
 			return false
 		}
 	}

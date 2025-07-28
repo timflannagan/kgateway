@@ -52,32 +52,37 @@ type AIPolicyIR struct {
 	Transformation *envoytransformation.RouteTransformations
 }
 
+var _ PolicySubIR = &AIPolicyIR{}
+
 // Equals checks if two AIPolicyIR instances are equal
-func (a *AIPolicyIR) Equals(in *AIPolicyIR) bool {
-	if a == nil && in == nil {
+func (a *AIPolicyIR) Equals(in PolicySubIR) bool {
+	inAI, ok := in.(*AIPolicyIR)
+	if !ok {
+		return false
+	}
+	if a == nil && inAI == nil {
 		return true
 	}
-	if a == nil || in == nil {
+	if a == nil || inAI == nil {
 		return false
 	}
 
 	// Check AISecret equality
-	if a.AISecret != nil && in.AISecret != nil {
-		if !a.AISecret.Equals(*in.AISecret) {
+	if a.AISecret != nil && inAI.AISecret != nil {
+		if !a.AISecret.Equals(*inAI.AISecret) {
 			return false
 		}
-	} else if (a.AISecret != nil) != (in.AISecret != nil) {
+	} else if (a.AISecret != nil) != (inAI.AISecret != nil) {
 		return false
 	}
 	// Check Extproc equality
-	if !proto.Equal(a.Extproc, in.Extproc) {
+	if !proto.Equal(a.Extproc, inAI.Extproc) {
 		return false
 	}
 	// Check Transformation equality
-	if !proto.Equal(a.Transformation, in.Transformation) {
+	if !proto.Equal(a.Transformation, inAI.Transformation) {
 		return false
 	}
-
 	return true
 }
 

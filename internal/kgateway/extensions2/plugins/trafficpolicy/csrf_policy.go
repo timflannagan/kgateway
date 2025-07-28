@@ -23,15 +23,20 @@ type CsrfIR struct {
 	csrfPolicy *envoy_csrf_v3.CsrfPolicy
 }
 
-func (c *CsrfIR) Equals(other *CsrfIR) bool {
-	if c == nil && other == nil {
-		return true
-	}
-	if c == nil || other == nil {
+var _ PolicySubIR = &CsrfIR{}
+
+func (c *CsrfIR) Equals(other PolicySubIR) bool {
+	otherCsrf, ok := other.(*CsrfIR)
+	if !ok {
 		return false
 	}
-
-	return proto.Equal(c.csrfPolicy, other.csrfPolicy)
+	if c == nil && otherCsrf == nil {
+		return true
+	}
+	if c == nil || otherCsrf == nil {
+		return false
+	}
+	return proto.Equal(c.csrfPolicy, otherCsrf.csrfPolicy)
 }
 
 // Validate performs PGV-based validation on the CSRF policy component

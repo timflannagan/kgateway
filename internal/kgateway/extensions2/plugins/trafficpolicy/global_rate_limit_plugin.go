@@ -27,28 +27,32 @@ type GlobalRateLimitIR struct {
 	rateLimitActions []*envoyroutev3.RateLimit
 }
 
-func (r *GlobalRateLimitIR) Equals(other *GlobalRateLimitIR) bool {
-	if r == nil && other == nil {
-		return true
-	}
-	if r == nil || other == nil {
+var _ PolicySubIR = &GlobalRateLimitIR{}
+
+func (r *GlobalRateLimitIR) Equals(other PolicySubIR) bool {
+	otherRateLimit, ok := other.(*GlobalRateLimitIR)
+	if !ok {
 		return false
 	}
-
-	if len(r.rateLimitActions) != len(other.rateLimitActions) {
+	if r == nil && otherRateLimit == nil {
+		return true
+	}
+	if r == nil || otherRateLimit == nil {
+		return false
+	}
+	if len(r.rateLimitActions) != len(otherRateLimit.rateLimitActions) {
 		return false
 	}
 	for i, action := range r.rateLimitActions {
-		if !proto.Equal(action, other.rateLimitActions[i]) {
+		if !proto.Equal(action, otherRateLimit.rateLimitActions[i]) {
 			return false
 		}
 	}
-	if !cmputils.CompareWithNils(r.provider, other.provider, func(a, b *TrafficPolicyGatewayExtensionIR) bool {
+	if !cmputils.CompareWithNils(r.provider, otherRateLimit.provider, func(a, b *TrafficPolicyGatewayExtensionIR) bool {
 		return a.Equals(*b)
 	}) {
 		return false
 	}
-
 	return true
 }
 
@@ -79,19 +83,19 @@ func (r *GlobalRateLimitIR) MergeInto(
 	opts policy.MergeOptions,
 	mergeOrigins pluginsdkir.MergeOrigins,
 ) {
-	if !policy.IsMergeable(p1.spec.rateLimit, p2.spec.rateLimit, opts) {
+	if !policy.IsMergeable(p1.spec.globalRateLimit, p2.spec.globalRateLimit, opts) {
 		return
 	}
 
 	switch opts.Strategy {
 	case policy.AugmentedDeepMerge, policy.OverridableDeepMerge:
-		if p1.spec.rateLimit != nil {
+		if p1.spec.globalRateLimit != nil {
 			return
 		}
 		fallthrough // can override p1 if it is unset
 
 	case policy.AugmentedShallowMerge, policy.OverridableShallowMerge:
-		p1.spec.rateLimit = p2.spec.rateLimit
+		p1.spec.globalRateLimit = p2.spec.globalRateLimit
 		mergeOrigins.SetOne("rateLimit.global", p2Ref)
 
 	default:
@@ -124,7 +128,7 @@ func globalRateLimitForSpec(
 		return pluginutils.ErrInvalidExtensionType(v1alpha1.GatewayExtensionTypeExtAuth, gwExtIR.ExtType)
 	}
 	// Create route rate limits and store in the RateLimitIR struct
-	out.rateLimit = &GlobalRateLimitIR{
+	out.globalRateLimit = &GlobalRateLimitIR{
 		provider: gwExtIR,
 		rateLimitActions: []*envoyroutev3.RateLimit{
 			{

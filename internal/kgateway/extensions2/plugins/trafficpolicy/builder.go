@@ -41,11 +41,9 @@ func NewTrafficPolicyBuilder(
 // Translate converts a TrafficPolicy custom resource into its corresponding IR (Intermediate Representation)
 // by calling individual translation functions for each supported policy type.
 //
-// MAINTAINABILITY NOTE: When adding a new policy type, you must update ALL of these locations:
-// 1. Validate() method in traffic_policy_plugin.go
-// 2. Equals() method in traffic_policy_plugin.go
-// 3. Translate() method in builder.go (this method)
-// 4. MergeTrafficPolicies() function in merge.go
+// MAINTAINABILITY NOTE: When adding a new policy type, you must update:
+// 1. Add the policy to the registry in registry.go (handles Validate, Equals, MergeInto automatically)
+// 2. Add translation logic to this method (varying signatures require manual handling)
 func (b *TrafficPolicyBuilder) Translate(
 	krtctx krt.HandlerContext,
 	policyCR *v1alpha1.TrafficPolicy,

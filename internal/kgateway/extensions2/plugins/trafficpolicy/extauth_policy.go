@@ -54,24 +54,30 @@ type ExtAuthIR struct {
 	extauthPerRoute *envoy_ext_authz_v3.ExtAuthzPerRoute
 }
 
+var _ PolicySubIR = &ExtAuthIR{}
+
 // Equals compares two ExtAuthIR instances for equality
-func (e *ExtAuthIR) Equals(other *ExtAuthIR) bool {
-	if e == nil && other == nil {
+func (e *ExtAuthIR) Equals(other PolicySubIR) bool {
+	otherExtAuth, ok := other.(*ExtAuthIR)
+	if !ok {
+		return false
+	}
+	if e == nil && otherExtAuth == nil {
 		return true
 	}
-	if e == nil || other == nil {
+	if e == nil || otherExtAuth == nil {
 		return false
 	}
 
 	// Compare enablement
-	if e.enablement != other.enablement {
+	if e.enablement != otherExtAuth.enablement {
 		return false
 	}
-	if !proto.Equal(e.extauthPerRoute, other.extauthPerRoute) {
+	if !proto.Equal(e.extauthPerRoute, otherExtAuth.extauthPerRoute) {
 		return false
 	}
 	// Compare providers
-	if !cmputils.CompareWithNils(e.provider, other.provider, func(a, b *TrafficPolicyGatewayExtensionIR) bool {
+	if !cmputils.CompareWithNils(e.provider, otherExtAuth.provider, func(a, b *TrafficPolicyGatewayExtensionIR) bool {
 		return a.Equals(*b)
 	}) {
 		return false

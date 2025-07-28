@@ -42,8 +42,8 @@ func MergeTrafficPolicies(
 	if p2.spec.localRateLimit != nil {
 		p2.spec.localRateLimit.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
-	if p2.spec.rateLimit != nil {
-		p2.spec.rateLimit.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
+	if p2.spec.globalRateLimit != nil {
+		p2.spec.globalRateLimit.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)
 	}
 	if p2.spec.cors != nil {
 		p2.spec.cors.MergeInto(p1, p2, p2Ref, mergeOpts, mergeOrigins)

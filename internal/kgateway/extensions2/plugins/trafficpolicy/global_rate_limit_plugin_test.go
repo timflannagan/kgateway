@@ -280,8 +280,8 @@ func TestGlobalRateLimitIRMergeInto(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test policies
-			p1 := &TrafficPolicy{spec: trafficPolicySpecIr{rateLimit: tt.p1RateLimit}}
-			p2 := &TrafficPolicy{spec: trafficPolicySpecIr{rateLimit: tt.p2RateLimit}}
+			p1 := &TrafficPolicy{spec: trafficPolicySpecIr{globalRateLimit: tt.p1RateLimit}}
+			p2 := &TrafficPolicy{spec: trafficPolicySpecIr{globalRateLimit: tt.p2RateLimit}}
 			p2Ref := &pluginsdkir.AttachedPolicyRef{Name: "test-policy"}
 			mergeOrigins := make(pluginsdkir.MergeOrigins)
 
@@ -292,11 +292,11 @@ func TestGlobalRateLimitIRMergeInto(t *testing.T) {
 
 			// Validate actual content instead of just nil checking
 			if tt.expectActionCount != nil {
-				assert.NotNil(t, p1.spec.rateLimit, "p1.rateLimit should not be nil")
-				assert.NotNil(t, p1.spec.rateLimit.rateLimitActions, "p1.rateLimit.rateLimitActions should not be nil")
+				assert.NotNil(t, p1.spec.globalRateLimit, "p1.globalRateLimit should not be nil")
+				assert.NotNil(t, p1.spec.globalRateLimit.rateLimitActions, "p1.globalRateLimit.rateLimitActions should not be nil")
 
 				// Verify action count
-				assert.Equal(t, *tt.expectActionCount, len(p1.spec.rateLimit.rateLimitActions))
+				assert.Equal(t, *tt.expectActionCount, len(p1.spec.globalRateLimit.rateLimitActions))
 			}
 
 			// Verify origin tracking

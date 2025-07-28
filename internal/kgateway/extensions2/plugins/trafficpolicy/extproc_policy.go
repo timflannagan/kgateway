@@ -20,18 +20,23 @@ type ExtprocIR struct {
 	perRoute *envoy_ext_proc_v3.ExtProcPerRoute
 }
 
-func (e *ExtprocIR) Equals(other *ExtprocIR) bool {
-	if e == nil && other == nil {
+var _ PolicySubIR = &ExtprocIR{}
+
+func (e *ExtprocIR) Equals(other PolicySubIR) bool {
+	otherExtproc, ok := other.(*ExtprocIR)
+	if !ok {
+		return false
+	}
+	if e == nil && otherExtproc == nil {
 		return true
 	}
-	if e == nil || other == nil {
+	if e == nil || otherExtproc == nil {
 		return false
 	}
-
-	if !proto.Equal(e.perRoute, other.perRoute) {
+	if !proto.Equal(e.perRoute, otherExtproc.perRoute) {
 		return false
 	}
-	if !cmputils.CompareWithNils(e.provider, other.provider, func(a, b *TrafficPolicyGatewayExtensionIR) bool {
+	if !cmputils.CompareWithNils(e.provider, otherExtproc.provider, func(a, b *TrafficPolicyGatewayExtensionIR) bool {
 		return a.Equals(*b)
 	}) {
 		return false

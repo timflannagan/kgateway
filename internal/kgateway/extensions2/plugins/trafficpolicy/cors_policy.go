@@ -17,14 +17,20 @@ type CorsIR struct {
 	corsConfig *corsv3.CorsPolicy
 }
 
-func (c *CorsIR) Equals(other *CorsIR) bool {
-	if c == nil && other == nil {
-		return true
-	}
-	if c == nil || other == nil {
+var _ PolicySubIR = &CorsIR{}
+
+func (c *CorsIR) Equals(other PolicySubIR) bool {
+	otherCors, ok := other.(*CorsIR)
+	if !ok {
 		return false
 	}
-	return proto.Equal(c.corsConfig, other.corsConfig)
+	if c == nil && otherCors == nil {
+		return true
+	}
+	if c == nil || otherCors == nil {
+		return false
+	}
+	return proto.Equal(c.corsConfig, otherCors.corsConfig)
 }
 
 // Validate performs validation on the CORS policy component

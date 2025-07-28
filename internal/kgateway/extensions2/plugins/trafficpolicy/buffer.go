@@ -18,15 +18,20 @@ type BufferIR struct {
 	maxRequestBytes uint32
 }
 
-func (b *BufferIR) Equals(other *BufferIR) bool {
-	if b == nil && other == nil {
-		return true
-	}
-	if b == nil || other == nil {
+var _ PolicySubIR = &BufferIR{}
+
+func (b *BufferIR) Equals(other PolicySubIR) bool {
+	otherBuffer, ok := other.(*BufferIR)
+	if !ok {
 		return false
 	}
-
-	return b.maxRequestBytes == other.maxRequestBytes
+	if b == nil && otherBuffer == nil {
+		return true
+	}
+	if b == nil || otherBuffer == nil {
+		return false
+	}
+	return b.maxRequestBytes == otherBuffer.maxRequestBytes
 }
 
 // Validate performs validation on the buffer component
