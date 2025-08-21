@@ -7,8 +7,8 @@ on:
     - cron: "0 10 * * *"
 
 env:
-  DAYS_BEFORE_ISSUE_STALE: 180
-  DAYS_BEFORE_ISSUE_CLOSE: 180
+  DAYS_BEFORE_ISSUE_STALE: 90
+  DAYS_BEFORE_ISSUE_CLOSE: 30
 
 jobs:
   close-stale-issues:
@@ -22,14 +22,20 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-issue-stale: ${{ env.DAYS_BEFORE_ISSUE_STALE }}
           days-before-issue-close: ${{ env.DAYS_BEFORE_ISSUE_CLOSE }}
+          days-before-pr-stale: ${{ env.DAYS_BEFORE_STALE }}
+          days-before-pr-close: ${{ env.DAYS_BEFORE_CLOSE }}
           stale-issue-message: >
             This issue has been marked as stale because of no activity in the last ${{ env.DAYS_BEFORE_ISSUE_STALE }} days.
             It will be closed in the next ${{ env.DAYS_BEFORE_ISSUE_CLOSE }} days unless it is tagged "no stalebot" or other activity occurs.
           close-issue-message: >
-            This issue has been closed due to no activity in the last 12 months.
+            Closing this issue due to prolonged inactivity. If this is still relevant, please reopen or create a new issue with current context.
+          stale-pr-message: >
+            This pull request has been marked as stale due to inactivity for ${{ env.DAYS_BEFORE_STALE }} days.
+            It will be closed in ${{ env.DAYS_BEFORE_CLOSE }} days unless further activity occurs or it is labeled "no stalebot".
+          close-pr-message: >
+            Closing this pull request due to prolonged inactivity. Feel free to reopen when it's ready for review again.
           stale-issue-label: 'stale' # https://github.com/kgateway-dev/kgateway/labels/stale
           exempt-issue-labels: 'no stalebot' # https://github.com/kgateway-dev/kgateway/labels/no%20stalebot
           enable-statistics: true
           operations-per-run: 1000
           ascending: true # asc means oldest first
-          # debug-only: true # dry-run for debugging
