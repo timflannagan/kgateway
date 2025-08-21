@@ -7,8 +7,8 @@ on:
     - cron: "0 10 * * *"
 
 env:
-  DAYS_BEFORE_ISSUE_STALE: 90
-  DAYS_BEFORE_ISSUE_CLOSE: 30
+  DAYS_BEFORE_STALE: 90
+  DAYS_BEFORE_CLOSE: 30
 
 jobs:
   close-stale-issues:
@@ -20,13 +20,13 @@ jobs:
       - uses: actions/stale@v9 # https://github.com/actions/stale
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          days-before-issue-stale: ${{ env.DAYS_BEFORE_ISSUE_STALE }}
-          days-before-issue-close: ${{ env.DAYS_BEFORE_ISSUE_CLOSE }}
+          days-before-issue-stale: ${{ env.DAYS_BEFORE_STALE }}
+          days-before-issue-close: ${{ env.DAYS_BEFORE_CLOSE }}
           days-before-pr-stale: ${{ env.DAYS_BEFORE_STALE }}
           days-before-pr-close: ${{ env.DAYS_BEFORE_CLOSE }}
           stale-issue-message: >
-            This issue has been marked as stale because of no activity in the last ${{ env.DAYS_BEFORE_ISSUE_STALE }} days.
-            It will be closed in the next ${{ env.DAYS_BEFORE_ISSUE_CLOSE }} days unless it is tagged "no stalebot" or other activity occurs.
+            This issue has been marked as stale because of no activity in the last ${{ env.DAYS_BEFORE_STALE }} days.
+            It will be closed in the next ${{ env.DAYS_BEFORE_CLOSE }} days unless it is tagged "no stalebot" or other activity occurs.
           close-issue-message: >
             Closing this issue due to prolonged inactivity. If this is still relevant, please reopen or create a new issue with current context.
           stale-pr-message: >
