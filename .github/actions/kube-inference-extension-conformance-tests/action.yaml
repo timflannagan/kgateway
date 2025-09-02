@@ -32,6 +32,7 @@ runs:
     env:
       CLUSTER_NODE_VERSION: ${{ matrix.kube-version.node }}
       CONFORMANCE: "true"
+      CONFORMANCE_CHANNEL: ${{ matrix.conformance-channel }}
       CONFORMANCE_VERSION: ${{ env.CONFORMANCE_VERSION }}
     run: ./hack/kind/setup-kind.sh
 

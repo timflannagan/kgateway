@@ -29,6 +29,7 @@ jobs:
           kind: 'v0.30.0'
         version:
           - ${{ inputs.version }}
+        conformance-channel: [experimental, standard]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

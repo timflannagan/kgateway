@@ -1,4 +1,4 @@
-name: Regression Tests
+name: Conformance
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   kube_gateway_api_conformance_tests:
-    name: kubernetes gateway api conformance tests (${{matrix.image-variant}})
+    name: ingress (${{matrix.conformance-channel}})
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     if: ${{ !github.event.pull_request.draft }}
@@ -23,15 +23,14 @@ jobs:
       fail-fast: false
       matrix:
         kube-version: [ { node: 'v1.34.0@sha256:7416a61b42b1662ca6ca89f02028ac133a309a2a30ba309614e8ec94d976dc5a', kubectl: 'v1.34.1', kind: 'v0.30.0' } ]
-        image-variant:
-          - standard
+        conformance-channel: [experimental, standard]
     steps:
     - uses: actions/checkout@v4
     - id: run-tests
       uses: ./.github/actions/kube-gateway-api-conformance-tests
 
   kube_inference_extension_conformance_tests:
-    name: kubernetes gateway api inference extension conformance tests (${{matrix.image-variant}})
+    name: inference extension (${{matrix.conformance-channel}})
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     if: ${{ !github.event.pull_request.draft }}
@@ -39,15 +38,14 @@ jobs:
       fail-fast: false
       matrix:
         kube-version: [ { node: 'v1.34.0@sha256:7416a61b42b1662ca6ca89f02028ac133a309a2a30ba309614e8ec94d976dc5a', kubectl: 'v1.34.1', kind: 'v0.30.0' } ]
-        image-variant:
-          - standard
+        conformance-channel: [experimental, standard]
     steps:
     - uses: actions/checkout@v4
     - id: run-tests
       uses: ./.github/actions/kube-inference-extension-conformance-tests
 
   kube_agent_gateway_conformance_tests:
-    name: kubernetes gateway api agent-gateway conformance tests (${{matrix.image-variant}})
+    name: agent-gateway (${{matrix.conformance-channel}})
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     if: ${{ !github.event.pull_request.draft }}
@@ -58,9 +56,28 @@ jobs:
       fail-fast: false
       matrix:
         kube-version: [ { node: 'v1.34.0@sha256:7416a61b42b1662ca6ca89f02028ac133a309a2a30ba309614e8ec94d976dc5a', kubectl: 'v1.34.1', kind: 'v0.30.0' } ]
-        image-variant:
-          - standard
+        conformance-channel: [experimental, standard]
     steps:
     - uses: actions/checkout@v4
     - id: run-tests
       uses: ./.github/actions/kube-agent-gateway-conformance-tests
+
+  conformance-tests-summary:
+    name: conformance
+    runs-on: ubuntu-22.04
+    if: ${{ !github.event.pull_request.draft && always() }}
+    needs:
+      - kube_gateway_api_conformance_tests
+      - kube_inference_extension_conformance_tests
+      - kube_agent_gateway_conformance_tests
+    steps:
+      - name: Check all conformance tests passed
+        run: |
+          # Fail if any of the conformance test jobs failed
+          if [[ "${{ needs.kube_gateway_api_conformance_tests.result }}" != "success" ]] || \
+             [[ "${{ needs.kube_inference_extension_conformance_tests.result }}" != "success" ]] || \
+             [[ "${{ needs.kube_agent_gateway_conformance_tests.result }}" != "success" ]]; then
+            echo "One or more conformance test suites failed"
+            exit 1
+          fi
+          echo "All conformance test suites passed successfully"
