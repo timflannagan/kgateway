@@ -22,6 +22,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/plugins/waypoint"
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/extensions2/settings"
 	sdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
 func mergedGw(funcs []sdk.GwTranslatorFactory) sdk.GwTranslatorFactory {
@@ -71,11 +72,17 @@ func MergePlugins(plug ...sdk.Plugin) sdk.Plugin {
 	return ret
 }
 
-func Plugins(ctx context.Context, commoncol *common.CommonCollections, waypointGatewayClassName string, globalSettings settings.Settings) []sdk.Plugin {
+func Plugins(
+	ctx context.Context,
+	commoncol *common.CommonCollections,
+	v validator.Validator,
+	waypointGatewayClassName string,
+	globalSettings settings.Settings,
+) []sdk.Plugin {
 	return []sdk.Plugin{
 		// Add plugins here
 		backend.NewPlugin(ctx, commoncol),
-		trafficpolicy.NewPlugin(ctx, commoncol, globalSettings.PolicyMerge),
+		trafficpolicy.NewPlugin(ctx, commoncol, v, globalSettings.PolicyMerge),
 		directresponse.NewPlugin(ctx, commoncol),
 		kubernetes.NewPlugin(ctx, commoncol),
 		istio.NewPlugin(ctx, commoncol),

@@ -46,6 +46,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/krtutil"
 	"github.com/kgateway-dev/kgateway/v2/pkg/schemes"
 	"github.com/kgateway-dev/kgateway/v2/pkg/settings"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 	"github.com/kgateway-dev/kgateway/v2/test/gomega/assertions"
 )
 
@@ -297,7 +298,11 @@ func newCommonCols(ctx context.Context, kubeClient kube.Client) *collections.Com
 		Expect(err).ToNot(HaveOccurred())
 	}
 
-	plugins := registry.Plugins(ctx, commoncol, wellknown.DefaultWaypointClassName, *settings)
+	// using the binary validator is fine since we aren't enabling strict mode
+	// in this controller suite.
+	validator := validator.NewBinaryValidator("")
+
+	plugins := registry.Plugins(ctx, commoncol, validator, wellknown.DefaultWaypointClassName, *settings)
 	plugins = append(plugins, krtcollections.NewBuiltinPlugin(ctx))
 	extensions := registry.MergePlugins(plugins...)
 

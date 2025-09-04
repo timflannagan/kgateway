@@ -30,6 +30,7 @@ var logger = logging.New("translator")
 type CombinedTranslator struct {
 	extensions extensionsplug.Plugin
 	commonCols *common.CommonCollections
+	validator  validator.Validator
 
 	waitForSync []cache.InformerSynced
 
@@ -45,6 +46,7 @@ func NewCombinedTranslator(
 	ctx context.Context,
 	extensions extensionsplug.Plugin,
 	commonCols *common.CommonCollections,
+	validator validator.Validator,
 ) *CombinedTranslator {
 	var endpointPlugins []extensionsplug.EndpointPlugin
 	for _, ext := range extensions.ContributesPolicies {
@@ -58,6 +60,7 @@ func NewCombinedTranslator(
 		endpointPlugins: endpointPlugins,
 		logger:          logger,
 		waitForSync:     []cache.InformerSynced{extensions.HasSynced},
+		validator:       validator,
 	}
 }
 
@@ -71,7 +74,7 @@ func (s *CombinedTranslator) Init(ctx context.Context) {
 	s.irtranslator = &irtranslator.Translator{
 		ContributedPolicies:  s.extensions.ContributesPolicies,
 		RouteReplacementMode: s.commonCols.Settings.RouteReplacementMode,
-		Validator:            validator.New(), // TODO: define this once for RDS and TP plugin.
+		Validator:            s.validator,
 	}
 	s.backendTranslator = &irtranslator.BackendTranslator{
 		ContributedBackends: make(map[schema.GroupKind]ir.BackendInit),
@@ -82,7 +85,8 @@ func (s *CombinedTranslator) Init(ctx context.Context) {
 		s.backendTranslator.ContributedBackends[k] = up.BackendInit
 	}
 
-	s.waitForSync = append(s.waitForSync,
+	s.waitForSync = append(
+		s.waitForSync,
 		s.commonCols.HasSynced,
 		s.extensions.HasSynced,
 	)

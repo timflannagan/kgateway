@@ -21,6 +21,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/reports"
 	"github.com/kgateway-dev/kgateway/v2/pkg/settings"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/fsutils"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 	translatortest "github.com/kgateway-dev/kgateway/v2/test/translator"
 )
 
@@ -1403,6 +1404,21 @@ func TestBasic(t *testing.T) {
 }
 
 func TestRouteReplacement(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Use cached persistent validator to avoid re-creating an envoy
+	// container anytime the validator is called in translation.
+	persistentValidator := validator.NewPersistentDockerValidator("")
+	if err := persistentValidator.Start(ctx); err != nil {
+		t.Fatalf("failed to start persistent validator: %v", err)
+	}
+	defer func() {
+		persistentValidator.Cleanup(ctx)
+	}()
+	// Wrap with caching for performance
+	validator := validator.NewCachedValidator(persistentValidator)
+
 	type routeReplacementTest struct {
 		name           string
 		category       string
@@ -1795,8 +1811,8 @@ func TestRouteReplacement(t *testing.T) {
 
 	runTest := func(t *testing.T, test routeReplacementTest, mode settings.RouteReplacementMode) {
 		t.Helper()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		testCtx, testCancel := context.WithCancel(ctx) // Use parent context
+		defer testCancel()
 		dir := fsutils.MustGetThisDir()
 
 		inputFile := filepath.Join(dir, "testutils/inputs/route-replacement", test.category, test.inputFile)
@@ -1823,7 +1839,20 @@ func TestRouteReplacement(t *testing.T) {
 		settingOpts := func(s *settings.Settings) {
 			s.RouteReplacementMode = mode
 		}
-		translatortest.TestTranslation(t, ctx, []string{inputFile}, outputFile, gwNN, assertReports, settingOpts)
+		translatortest.TestTranslationWithExtraPlugins(
+			t,
+			testCtx,
+			[]string{inputFile},
+			outputFile,
+			gwNN,
+			assertReports,
+			nil,
+			nil,
+			nil,
+			"",
+			validator,
+			settingOpts,
+		)
 	}
 
 	for _, mode := range []settings.RouteReplacementMode{settings.RouteReplacementStandard, settings.RouteReplacementStrict} {

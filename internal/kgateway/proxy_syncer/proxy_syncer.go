@@ -32,6 +32,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/logging"
 	plug "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
 	"github.com/kgateway-dev/kgateway/v2/pkg/reports"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 )
 
 var _ manager.LeaderElectionRunnable = &ProxySyncer{}
@@ -138,6 +139,7 @@ func NewProxySyncer(
 	uniqueClients krt.Collection[ir.UniqlyConnectedClient],
 	mergedPlugins plug.Plugin,
 	commonCols *common.CommonCollections,
+	validator validator.Validator,
 	xdsCache envoycache.SnapshotCache,
 	agentGatewayClassName string,
 ) *ProxySyncer {
@@ -149,7 +151,7 @@ func NewProxySyncer(
 		istioClient:              client,
 		proxyTranslator:          NewProxyTranslator(xdsCache),
 		uniqueClients:            uniqueClients,
-		translator:               translator.NewCombinedTranslator(ctx, mergedPlugins, commonCols),
+		translator:               translator.NewCombinedTranslator(ctx, mergedPlugins, commonCols, validator),
 		plugins:                  mergedPlugins,
 		reportQueue:              utils.NewAsyncQueue[reports.ReportMap](),
 		backendPolicyReportQueue: utils.NewAsyncQueue[reports.ReportMap](),

@@ -45,6 +45,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/schemes"
 	"github.com/kgateway-dev/kgateway/v2/pkg/settings"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/envutils"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 	"github.com/kgateway-dev/kgateway/v2/test/testutils"
 	"github.com/kgateway-dev/kgateway/v2/test/translator"
 )
@@ -772,7 +773,7 @@ func (tc TestCase) Run(
 }
 
 func proxySyncerPluginFactory(ctx context.Context, commoncol *collections.CommonCollections, name string, extraPluginsFn ExtraPluginsFn, globalSettings settings.Settings) pluginsdk.Plugin {
-	plugins := registry.Plugins(ctx, commoncol, wellknown.DefaultAgentGatewayClassName, globalSettings)
+	plugins := registry.Plugins(ctx, commoncol, validator.NewBinaryValidator(""), wellknown.DefaultAgentGatewayClassName, globalSettings)
 
 	var extraPlugs []pluginsdk.Plugin
 	if extraPluginsFn != nil {

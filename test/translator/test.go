@@ -54,6 +54,7 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/pkg/schemes"
 	"github.com/kgateway-dev/kgateway/v2/pkg/settings"
 	"github.com/kgateway-dev/kgateway/v2/pkg/utils/envutils"
+	"github.com/kgateway-dev/kgateway/v2/pkg/validator"
 	"github.com/kgateway-dev/kgateway/v2/test/testutils"
 )
 
@@ -236,7 +237,7 @@ func TestTranslation(
 	assertReports AssertReports,
 	settingsOpts ...SettingsOpts,
 ) {
-	TestTranslationWithExtraPlugins(t, ctx, inputFiles, outputFile, gwNN, assertReports, nil, nil, nil, "", settingsOpts...)
+	TestTranslationWithExtraPlugins(t, ctx, inputFiles, outputFile, gwNN, assertReports, nil, nil, nil, "", nil, settingsOpts...)
 }
 
 func TestTranslationWithExtraPlugins(
@@ -250,6 +251,7 @@ func TestTranslationWithExtraPlugins(
 	extraSchemes runtime.SchemeBuilder,
 	extraGroups []string,
 	crdDir string,
+	validator validator.Validator,
 	settingsOpts ...SettingsOpts,
 ) {
 	scheme := NewScheme(extraSchemes)
@@ -258,7 +260,7 @@ func TestTranslationWithExtraPlugins(
 	tc := TestCase{
 		InputFiles: inputFiles,
 	}
-	results, err := tc.Run(t, ctx, scheme, extraPluginsFn, extraGroups, crdDir, settingsOpts...)
+	results, err := tc.Run(t, ctx, scheme, extraPluginsFn, extraGroups, crdDir, validator, settingsOpts...)
 	r.NoError(err, "error running test case")
 	r.Len(results, 1, "expected exactly one gateway in the results")
 	r.Contains(results, gwNN)
@@ -548,6 +550,7 @@ func (tc TestCase) Run(
 	extraPluginsFn ExtraPluginsFn,
 	extraGroups []string,
 	crdDir string,
+	validator validator.Validator,
 	settingsOpts ...SettingsOpts,
 ) (map[types.NamespacedName]ActualTestResult, error) {
 	var (
@@ -658,7 +661,7 @@ func (tc TestCase) Run(
 		return nil, err
 	}
 
-	plugins := registry.Plugins(ctx, commoncol, wellknown.DefaultWaypointClassName, *settings)
+	plugins := registry.Plugins(ctx, commoncol, validator, wellknown.DefaultWaypointClassName, *settings)
 	// TODO: consider moving the common code to a util that both proxy syncer and this test call
 	plugins = append(plugins, krtcollections.NewBuiltinPlugin(ctx))
 
@@ -696,7 +699,7 @@ func (tc TestCase) Run(
 
 	commoncol.InitPlugins(ctx, extensions, *settings)
 
-	translator := translator.NewCombinedTranslator(ctx, extensions, commoncol)
+	translator := translator.NewCombinedTranslator(ctx, extensions, commoncol, validator)
 	translator.Init(ctx)
 
 	cli.RunAndWait(ctx.Done())
