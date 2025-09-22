@@ -436,9 +436,15 @@ var _ = Describe("Deployer", func() {
 			})
 			chart, err := deployerinternal.LoadGatewayChart()
 			Expect(err).NotTo(HaveOccurred())
-			d := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName, newFakeClientWithObjs(gwc, gwParams), chart,
+			d := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				newFakeClientWithObjs(gwc, gwParams),
+				chart,
 				gwp,
-				deployerinternal.GatewayReleaseNameAndNamespace)
+				deployerinternal.GatewayReleaseNameAndNamespace,
+			)
 
 			var objs clientObjects
 			objs, err = d.GetObjsToDeploy(context.Background(), gw)
@@ -516,9 +522,15 @@ var _ = Describe("Deployer", func() {
 			})
 			chart, err := deployerinternal.LoadGatewayChart()
 			Expect(err).NotTo(HaveOccurred())
-			d = deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName, newFakeClientWithObjs(gwc, gwp), chart,
+			d = deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				newFakeClientWithObjs(gwc, gwp),
+				chart,
 				gwParams,
-				deployerinternal.GatewayReleaseNameAndNamespace)
+				deployerinternal.GatewayReleaseNameAndNamespace,
+			)
 
 			objs, err := d.GetObjsToDeploy(context.Background(), gw)
 			Expect(err).NotTo(HaveOccurred())
@@ -589,9 +601,15 @@ var _ = Describe("Deployer", func() {
 			})
 			chart, err := deployerinternal.LoadGatewayChart()
 			Expect(err).NotTo(HaveOccurred())
-			d := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName, newFakeClientWithObjs(gwc, gwp), chart,
+			d := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				newFakeClientWithObjs(gwc, gwp),
+				chart,
 				gwParams,
-				deployerinternal.GatewayReleaseNameAndNamespace)
+				deployerinternal.GatewayReleaseNameAndNamespace,
+			)
 
 			var objs clientObjects
 			objs, err = d.GetObjsToDeploy(context.Background(), gw)
@@ -684,9 +702,15 @@ var _ = Describe("Deployer", func() {
 			})
 			chart, err := deployerinternal.LoadGatewayChart()
 			Expect(err).NotTo(HaveOccurred())
-			d := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName, newFakeClientWithObjs(gwc, gwp), chart,
+			d := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				newFakeClientWithObjs(gwc, gwp),
+				chart,
 				gwParams,
-				deployerinternal.GatewayReleaseNameAndNamespace)
+				deployerinternal.GatewayReleaseNameAndNamespace,
+			)
 
 			objsSlice, err := d.GetObjsToDeploy(context.Background(), gw)
 			Expect(err).NotTo(HaveOccurred())
@@ -765,10 +789,15 @@ var _ = Describe("Deployer", func() {
 			})
 			chart, err := deployerinternal.LoadGatewayChart()
 			Expect(err).NotTo(HaveOccurred())
-			d1 := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName,
-				newFakeClientWithObjs(gwc, defaultGatewayParams()), chart,
+			d1 := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				newFakeClientWithObjs(gwc, defaultGatewayParams()),
+				chart,
 				gwParams1,
-				deployerinternal.GatewayReleaseNameAndNamespace)
+				deployerinternal.GatewayReleaseNameAndNamespace,
+			)
 
 			gwParams2 := deployerinternal.NewGatewayParameters(newFakeClientWithObjs(gwc, defaultGatewayParams()), &deployer.Inputs{
 				CommonCollections: newCommonCols(GinkgoT(), gwc, gw1, gw2),
@@ -786,9 +815,15 @@ var _ = Describe("Deployer", func() {
 				WaypointGatewayClassName: wellknown.DefaultWaypointClassName,
 				AgentgatewayClassName:    wellknown.DefaultAgwClassName,
 			})
-			d2 := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName, newFakeClientWithObjs(gwc, defaultGatewayParams()), chart,
+			d2 := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				newFakeClientWithObjs(gwc, defaultGatewayParams()),
+				chart,
 				gwParams2,
-				deployerinternal.GatewayReleaseNameAndNamespace)
+				deployerinternal.GatewayReleaseNameAndNamespace,
+			)
 
 			var objs1, objs2 clientObjects
 			objs1, err = d1.GetObjsToDeploy(context.Background(), gw1)
@@ -853,10 +888,15 @@ var _ = Describe("Deployer", func() {
 			})
 			chart, err := deployerinternal.LoadGatewayChart()
 			Expect(err).NotTo(HaveOccurred())
-			d := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName,
-				newFakeClientWithObjs(defaultGatewayClass()), chart,
+			d := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				newFakeClientWithObjs(defaultGatewayClass()),
+				chart,
 				gwParams,
-				deployerinternal.GatewayReleaseNameAndNamespace)
+				deployerinternal.GatewayReleaseNameAndNamespace,
+			)
 
 			_, err = d.GetObjsToDeploy(context.Background(), gw)
 			Expect(err).To(MatchError(ContainSubstring("invalid group invalid.group for GatewayParameters")))
@@ -896,10 +936,15 @@ var _ = Describe("Deployer", func() {
 			})
 			chart, err := deployerinternal.LoadGatewayChart()
 			Expect(err).NotTo(HaveOccurred())
-			d := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName,
-				newFakeClientWithObjs(defaultGatewayClass()), chart,
+			d := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				newFakeClientWithObjs(defaultGatewayClass()),
+				chart,
 				gwParams,
-				deployerinternal.GatewayReleaseNameAndNamespace)
+				deployerinternal.GatewayReleaseNameAndNamespace,
+			)
 
 			_, err = d.GetObjsToDeploy(context.Background(), gw)
 			Expect(err).To(MatchError(ContainSubstring("invalid kind InvalidKind for GatewayParameters")))
@@ -960,9 +1005,11 @@ var _ = Describe("Deployer", func() {
 					wellknown.DefaultGatewayControllerName,
 					wellknown.DefaultAgwControllerName,
 					wellknown.DefaultAgwClassName,
-					newFakeClientWithObjs(gwc), chart,
+					newFakeClientWithObjs(gwc),
+					chart,
 					gwParams,
-					deployerinternal.GatewayReleaseNameAndNamespace)
+					deployerinternal.GatewayReleaseNameAndNamespace,
+				)
 
 				objs, err = d.GetObjsToDeploy(context.Background(), gw)
 				Expect(err).NotTo(HaveOccurred())
@@ -1053,9 +1100,11 @@ var _ = Describe("Deployer", func() {
 					wellknown.DefaultGatewayControllerName,
 					wellknown.DefaultAgwControllerName,
 					wellknown.DefaultAgwClassName,
-					newFakeClientWithObjs(gwc, gwp), chart,
+					newFakeClientWithObjs(gwc, gwp),
+					chart,
 					gwParams,
-					deployerinternal.GatewayReleaseNameAndNamespace)
+					deployerinternal.GatewayReleaseNameAndNamespace,
+				)
 
 				objs, err = d.GetObjsToDeploy(context.Background(), gw)
 				Expect(err).NotTo(HaveOccurred())
@@ -1154,9 +1203,11 @@ var _ = Describe("Deployer", func() {
 					wellknown.DefaultGatewayControllerName,
 					wellknown.DefaultAgwControllerName,
 					wellknown.DefaultAgwClassName,
-					newFakeClientWithObjs(gwc, gwp), chart,
+					newFakeClientWithObjs(gwc, gwp),
+					chart,
 					gwParams,
-					deployerinternal.GatewayReleaseNameAndNamespace)
+					deployerinternal.GatewayReleaseNameAndNamespace,
+				)
 
 				objs, err = d.GetObjsToDeploy(context.Background(), gw)
 				Expect(err).NotTo(HaveOccurred())
@@ -1993,7 +2044,12 @@ var _ = Describe("Deployer", func() {
 			gwParams := deployerinternal.NewGatewayParameters(newFakeClientWithObjs(gwc, defaultGwp, overrideGwp), inp.dInputs)
 			chart, err := deployerinternal.LoadGatewayChart()
 			Expect(err).NotTo(HaveOccurred())
-			d := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName, newFakeClientWithObjs(gwc, defaultGwp, overrideGwp), chart,
+			d := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				newFakeClientWithObjs(gwc, defaultGwp, overrideGwp),
+				chart,
 				gwParams,
 				deployerinternal.GatewayReleaseNameAndNamespace,
 			)
@@ -2444,9 +2500,15 @@ var _ = Describe("Deployer", func() {
 			chart, err := deployerinternal.LoadInferencePoolChart()
 			Expect(err).NotTo(HaveOccurred())
 			cli := newFakeClientWithObjs(pool)
-			d := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName, cli, chart,
+			d := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
+				cli,
+				chart,
 				ie,
-				deployerinternal.InferenceExtensionReleaseNameAndNamespace)
+				deployerinternal.InferenceExtensionReleaseNameAndNamespace,
+			)
 
 			// Simulate reconciliation so that the pool gets its finalizer added.
 			err = controller.EnsureFinalizer(context.Background(), cli, pool)
@@ -2592,9 +2654,15 @@ var _ = Describe("Deployer", func() {
 				})
 			chart, err := deployerinternal.LoadGatewayChart()
 			Expect(err).NotTo(HaveOccurred())
-			d := deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName,
+			d := deployer.NewDeployer(
+				wellknown.DefaultGatewayControllerName,
+				wellknown.DefaultAgwControllerName,
+				wellknown.DefaultAgwClassName,
 				newFakeClientWithObjs(defaultGatewayClass(), defaultGatewayParams()),
-				chart, gwParams, deployerinternal.GatewayReleaseNameAndNamespace)
+				chart,
+				gwParams,
+				deployerinternal.GatewayReleaseNameAndNamespace,
+			)
 
 			var objs clientObjects
 			objs, err = d.GetObjsToDeploy(context.Background(), gw)
@@ -2897,9 +2965,15 @@ var _ = Describe("DeployObjs", func() {
 	var getDeployer = func(fc *fakeClient) *deployer.Deployer {
 		chart, err := deployerinternal.LoadGatewayChart()
 		Expect(err).ToNot(HaveOccurred())
-		return deployer.NewDeployer(wellknown.DefaultGatewayControllerName, wellknown.DefaultAgwControllerName, wellknown.DefaultAgwClassName, fc, chart,
+		return deployer.NewDeployer(
+			wellknown.DefaultGatewayControllerName,
+			wellknown.DefaultAgwControllerName,
+			wellknown.DefaultAgwClassName,
+			fc,
+			chart,
 			nil,
-			deployerinternal.GatewayReleaseNameAndNamespace)
+			deployerinternal.GatewayReleaseNameAndNamespace,
+		)
 	}
 
 	It("skips patch if object is unchanged", func() {

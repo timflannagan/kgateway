@@ -1,7 +1,6 @@
 package reports
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -394,7 +393,6 @@ func TestPolicyStatusReport(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			a := assert.New(t)
@@ -405,8 +403,7 @@ func TestPolicyStatusReport(t *testing.T) {
 				tc.fakeTranslation(a, reporter)
 			}
 
-			gotStatus := rm.BuildPolicyStatus(ctx, tc.key, tc.controller, tc.currentStatus)
-
+			gotStatus := rm.BuildPolicyStatus(t.Context(), tc.key, tc.controller, tc.currentStatus)
 			diff := cmp.Diff(tc.wantStatus, gotStatus, cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"))
 			a.Empty(diff)
 		})
