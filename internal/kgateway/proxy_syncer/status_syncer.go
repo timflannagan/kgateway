@@ -378,7 +378,7 @@ func (s *StatusSyncer) syncGatewayStatus(ctx context.Context, logger *slog.Logge
 				return nil
 			}
 
-			// Skip if status hasn’t changed (ignoring Addresses)
+			// Skip if status hasn't changed (ignoring Addresses)
 			old := gw.Status
 			old.Addresses = nil
 			if isGatewayStatusEqual(&old, newStatus) {
@@ -386,23 +386,21 @@ func (s *StatusSyncer) syncGatewayStatus(ctx context.Context, logger *slog.Logge
 				return nil
 			}
 
-			// Prepare and apply the status patch
-			original := gw.DeepCopy()
-			gw.Status = *newStatus
-			if err := s.mgr.GetClient().Status().Patch(ctx, &gw, client.MergeFrom(original)); err != nil {
+			// Use strategic patching to only update Accepted condition and listeners
+			// This preserves addresses and Programmed condition set by the Gateway Controller
+			patcher := utils.NewGatewayStatusPatcher(s.mgr.GetClient())
+			if err := patcher.PatchAcceptedConditionAndListeners(ctx, gwnn, newStatus); err != nil {
 				logger.Error("error patching gateway status", "error", err, "gateway", gwnn.String())
 				return err
 			}
 			logger.Info("patched gateway status", "gateway", gwnn.String())
 
 			for _, cond := range gw.Status.Conditions {
-				if cond.Type != string(gwv1.GatewayConditionAccepted) &&
-					cond.Type != string(gwv1.GatewayConditionProgrammed) {
+				if cond.Type != string(gwv1.GatewayConditionAccepted) {
 					continue
 				}
 
 				if cond.Reason != string(gwv1.GatewayReasonAccepted) &&
-					cond.Reason != string(gwv1.GatewayReasonProgrammed) &&
 					cond.Reason != string(gwv1.GatewayReasonPending) {
 					logger.Debug("invalid status condition reason", "reason", cond.Reason, "gateway", gwnn.String())
 

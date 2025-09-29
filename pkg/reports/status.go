@@ -99,11 +99,12 @@ func (r *ReportMap) BuildGWStatus(ctx context.Context, gw gwv1.Gateway, attached
 		})
 	}
 
-	addMissingGatewayConditions(r.Gateway(&gw), &gw)
+	addMissingGatewayConditions(r.Gateway(&gw))
 
 	finalConditions := make([]metav1.Condition, 0)
 	for _, gwCondition := range gwReport.GetConditions() {
-		gwCondition.ObservedGeneration = gwReport.observedGeneration
+		// Always use the current Gateway's generation, not the potentially stale report generation
+		gwCondition.ObservedGeneration = gw.Generation
 
 		// copy old condition from gw so LastTransitionTime is set correctly below by SetStatusCondition()
 		if cond := meta.FindStatusCondition(gw.Status.Conditions, gwCondition.Type); cond != nil {
@@ -111,13 +112,9 @@ func (r *ReportMap) BuildGWStatus(ctx context.Context, gw gwv1.Gateway, attached
 		}
 		meta.SetStatusCondition(&finalConditions, gwCondition)
 	}
-	// If there are conditions on the Gateway that are not owned by our reporter, include
-	// them in the final list of conditions to preseve conditions we do not own
-	for _, condition := range gw.Status.Conditions {
-		if meta.FindStatusCondition(finalConditions, condition.Type) == nil {
-			finalConditions = append(finalConditions, condition)
-		}
-	}
+	// Status Syncer only manages its own conditions (Accepted, AttachedListenerSets).
+	// Other conditions like Programmed are owned by the Gateway Controller and should
+	// not be included in our status to avoid interfering with their observedGeneration.
 
 	finalGwStatus := gwv1.GatewayStatus{}
 	finalGwStatus.Addresses = gw.Status.Addresses
@@ -365,35 +362,15 @@ func ParentString(ref gwv1.ParentReference) string {
 // Reports will initially only contain negative conditions found during translation,
 // so all missing conditions are assumed to be positive. Here we will add all missing conditions
 // to a given report, i.e. set healthy conditions
-func addMissingGatewayConditions(gwReport *GatewayReport, gw *gwv1.Gateway) {
-	// If the existing Gateway status contains an Accepted=False with Reason=InvalidParameters,
-	// propagate that into the reporter so it persists and is considered owned by the reporter.
-	// HACK: This is because both the controller and reporter set Accepted status.
-	if existing := meta.FindStatusCondition(gw.Status.Conditions, string(gwv1.GatewayConditionAccepted)); existing != nil &&
-		existing.Status == metav1.ConditionFalse &&
-		existing.Reason == string(gwv1.GatewayReasonInvalidParameters) {
-		gwReport.SetCondition(reporter.GatewayCondition{
-			Type:    gwv1.GatewayConditionAccepted,
-			Status:  metav1.ConditionFalse,
-			Reason:  gwv1.GatewayConditionReason(existing.Reason),
-			Message: existing.Message,
-		})
-	}
-
+func addMissingGatewayConditions(gwReport *GatewayReport) {
+	// Status Syncer owns the Accepted condition based on translation results.
+	// Gateway Controller owns the Programmed condition based on infrastructure status.
 	if cond := meta.FindStatusCondition(gwReport.GetConditions(), string(gwv1.GatewayConditionAccepted)); cond == nil {
 		gwReport.SetCondition(reporter.GatewayCondition{
 			Type:    gwv1.GatewayConditionAccepted,
 			Status:  metav1.ConditionTrue,
 			Reason:  gwv1.GatewayReasonAccepted,
 			Message: GatewayAcceptedMessage,
-		})
-	}
-	if cond := meta.FindStatusCondition(gwReport.GetConditions(), string(gwv1.GatewayConditionProgrammed)); cond == nil {
-		gwReport.SetCondition(reporter.GatewayCondition{
-			Type:    gwv1.GatewayConditionProgrammed,
-			Status:  metav1.ConditionTrue,
-			Reason:  gwv1.GatewayReasonProgrammed,
-			Message: GatewayProgrammedMessage,
 		})
 	}
 }

@@ -39,12 +39,12 @@ var _ = Describe("Reporting Infrastructure", func() {
 			status := rm.BuildGWStatus(context.Background(), *gw, nil)
 
 			Expect(status).NotTo(BeNil())
-			Expect(status.Conditions).To(HaveLen(2))
+			Expect(status.Conditions).To(HaveLen(1))
 			Expect(status.Listeners).To(HaveLen(1))
 			Expect(status.Listeners[0].Conditions).To(HaveLen(4))
 		})
 
-		It("should preserve conditions set externally", func() {
+		It("should only build conditions owned by Status Syncer", func() {
 			gw := gw()
 			gw.Status.Conditions = append(gw.Status.Conditions, metav1.Condition{
 				Type:   "gateway.kgateway.dev/SomeCondition",
@@ -59,7 +59,7 @@ var _ = Describe("Reporting Infrastructure", func() {
 			status := rm.BuildGWStatus(context.Background(), *gw, nil)
 
 			Expect(status).NotTo(BeNil())
-			Expect(status.Conditions).To(HaveLen(3)) // 2 from the report, 1 from the original status
+			Expect(status.Conditions).To(HaveLen(1)) // Only the Accepted condition from Status Syncer
 			Expect(status.Listeners).To(HaveLen(1))
 			Expect(status.Listeners[0].Conditions).To(HaveLen(4))
 		})
@@ -69,19 +69,19 @@ var _ = Describe("Reporting Infrastructure", func() {
 			rm := reports.NewReportMap()
 			r := reports.NewReporter(&rm)
 			r.Gateway(gw).SetCondition(reporter.GatewayCondition{
-				Type:   gwv1.GatewayConditionProgrammed,
+				Type:   gwv1.GatewayConditionAccepted,
 				Status: metav1.ConditionFalse,
-				Reason: gwv1.GatewayReasonAddressNotUsable,
+				Reason: gwv1.GatewayReasonListenersNotValid,
 			})
 			status := rm.BuildGWStatus(context.Background(), *gw, nil)
 
 			Expect(status).NotTo(BeNil())
-			Expect(status.Conditions).To(HaveLen(2))
+			Expect(status.Conditions).To(HaveLen(1))
 			Expect(status.Listeners).To(HaveLen(1))
 			Expect(status.Listeners[0].Conditions).To(HaveLen(4))
 
-			programmed := meta.FindStatusCondition(status.Conditions, string(gwv1.GatewayConditionProgrammed))
-			Expect(programmed.Status).To(Equal(metav1.ConditionFalse))
+			accepted := meta.FindStatusCondition(status.Conditions, string(gwv1.GatewayConditionAccepted))
+			Expect(accepted.Status).To(Equal(metav1.ConditionFalse))
 		})
 
 		It("should correctly set negative listener conditions from report and not add extra conditions", func() {
@@ -96,7 +96,7 @@ var _ = Describe("Reporting Infrastructure", func() {
 			status := rm.BuildGWStatus(context.Background(), *gw, nil)
 
 			Expect(status).NotTo(BeNil())
-			Expect(status.Conditions).To(HaveLen(2))
+			Expect(status.Conditions).To(HaveLen(1))
 			Expect(status.Listeners).To(HaveLen(1))
 			Expect(status.Listeners[0].Conditions).To(HaveLen(4))
 
@@ -115,7 +115,7 @@ var _ = Describe("Reporting Infrastructure", func() {
 			status := rm.BuildGWStatus(context.Background(), *gw, nil)
 
 			Expect(status).NotTo(BeNil())
-			Expect(status.Conditions).To(HaveLen(2))
+			Expect(status.Conditions).To(HaveLen(1))
 			Expect(status.Listeners).To(HaveLen(1))
 			Expect(status.Listeners[0].Conditions).To(HaveLen(4))
 
@@ -126,7 +126,7 @@ var _ = Describe("Reporting Infrastructure", func() {
 			status = rm.BuildGWStatus(context.Background(), *gw, nil)
 
 			Expect(status).NotTo(BeNil())
-			Expect(status.Conditions).To(HaveLen(2))
+			Expect(status.Conditions).To(HaveLen(1))
 			Expect(status.Listeners).To(HaveLen(1))
 			Expect(status.Listeners[0].Conditions).To(HaveLen(4))
 

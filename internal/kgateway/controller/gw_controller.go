@@ -3,32 +3,24 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
-	"slices"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	utilretry "k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	api "sigs.k8s.io/gateway-api/apis/v1"
 
 	intdeployer "github.com/kgateway-dev/kgateway/v2/internal/kgateway/deployer"
+	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/utils"
 	"github.com/kgateway-dev/kgateway/v2/pkg/deployer"
 )
 
-const (
-	GatewayAutoDeployAnnotationKey = "gateway.kgateway.dev/auto-deploy"
-)
-
 type gatewayReconciler struct {
-	cli           client.Client
-	autoProvision bool
+	cli client.Client
 
 	controllerName    string
 	agwControllerName string
@@ -43,11 +35,23 @@ func NewGatewayReconciler(ctx context.Context, cfg GatewayConfig, deployer *depl
 		scheme:            cfg.Mgr.GetScheme(),
 		controllerName:    cfg.ControllerName,
 		agwControllerName: cfg.AgwControllerName,
-		autoProvision:     cfg.AutoProvision,
 		deployer:          deployer,
 	}
 }
 
+// Reconcile handles Gateway infrastructure deployment and manages the Programmed condition.
+// It works alongside the Status Syncer, which handles translation and the Accepted condition.
+//
+// For managed gateways, this controller deploys Kubernetes resources (Deployments, Services)
+// and reports infrastructure status. For self-managed gateways, it validates configuration
+// and sets appropriate status without deploying anything.
+//
+// The controller owns two parts of Gateway status:
+//   - Programmed condition: true when infrastructure is ready, false for config errors
+//   - Addresses field: network endpoints from deployed services (managed gateways only)
+//
+// The Status Syncer owns the Accepted condition and Listeners field, avoiding the race
+// conditions that occurred when both components tried to manage the same status fields.
 func (r *gatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, rErr error) {
 	log := log.FromContext(ctx).WithValues("gw", req.NamespacedName)
 	log.V(1).Info("reconciling request", "req", req)
@@ -57,26 +61,10 @@ func (r *gatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		finishMetrics(rErr)
 	}()
 
-	// check if we need to auto deploy the gateway
-	ns := req.Namespace
-	// get the namespace
-	var namespace corev1.Namespace
-	if err := r.cli.Get(ctx, client.ObjectKey{Name: ns}, &namespace); err != nil {
-		log.Error(err, "unable to get namespace")
-		return ctrl.Result{}, err
-	}
-
-	// check for the annotation:
-	if !r.autoProvision && namespace.Annotations[GatewayAutoDeployAnnotationKey] != "true" {
-		log.Info("namespace is not enabled for auto deploy.")
-		return ctrl.Result{}, nil
-	}
-
 	var gw api.Gateway
 	if err := r.cli.Get(ctx, req.NamespacedName, &gw); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
 	if gw.GetDeletionTimestamp() != nil {
 		// no need to do anything as we have owner refs, so children will be deleted
 		log.Info("gateway deleted, no need for reconciling")
@@ -98,7 +86,9 @@ func (r *gatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		return ctrl.Result{}, nil
 	}
 
-	log.Info("reconciling gateway")
+	// at this point, we now need to prepare to deploy the gateway. shell out to the deployer
+	// component to get the objects to deploy. this will additionally consider any parameterRefs
+	// on the gateway to further customize the objects.
 	objs, err := r.deployer.GetObjsToDeploy(ctx, &gw)
 	if err != nil {
 		if errors.Is(err, intdeployer.ErrNoValidPorts) {
@@ -107,36 +97,40 @@ func (r *gatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		}
 		// if we fail to either reference a valid GatewayParameters or
 		// the GatewayParameters configuration leads to issues building the
-		// objects, we want to set the status to InvalidParameters.
+		// objects, we want to set the Programmed status to false with InvalidParameters.
 		condition := metav1.Condition{
-			Type:               string(api.GatewayConditionAccepted),
+			Type:               string(api.GatewayConditionProgrammed),
 			Status:             metav1.ConditionFalse,
 			ObservedGeneration: gw.Generation,
 			Reason:             string(api.GatewayReasonInvalidParameters),
 			Message:            err.Error(),
 		}
-		if statusErr := r.updateGatewayStatusWithRetry(ctx, &gw, condition); statusErr != nil {
-			log.Error(statusErr, "failed to update Gateway status after retries")
+		patcher := utils.NewGatewayStatusPatcher(r.cli)
+		if statusErr := patcher.PatchCondition(ctx, client.ObjectKeyFromObject(&gw), condition); statusErr != nil {
+			log.Error(statusErr, "failed to update Gateway status")
 			return ctrl.Result{}, statusErr
 		}
 		return ctrl.Result{}, err
-	} else if existing := meta.FindStatusCondition(gw.Status.Conditions, string(api.GatewayConditionAccepted)); existing != nil &&
-		existing.Status == metav1.ConditionFalse &&
-		existing.Reason == string(api.GatewayReasonInvalidParameters) {
-		// set the status Accepted=true if it had been set to false due to InvalidParameters
-		condition := metav1.Condition{
-			Type:               string(api.GatewayConditionAccepted),
-			Status:             metav1.ConditionTrue,
-			ObservedGeneration: gw.Generation,
-			Reason:             string(api.GatewayReasonAccepted),
-			Message:            "Gateway is accepted",
-		}
-		if statusErr := r.updateGatewayStatusWithRetry(ctx, &gw, condition); statusErr != nil {
-			log.Error(statusErr, "failed to update Gateway status after retries")
-			return ctrl.Result{}, statusErr
-		}
 	}
+
 	objs = r.deployer.SetNamespaceAndOwner(&gw, objs)
+	err = r.deployer.DeployObjsWithSource(ctx, objs, &gw)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// If we reach here, deployment was successful - set Programmed=True
+	patcher := utils.NewGatewayStatusPatcher(r.cli)
+	if statusErr := patcher.PatchCondition(ctx, client.ObjectKeyFromObject(&gw), metav1.Condition{
+		Type:               string(api.GatewayConditionProgrammed),
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: gw.Generation,
+		Reason:             string(api.GatewayReasonProgrammed),
+		Message:            "Gateway is programmed",
+	}); statusErr != nil {
+		log.Error(statusErr, "failed to update Gateway status")
+		return ctrl.Result{}, statusErr
+	}
 
 	// find the name/ns of the service we own so we can grab addresses
 	// from it for status
@@ -154,11 +148,6 @@ func (r *gatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	if err != nil {
 		log.Error(err, "failed to update status")
 		result.Requeue = true
-	}
-
-	err = r.deployer.DeployObjsWithSource(ctx, objs, &gw)
-	if err != nil {
-		return result, err
 	}
 
 	return result, nil
@@ -240,67 +229,17 @@ func getDesiredAddresses(gw *api.Gateway, svc *corev1.Service) []api.GatewayStat
 	return ret
 }
 
-// updateGatewayStatusWithRetryFunc updates a Gateway's status with retry logic.
-// The updateFunc receives the latest Gateway and should modify its status as needed.
-// If updateFunc returns false, the update is skipped (no changes needed).
-func updateGatewayStatusWithRetryFunc(
-	ctx context.Context,
-	cli client.Client,
-	gwNN types.NamespacedName,
-	updateFunc func(*api.Gateway) bool,
-) error {
-	err := utilretry.RetryOnConflict(utilretry.DefaultRetry, func() error {
-		var gw api.Gateway
-		if err := cli.Get(ctx, gwNN, &gw); err != nil {
-			return err
-		}
-		original := gw.DeepCopy()
-		if !updateFunc(&gw) {
-			return nil // No update needed
-		}
-		return cli.Status().Patch(ctx, &gw, client.MergeFrom(original))
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update gateway status: %w", err)
-	}
-
-	return nil
-}
-
-// updateGatewayAddresses updates the addresses of a Gateway resource.
+// updateGatewayAddresses updates the addresses of a Gateway resource using strategic patching
+// to avoid conflicts with other components updating different status fields.
 func updateGatewayAddresses(
 	ctx context.Context,
 	cli client.Client,
 	gwNN types.NamespacedName,
 	desired []api.GatewayStatusAddress,
 ) error {
-	return updateGatewayStatusWithRetryFunc(
-		ctx,
-		cli,
-		gwNN,
-		func(gw *api.Gateway) bool {
-			// Check if an update is needed
-			if slices.Equal(desired, gw.Status.Addresses) {
-				return false
-			}
-			gw.Status.Addresses = desired
-			return true
-		},
-	)
-}
-
-// updateGatewayStatusWithRetry attempts to update the Gateway status with retry logic
-// to handle transient failures when updating the status subresource
-func (r *gatewayReconciler) updateGatewayStatusWithRetry(ctx context.Context, gw *api.Gateway, condition metav1.Condition) error {
-	return updateGatewayStatusWithRetryFunc(
-		ctx,
-		r.cli,
-		client.ObjectKeyFromObject(gw),
-		func(latest *api.Gateway) bool {
-			meta.SetStatusCondition(&latest.Status.Conditions, condition)
-			return true
-		},
-	)
+	// Use strategic patching to only update the addresses field
+	patcher := utils.NewGatewayStatusPatcher(cli)
+	return patcher.PatchAddresses(ctx, gwNN, desired)
 }
 
 func convertIngressAddr(ing corev1.LoadBalancerIngress) (api.GatewayStatusAddress, bool) {

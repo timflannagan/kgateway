@@ -161,16 +161,16 @@ var _ = Describe("GwController", func() {
 			Expect(k8sClient.Delete(ctx, &gw)).NotTo(HaveOccurred())
 		})
 
-		It("should eventually set status Accepted to false with the InvalidParameters reason", func() {
+		It("should eventually set status Programmed to false with the InvalidParameters reason", func() {
 			Eventually(func() (*metav1.Condition, error) {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&gw), &gw)
 				if err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(gw.Status.Conditions, string(api.GatewayConditionAccepted)), nil
+				return meta.FindStatusCondition(gw.Status.Conditions, string(api.GatewayConditionProgrammed)), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(string(api.GatewayConditionAccepted))),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(string(api.GatewayConditionProgrammed))),
 				WithTransform(func(c *metav1.Condition) bool { return c.Status == metav1.ConditionFalse }, BeTrue()),
 				WithTransform(func(c *metav1.Condition) int64 { return c.ObservedGeneration }, Equal(gw.Generation)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(string(api.GatewayReasonInvalidParameters))),
