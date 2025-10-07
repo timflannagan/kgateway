@@ -114,8 +114,18 @@ func init() {
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(writer, writer, writer, 100))
 }
 
+func buildSettings() (*settings.Settings, error) {
+	s, err := settings.BuildSettings()
+	if err != nil {
+		return nil, err
+	}
+	// xDS auth requires projected Service Account token which does not work in envtest
+	s.XdsAuth = false
+	return s, nil
+}
+
 func TestServiceEntry(t *testing.T) {
-	st, err := settings.BuildSettings()
+	st, err := buildSettings()
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -124,7 +134,7 @@ func TestServiceEntry(t *testing.T) {
 }
 
 func TestDestinationRule(t *testing.T) {
-	st, err := settings.BuildSettings()
+	st, err := buildSettings()
 	st.EnableIstioIntegration = true
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
@@ -133,7 +143,7 @@ func TestDestinationRule(t *testing.T) {
 }
 
 func TestWithStandardSettings(t *testing.T) {
-	st, err := settings.BuildSettings()
+	st, err := buildSettings()
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -141,7 +151,7 @@ func TestWithStandardSettings(t *testing.T) {
 }
 
 func TestWithIstioAutomtlsSettings(t *testing.T) {
-	st, err := settings.BuildSettings()
+	st, err := buildSettings()
 	st.EnableIstioIntegration = true
 	st.EnableIstioAutoMtls = true
 	if err != nil {
@@ -151,7 +161,7 @@ func TestWithIstioAutomtlsSettings(t *testing.T) {
 }
 
 func TestWithAutoDns(t *testing.T) {
-	st, err := settings.BuildSettings()
+	st, err := buildSettings()
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -161,7 +171,7 @@ func TestWithAutoDns(t *testing.T) {
 }
 
 func TestWithInferenceAPI(t *testing.T) {
-	st, err := settings.BuildSettings()
+	st, err := buildSettings()
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -214,7 +224,7 @@ func addApiServerLogs(t *testing.T, testEnv *envtest.Environment) {
 }
 
 func TestPolicyUpdate(t *testing.T) {
-	st, err := settings.BuildSettings()
+	st, err := buildSettings()
 	if err != nil {
 		t.Fatalf("can't get settings %v", err)
 	}
@@ -406,15 +416,14 @@ func setupEnvTestAndRun(t *testing.T, globalSettings *settings.Settings, run fun
 		t.Fatalf("failed to apply pod status: %v", err)
 	}
 
-	// setup xDS server:
-	uniqueClientCallbacks, builder := krtcollections.NewUniquelyConnectedClients()
+	uniqueClientCallbacks, builder := krtcollections.NewUniquelyConnectedClients(nil, false)
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("can't listen %v", err)
 	}
 	xdsPort := lis.Addr().(*net.TCPAddr).Port
-	snapCache, grpcServer := setup.NewControlPlaneWithListener(ctx, lis, uniqueClientCallbacks)
+	snapCache, grpcServer := setup.NewControlPlaneWithListener(ctx, lis, uniqueClientCallbacks, nil, false)
 	t.Cleanup(func() { grpcServer.Stop() })
 
 	setupOpts := &controller.SetupOpts{
@@ -423,11 +432,16 @@ func setupEnvTestAndRun(t *testing.T, globalSettings *settings.Settings, run fun
 		GlobalSettings: globalSettings,
 	}
 
+	kubeClient, err := setup.CreateKubeClient(cfg)
+	if err != nil {
+		t.Fatalf("failed to create kube client: %v", err)
+	}
+
 	// start kgateway
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		setup.StartKgatewayWithConfig(ctx, setupOpts, cfg, builder, nil)
+		setup.StartKgatewayWithConfig(ctx, setupOpts, cfg, kubeClient, builder, nil)
 	}()
 	// give kgateway time to initialize so we don't get
 	// "kgateway not initialized" error

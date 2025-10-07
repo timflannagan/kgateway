@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	istiokube "istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/krt"
+	"istio.io/istio/pkg/security"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -45,7 +46,7 @@ func startSetupLoop(ctx context.Context) error {
 	return StartKgateway(ctx, nil)
 }
 
-func createKubeClient(restConfig *rest.Config) (istiokube.Client, error) {
+func CreateKubeClient(restConfig *rest.Config) (istiokube.Client, error) {
 	restCfg := istiokube.NewClientConfigForRestConfig(restConfig)
 	client, err := istiokube.NewClient(restCfg, "")
 	if err != nil {
@@ -71,8 +72,19 @@ func StartKgateway(
 	// Set the Istio namespace from settings
 	waypoint.SetRootNamespace(st)
 
-	uniqueClientCallbacks, uccBuilder := krtcollections.NewUniquelyConnectedClients()
-	cache, err := startControlPlane(ctx, st.XdsServicePort, uniqueClientCallbacks)
+	restConfig := ctrl.GetConfigOrDie()
+
+	kubeClient, err := CreateKubeClient(restConfig)
+	if err != nil {
+		return err
+	}
+
+	authenticators := []security.Authenticator{
+		NewKubeJWTAuthenticator(kubeClient.Kube()),
+	}
+
+	uniqueClientCallbacks, uccBuilder := krtcollections.NewUniquelyConnectedClients(nil, st.XdsAuth)
+	cache, err := startControlPlane(ctx, st.XdsServicePort, uniqueClientCallbacks, authenticators, st.XdsAuth)
 	if err != nil {
 		return err
 	}
@@ -86,33 +98,30 @@ func StartKgateway(
 		MetricsBindAddress:     ":9092",
 	}
 
-	restConfig := ctrl.GetConfigOrDie()
-	return StartKgatewayWithConfig(ctx, setupOpts, restConfig, uccBuilder, extraPlugins)
+	return StartKgatewayWithConfig(ctx, setupOpts, restConfig, kubeClient, uccBuilder, extraPlugins)
 }
 
 func startControlPlane(
 	ctx context.Context,
 	port uint32,
 	callbacks xdsserver.Callbacks,
+	authenticators []security.Authenticator,
+	xdsAuth bool,
 ) (envoycache.SnapshotCache, error) {
-	return NewControlPlane(ctx, &net.TCPAddr{IP: net.IPv4zero, Port: int(port)}, callbacks)
+	return NewControlPlane(ctx, &net.TCPAddr{IP: net.IPv4zero, Port: int(port)}, callbacks, authenticators, xdsAuth)
 }
 
 func StartKgatewayWithConfig(
 	ctx context.Context,
 	setupOpts *controller.SetupOpts,
 	restConfig *rest.Config,
+	kubeClient istiokube.Client,
 	uccBuilder krtcollections.UniquelyConnectedClientsBulider,
 	extraPlugins func(ctx context.Context, commoncol *common.CommonCollections) []extensionsplug.Plugin,
 ) error {
 	ctx = contextutils.WithLogger(ctx, "k8s")
 	logger := contextutils.LoggerFrom(ctx)
 	logger.Infof("starting %s", componentName)
-
-	kubeClient, err := createKubeClient(restConfig)
-	if err != nil {
-		return err
-	}
 
 	logger.Info("creating krt collections")
 	krtOpts := krtutil.NewKrtOptions(ctx.Done(), setupOpts.KrtDebugger)
