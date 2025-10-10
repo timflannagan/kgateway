@@ -29,7 +29,6 @@ import (
 	"github.com/kgateway-dev/kgateway/v2/internal/kgateway/wellknown"
 	sdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
-	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/krtutil"
 	pluginsdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/utils"
 	krtpkg "github.com/kgateway-dev/kgateway/v2/pkg/utils/krtutil"
@@ -1274,7 +1273,7 @@ func (h *RoutesIndex) getBuiltInRulePolicies(
 		for _, o := range opts {
 			o(&policyAtt)
 		}
-		ret.Policies[pluginsdkir.VirtualBuiltInGK] = append(ret.Policies[pluginsdkir.VirtualBuiltInGK], policyAtt)
+		ret.Policies[ir.VirtualBuiltInGK] = append(ret.Policies[ir.VirtualBuiltInGK], policyAtt)
 	}
 	return ret
 }
@@ -1325,7 +1324,7 @@ func (h *RoutesIndex) resolveExtension(kctx krt.HandlerContext, ns string, ext g
 
 	builtinIR := NewBuiltInIr(kctx, ext, fromGK, ns, h.refgrants, h.backends)
 	policyAtt := &ir.PolicyAtt{
-		GroupKind: pluginsdkir.VirtualBuiltInGK,
+		GroupKind: ir.VirtualBuiltInGK,
 		PolicyIr:  builtinIR,
 	}
 	return policyAtt, nil

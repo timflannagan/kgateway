@@ -23,7 +23,6 @@ import (
 	sdk "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/collections"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
-	pluginsdkir "github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/ir"
 	"github.com/kgateway-dev/kgateway/v2/pkg/pluginsdk/reporter"
 )
 
@@ -143,8 +142,8 @@ func (p *directResponsePluginGwPass) ApplyForRoute(pCtx *ir.RouteContext, output
 }
 
 func (p *directResponsePluginGwPass) ApplyForRouteBackend(
-	policy pluginsdkir.PolicyIR,
-	pCtx *pluginsdkir.RouteBackendContext,
+	policy ir.PolicyIR,
+	pCtx *ir.RouteBackendContext,
 ) error {
 	return ir.ErrNotAttachable
 }
