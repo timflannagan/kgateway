@@ -31,11 +31,11 @@ type Inputs struct {
 // It applies the floating user ID if it is set and adds the sysctl to allow the privileged ports if the gateway uses them.
 func UpdateSecurityContexts(cfg *v1alpha1.KubernetesProxyConfig, ports []HelmPort) {
 	// If the floating user ID is set, unset the RunAsUser field from all security contexts
-	if ptr.Deref(cfg.GetFloatingUserId(), false) {
+	if ptr.Deref(cfg.FloatingUserId, false) {
 		applyFloatingUserId(cfg)
 	}
 
-	if ptr.Deref(cfg.GetOmitDefaultSecurityContext(), false) {
+	if ptr.Deref(cfg.OmitDefaultSecurityContext, false) {
 		return
 	}
 
@@ -88,17 +88,25 @@ func allowPrivilegedPorts(cfg *v1alpha1.KubernetesProxyConfig) {
 func applyFloatingUserId(dstKube *v1alpha1.KubernetesProxyConfig) {
 	logger.Log(context.Background(), slog.LevelWarn, "the field GatewayParameters.Spec.Kube.FloatingUserId is deprecated and will be removed in a future release; see if OmitDefaultSecurityContext fits your needs")
 
-	podSecurityContext := dstKube.GetPodTemplate().GetSecurityContext()
-	if podSecurityContext != nil {
-		podSecurityContext.RunAsUser = nil
+	if dstKube.PodTemplate != nil && dstKube.PodTemplate.SecurityContext != nil {
+		dstKube.PodTemplate.SecurityContext.RunAsUser = nil
 	}
 
-	securityContexts := []*corev1.SecurityContext{
-		dstKube.GetEnvoyContainer().GetSecurityContext(),
-		dstKube.GetSdsContainer().GetSecurityContext(),
-		dstKube.GetIstio().GetIstioProxyContainer().GetSecurityContext(),
-		dstKube.GetAiExtension().GetSecurityContext(),
-		dstKube.GetAgentgateway().GetSecurityContext(),
+	securityContexts := []*corev1.SecurityContext{}
+	if dstKube.EnvoyContainer != nil {
+		securityContexts = append(securityContexts, dstKube.EnvoyContainer.SecurityContext)
+	}
+	if dstKube.SdsContainer != nil {
+		securityContexts = append(securityContexts, dstKube.SdsContainer.SecurityContext)
+	}
+	if dstKube.Istio != nil && dstKube.Istio.IstioProxyContainer != nil {
+		securityContexts = append(securityContexts, dstKube.Istio.IstioProxyContainer.SecurityContext)
+	}
+	if dstKube.AiExtension != nil {
+		securityContexts = append(securityContexts, dstKube.AiExtension.SecurityContext)
+	}
+	if dstKube.Agentgateway != nil {
+		securityContexts = append(securityContexts, dstKube.Agentgateway.SecurityContext)
 	}
 
 	for _, securityContext := range securityContexts {

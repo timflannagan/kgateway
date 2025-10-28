@@ -46,10 +46,10 @@ func GetPortsValues(gw *ir.GatewayForDeployer, gwp *v1alpha1.GatewayParameters, 
 	// Add ports from GatewayParameters.Service.Ports
 	// Merge user-defined service ports with auto-generated listener ports
 	// Without this, user-specified ports would be ignored, causing service connectivity issues
-	if gwp != nil && gwp.Spec.GetKube() != nil && gwp.Spec.GetKube().GetService() != nil {
-		servicePorts := gwp.Spec.GetKube().GetService().GetPorts()
+	if gwp != nil && gwp.Spec.Kube != nil && gwp.Spec.Kube.Service != nil {
+		servicePorts := gwp.Spec.Kube.Service.Ports
 		for _, servicePort := range servicePorts {
-			portValue := servicePort.GetPort()
+			portValue := servicePort.Port
 			l := ir.Listener{
 				Listener: gwv1.Listener{
 					Port: gwv1.PortNumber(portValue),
@@ -88,11 +88,11 @@ func AppendPortValue(gwPorts []HelmPort, port int32, name string, gwp *v1alpha1.
 	// Search for static NodePort set from the GatewayParameters spec
 	// If not found the default value of `nil` will not render anything.
 	var nodePort *int32 = nil
-	if gwp.Spec.GetKube().GetService().GetType() != nil && *(gwp.Spec.GetKube().GetService().GetType()) == corev1.ServiceTypeNodePort {
-		if idx := slices.IndexFunc(gwp.Spec.GetKube().GetService().GetPorts(), func(p v1alpha1.Port) bool {
-			return p.GetPort() == port
+	if gwp.Spec.Kube != nil && gwp.Spec.Kube.Service != nil && gwp.Spec.Kube.Service.Type != nil && *gwp.Spec.Kube.Service.Type == corev1.ServiceTypeNodePort {
+		if idx := slices.IndexFunc(gwp.Spec.Kube.Service.Ports, func(p v1alpha1.Port) bool {
+			return p.Port == port
 		}); idx != -1 {
-			nodePort = gwp.Spec.GetKube().GetService().GetPorts()[idx].GetNodePort()
+			nodePort = gwp.Spec.Kube.Service.Ports[idx].NodePort
 		}
 	}
 	return append(gwPorts, HelmPort{
@@ -106,26 +106,32 @@ func AppendPortValue(gwPorts []HelmPort, port int32, name string, gwp *v1alpha1.
 
 // Convert service values from GatewayParameters into helm values to be used by the deployer.
 func GetServiceValues(svcConfig *v1alpha1.Service) *HelmService {
+	if svcConfig == nil {
+		return &HelmService{}
+	}
 	// convert the service type enum to its string representation;
 	// if type is not set, it will default to 0 ("ClusterIP")
 	var svcType *string
-	if svcConfig.GetType() != nil {
-		svcType = ptr.To(string(*svcConfig.GetType()))
+	if svcConfig.Type != nil {
+		svcType = ptr.To(string(*svcConfig.Type))
 	}
 	return &HelmService{
 		Type:                  svcType,
-		ClusterIP:             svcConfig.GetClusterIP(),
-		ExtraAnnotations:      svcConfig.GetExtraAnnotations(),
-		ExtraLabels:           svcConfig.GetExtraLabels(),
-		ExternalTrafficPolicy: svcConfig.GetExternalTrafficPolicy(),
+		ClusterIP:             svcConfig.ClusterIP,
+		ExtraAnnotations:      svcConfig.ExtraAnnotations,
+		ExtraLabels:           svcConfig.ExtraLabels,
+		ExternalTrafficPolicy: svcConfig.ExternalTrafficPolicy,
 	}
 }
 
 // Convert service account values from GatewayParameters into helm values to be used by the deployer.
 func GetServiceAccountValues(svcAccountConfig *v1alpha1.ServiceAccount) *HelmServiceAccount {
+	if svcAccountConfig == nil {
+		return &HelmServiceAccount{}
+	}
 	return &HelmServiceAccount{
-		ExtraAnnotations: svcAccountConfig.GetExtraAnnotations(),
-		ExtraLabels:      svcAccountConfig.GetExtraLabels(),
+		ExtraAnnotations: svcAccountConfig.ExtraAnnotations,
+		ExtraLabels:      svcAccountConfig.ExtraLabels,
 	}
 }
 
@@ -136,15 +142,15 @@ func GetSdsContainerValues(sdsContainerConfig *v1alpha1.SdsContainer) *HelmSdsCo
 	}
 
 	vals := &HelmSdsContainer{
-		Image:           GetImageValues(sdsContainerConfig.GetImage()),
-		Resources:       sdsContainerConfig.GetResources(),
-		SecurityContext: sdsContainerConfig.GetSecurityContext(),
+		Image:           GetImageValues(sdsContainerConfig.Image),
+		Resources:       sdsContainerConfig.Resources,
+		SecurityContext: sdsContainerConfig.SecurityContext,
 		SdsBootstrap:    &SdsBootstrap{},
 	}
 
-	if bootstrap := sdsContainerConfig.GetBootstrap(); bootstrap != nil {
+	if bootstrap := sdsContainerConfig.Bootstrap; bootstrap != nil {
 		vals.SdsBootstrap = &SdsBootstrap{
-			LogLevel: bootstrap.GetLogLevel(),
+			LogLevel: bootstrap.LogLevel,
 		}
 	}
 
@@ -157,13 +163,13 @@ func GetIstioContainerValues(config *v1alpha1.IstioContainer) *HelmIstioContaine
 	}
 
 	return &HelmIstioContainer{
-		Image:                 GetImageValues(config.GetImage()),
-		LogLevel:              config.GetLogLevel(),
-		Resources:             config.GetResources(),
-		SecurityContext:       config.GetSecurityContext(),
-		IstioDiscoveryAddress: config.GetIstioDiscoveryAddress(),
-		IstioMetaMeshId:       config.GetIstioMetaMeshId(),
-		IstioMetaClusterId:    config.GetIstioMetaClusterId(),
+		Image:                 GetImageValues(config.Image),
+		LogLevel:              config.LogLevel,
+		Resources:             config.Resources,
+		SecurityContext:       config.SecurityContext,
+		IstioDiscoveryAddress: config.IstioDiscoveryAddress,
+		IstioMetaMeshId:       config.IstioMetaMeshId,
+		IstioMetaClusterId:    config.IstioMetaClusterId,
 	}
 }
 
@@ -188,13 +194,13 @@ func GetImageValues(image *v1alpha1.Image) *HelmImage {
 	}
 
 	HelmImage := &HelmImage{
-		Registry:   image.GetRegistry(),
-		Repository: image.GetRepository(),
-		Tag:        image.GetTag(),
-		Digest:     image.GetDigest(),
+		Registry:   image.Registry,
+		Repository: image.Repository,
+		Tag:        image.Tag,
+		Digest:     image.Digest,
 	}
-	if image.GetPullPolicy() != nil {
-		HelmImage.PullPolicy = ptr.To(string(*image.GetPullPolicy()))
+	if image.PullPolicy != nil {
+		HelmImage.PullPolicy = ptr.To(string(*image.PullPolicy))
 	}
 
 	return HelmImage
@@ -206,10 +212,10 @@ func GetStatsValues(statsConfig *v1alpha1.StatsConfig) *HelmStatsConfig {
 		return nil
 	}
 	return &HelmStatsConfig{
-		Enabled:            statsConfig.GetEnabled(),
-		RoutePrefixRewrite: statsConfig.GetRoutePrefixRewrite(),
-		EnableStatsRoute:   statsConfig.GetEnableStatsRoute(),
-		StatsPrefixRewrite: statsConfig.GetStatsRoutePrefixRewrite(),
+		Enabled:            statsConfig.Enabled,
+		RoutePrefixRewrite: statsConfig.RoutePrefixRewrite,
+		EnableStatsRoute:   statsConfig.EnableStatsRoute,
+		StatsPrefixRewrite: statsConfig.StatsRoutePrefixRewrite,
 	}
 }
 
@@ -217,14 +223,26 @@ func getTracingValues(tracingConfig *v1alpha1.AiExtensionTrace) *helmAITracing {
 	if tracingConfig == nil {
 		return nil
 	}
+	var sampler *helmAITracingSampler
+	if tracingConfig.Sampler != nil {
+		sampler = &helmAITracingSampler{
+			SamplerArg: tracingConfig.Sampler.SamplerArg,
+		}
+		if tracingConfig.Sampler.SamplerType != nil {
+			value := tracingConfig.Sampler.SamplerType.String()
+			sampler.SamplerType = &value
+		}
+	}
+	var protocol *string
+	if tracingConfig.Protocol != nil {
+		value := tracingConfig.Protocol.String()
+		protocol = &value
+	}
 	return &helmAITracing{
 		EndPoint: tracingConfig.EndPoint,
-		Sampler: &helmAITracingSampler{
-			SamplerType: tracingConfig.GetSamplerType(),
-			SamplerArg:  tracingConfig.GetSamplerArg(),
-		},
-		Timeout:  tracingConfig.GetTimeout(),
-		Protocol: tracingConfig.GetOTLPProtocolType(),
+		Sampler:  sampler,
+		Timeout:  tracingConfig.Timeout,
+		Protocol: protocol,
 	}
 }
 
@@ -257,9 +275,9 @@ func GetAIExtensionValues(config *v1alpha1.AiExtension) (*HelmAIExtension, error
 	// If we don't do this check, a byte array containing the characters "null" will be rendered
 	// This will not be marshallable by the component so instead we render nothing.
 	var byt []byte
-	if config.GetStats() != nil {
+	if config.Stats != nil {
 		var err error
-		byt, err = json.Marshal(config.GetStats())
+		byt, err = json.Marshal(config.Stats)
 		if err != nil {
 			return nil, err
 		}
@@ -279,12 +297,12 @@ func GetAIExtensionValues(config *v1alpha1.AiExtension) (*HelmAIExtension, error
 	}
 
 	return &HelmAIExtension{
-		Enabled:         *config.GetEnabled(),
-		Image:           GetImageValues(config.GetImage()),
-		SecurityContext: config.GetSecurityContext(),
-		Resources:       config.GetResources(),
-		Env:             config.GetEnv(),
-		Ports:           config.GetPorts(),
+		Enabled:         *config.Enabled,
+		Image:           GetImageValues(config.Image),
+		SecurityContext: config.SecurityContext,
+		Resources:       config.Resources,
+		Env:             config.Env,
+		Ports:           config.Ports,
 		Stats:           byt,
 		Tracing:         tracingBase64,
 	}, nil

@@ -35,40 +35,6 @@ type Image struct {
 	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
 }
 
-func (in *Image) GetRegistry() *string {
-	if in == nil {
-		return nil
-	}
-	return in.Registry
-}
-
-func (in *Image) GetRepository() *string {
-	if in == nil {
-		return nil
-	}
-	return in.Repository
-}
-
-func (in *Image) GetTag() *string {
-	if in == nil {
-		return nil
-	}
-	return in.Tag
-}
-
-func (in *Image) GetDigest() *string {
-	if in == nil {
-		return nil
-	}
-	return in.Digest
-}
-
-func (in *Image) GetPullPolicy() *corev1.PullPolicy {
-	if in == nil {
-		return nil
-	}
-	return in.PullPolicy
-}
 
 // Configuration for a Kubernetes Service.
 type Service struct {
@@ -113,12 +79,6 @@ type Service struct {
 	ExternalTrafficPolicy *string `json:"externalTrafficPolicy,omitempty"`
 }
 
-func (in *Service) GetPorts() []Port {
-	if in == nil {
-		return nil
-	}
-	return in.Ports
-}
 
 type Port struct {
 	// The port number to match on the Gateway
@@ -137,54 +97,7 @@ type Port struct {
 	NodePort *int32 `json:"nodePort,omitempty"`
 }
 
-func (in *Port) GetPort() int32 {
-	if in == nil {
-		return 0
-	}
-	return in.Port
-}
 
-func (in *Port) GetNodePort() *int32 {
-	if in == nil {
-		return nil
-	}
-	return in.NodePort
-}
-
-func (in *Service) GetType() *corev1.ServiceType {
-	if in == nil {
-		return nil
-	}
-	return in.Type
-}
-
-func (in *Service) GetClusterIP() *string {
-	if in == nil {
-		return nil
-	}
-	return in.ClusterIP
-}
-
-func (in *Service) GetExtraLabels() map[string]string {
-	if in == nil {
-		return nil
-	}
-	return in.ExtraLabels
-}
-
-func (in *Service) GetExtraAnnotations() map[string]string {
-	if in == nil {
-		return nil
-	}
-	return in.ExtraAnnotations
-}
-
-func (in *Service) GetExternalTrafficPolicy() *string {
-	if in == nil {
-		return nil
-	}
-	return in.ExternalTrafficPolicy
-}
 
 type ServiceAccount struct {
 	// Additional labels to add to the ServiceAccount object metadata.
@@ -199,19 +112,6 @@ type ServiceAccount struct {
 	ExtraAnnotations map[string]string `json:"extraAnnotations,omitempty"`
 }
 
-func (in *ServiceAccount) GetExtraLabels() map[string]string {
-	if in == nil {
-		return nil
-	}
-	return in.ExtraLabels
-}
-
-func (in *ServiceAccount) GetExtraAnnotations() map[string]string {
-	if in == nil {
-		return nil
-	}
-	return in.ExtraAnnotations
-}
 
 // Configuration for a Kubernetes Pod template.
 type Pod struct {
@@ -317,103 +217,6 @@ type Pod struct {
 	ExtraVolumes []corev1.Volume `json:"extraVolumes,omitempty"`
 }
 
-func (in *Pod) GetExtraLabels() map[string]string {
-	if in == nil {
-		return nil
-	}
-	return in.ExtraLabels
-}
-
-func (in *Pod) GetExtraAnnotations() map[string]string {
-	if in == nil {
-		return nil
-	}
-	return in.ExtraAnnotations
-}
-
-func (in *Pod) GetSecurityContext() *corev1.PodSecurityContext {
-	if in == nil {
-		return nil
-	}
-	return in.SecurityContext
-}
-
-func (in *Pod) GetImagePullSecrets() []corev1.LocalObjectReference {
-	if in == nil {
-		return nil
-	}
-	return in.ImagePullSecrets
-}
-
-func (in *Pod) GetNodeSelector() map[string]string {
-	if in == nil {
-		return nil
-	}
-	return in.NodeSelector
-}
-
-func (in *Pod) GetAffinity() *corev1.Affinity {
-	if in == nil {
-		return nil
-	}
-	return in.Affinity
-}
-
-func (in *Pod) GetTolerations() []corev1.Toleration {
-	if in == nil {
-		return nil
-	}
-	return in.Tolerations
-}
-
-func (in *Pod) GetStartupProbe() *corev1.Probe {
-	if in == nil {
-		return nil
-	}
-	return in.StartupProbe
-}
-
-func (in *Pod) GetReadinessProbe() *corev1.Probe {
-	if in == nil {
-		return nil
-	}
-	return in.ReadinessProbe
-}
-
-func (in *Pod) GetGracefulShutdown() *GracefulShutdownSpec {
-	if in == nil {
-		return nil
-	}
-	return in.GracefulShutdown
-}
-
-func (in *Pod) GetTerminationGracePeriodSeconds() *int64 {
-	if in == nil {
-		return nil
-	}
-	return in.TerminationGracePeriodSeconds
-}
-
-func (in *Pod) GetLivenessProbe() *corev1.Probe {
-	if in == nil {
-		return nil
-	}
-	return in.LivenessProbe
-}
-
-func (in *Pod) GetTopologySpreadConstraints() []corev1.TopologySpreadConstraint {
-	if in == nil {
-		return nil
-	}
-	return in.TopologySpreadConstraints
-}
-
-func (in *Pod) GetExtraVolumes() []corev1.Volume {
-	if in == nil {
-		return nil
-	}
-	return in.ExtraVolumes
-}
 
 type GracefulShutdownSpec struct {
 	// Enable grace period before shutdown to finish current requests while Envoy health checks fail to e.g. notify external load balancers. *NOTE:* This will not have any effect if you have not defined health checks via the health check filter
@@ -429,16 +232,3 @@ type GracefulShutdownSpec struct {
 	SleepTimeSeconds *int64 `json:"sleepTimeSeconds,omitempty"`
 }
 
-func (in *GracefulShutdownSpec) GetEnabled() *bool {
-	if in == nil {
-		return nil
-	}
-	return in.Enabled
-}
-
-func (in *GracefulShutdownSpec) GetSleepTimeSeconds() *int64 {
-	if in == nil {
-		return nil
-	}
-	return in.SleepTimeSeconds
-}

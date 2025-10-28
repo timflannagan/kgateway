@@ -51,19 +51,6 @@ type GatewayParametersSpec struct {
 	SelfManaged *SelfManagedGateway `json:"selfManaged,omitempty"`
 }
 
-func (in *GatewayParametersSpec) GetKube() *KubernetesProxyConfig {
-	if in == nil {
-		return nil
-	}
-	return in.Kube
-}
-
-func (in *GatewayParametersSpec) GetSelfManaged() *SelfManagedGateway {
-	if in == nil {
-		return nil
-	}
-	return in.SelfManaged
-}
 
 // The current conditions of the GatewayParameters. This is not currently implemented.
 type GatewayParametersStatus struct{}
@@ -152,89 +139,6 @@ type KubernetesProxyConfig struct {
 	OmitDefaultSecurityContext *bool `json:"omitDefaultSecurityContext,omitempty"`
 }
 
-func (in *KubernetesProxyConfig) GetDeployment() *ProxyDeployment {
-	if in == nil {
-		return nil
-	}
-	return in.Deployment
-}
-
-func (in *KubernetesProxyConfig) GetEnvoyContainer() *EnvoyContainer {
-	if in == nil {
-		return nil
-	}
-	return in.EnvoyContainer
-}
-
-func (in *KubernetesProxyConfig) GetSdsContainer() *SdsContainer {
-	if in == nil {
-		return nil
-	}
-	return in.SdsContainer
-}
-
-func (in *KubernetesProxyConfig) GetPodTemplate() *Pod {
-	if in == nil {
-		return nil
-	}
-	return in.PodTemplate
-}
-
-func (in *KubernetesProxyConfig) GetService() *Service {
-	if in == nil {
-		return nil
-	}
-	return in.Service
-}
-
-func (in *KubernetesProxyConfig) GetServiceAccount() *ServiceAccount {
-	if in == nil {
-		return nil
-	}
-	return in.ServiceAccount
-}
-
-func (in *KubernetesProxyConfig) GetIstio() *IstioIntegration {
-	if in == nil {
-		return nil
-	}
-	return in.Istio
-}
-
-func (in *KubernetesProxyConfig) GetStats() *StatsConfig {
-	if in == nil {
-		return nil
-	}
-	return in.Stats
-}
-
-func (in *KubernetesProxyConfig) GetAiExtension() *AiExtension {
-	if in == nil {
-		return nil
-	}
-	return in.AiExtension
-}
-
-func (in *KubernetesProxyConfig) GetAgentgateway() *Agentgateway {
-	if in == nil {
-		return nil
-	}
-	return in.Agentgateway
-}
-
-func (in *KubernetesProxyConfig) GetFloatingUserId() *bool {
-	if in == nil {
-		return nil
-	}
-	return in.FloatingUserId
-}
-
-func (in *KubernetesProxyConfig) GetOmitDefaultSecurityContext() *bool {
-	if in == nil {
-		return nil
-	}
-	return in.OmitDefaultSecurityContext
-}
 
 // ProxyDeployment configures the Proxy deployment in Kubernetes.
 type ProxyDeployment struct {
@@ -264,19 +168,6 @@ type ProxyDeployment struct {
 	Strategy *appsv1.DeploymentStrategy `json:"strategy,omitempty"`
 }
 
-func (in *ProxyDeployment) GetReplicas() *int32 {
-	if in == nil {
-		return nil
-	}
-	return in.Replicas
-}
-
-func (in *ProxyDeployment) GetStrategy() *appsv1.DeploymentStrategy {
-	if in == nil {
-		return nil
-	}
-	return in.Strategy
-}
 
 // EnvoyContainer configures the container running Envoy.
 type EnvoyContainer struct {
@@ -328,40 +219,6 @@ type EnvoyContainer struct {
 	ExtraVolumeMounts []corev1.VolumeMount `json:"extraVolumeMounts,omitempty"`
 }
 
-func (in *EnvoyContainer) GetBootstrap() *EnvoyBootstrap {
-	if in == nil {
-		return nil
-	}
-	return in.Bootstrap
-}
-
-func (in *EnvoyContainer) GetImage() *Image {
-	if in == nil {
-		return nil
-	}
-	return in.Image
-}
-
-func (in *EnvoyContainer) GetSecurityContext() *corev1.SecurityContext {
-	if in == nil {
-		return nil
-	}
-	return in.SecurityContext
-}
-
-func (in *EnvoyContainer) GetResources() *corev1.ResourceRequirements {
-	if in == nil {
-		return nil
-	}
-	return in.Resources
-}
-
-func (in *EnvoyContainer) GetEnv() []corev1.EnvVar {
-	if in == nil {
-		return nil
-	}
-	return in.Env
-}
 
 // EnvoyBootstrap configures the Envoy proxy instance that is provisioned from a
 // Kubernetes Gateway.
@@ -395,19 +252,6 @@ type EnvoyBootstrap struct {
 	ComponentLogLevels map[string]string `json:"componentLogLevels,omitempty"`
 }
 
-func (in *EnvoyBootstrap) GetLogLevel() *string {
-	if in == nil {
-		return nil
-	}
-	return in.LogLevel
-}
-
-func (in *EnvoyBootstrap) GetComponentLogLevels() map[string]string {
-	if in == nil {
-		return nil
-	}
-	return in.ComponentLogLevels
-}
 
 // SdsContainer configures the container running SDS sidecar.
 type SdsContainer struct {
@@ -438,33 +282,6 @@ type SdsContainer struct {
 	Bootstrap *SdsBootstrap `json:"bootstrap,omitempty"`
 }
 
-func (in *SdsContainer) GetImage() *Image {
-	if in == nil {
-		return nil
-	}
-	return in.Image
-}
-
-func (in *SdsContainer) GetSecurityContext() *corev1.SecurityContext {
-	if in == nil {
-		return nil
-	}
-	return in.SecurityContext
-}
-
-func (in *SdsContainer) GetResources() *corev1.ResourceRequirements {
-	if in == nil {
-		return nil
-	}
-	return in.Resources
-}
-
-func (in *SdsContainer) GetBootstrap() *SdsBootstrap {
-	if in == nil {
-		return nil
-	}
-	return in.Bootstrap
-}
 
 // SdsBootstrap configures the SDS instance that is provisioned from a Kubernetes Gateway.
 type SdsBootstrap struct {
@@ -475,12 +292,6 @@ type SdsBootstrap struct {
 	LogLevel *string `json:"logLevel,omitempty"`
 }
 
-func (in *SdsBootstrap) GetLogLevel() *string {
-	if in == nil {
-		return nil
-	}
-	return in.LogLevel
-}
 
 // IstioIntegration configures the Istio integration settings used by a kgateway's data plane (Envoy proxy instance)
 type IstioIntegration struct {
@@ -498,19 +309,6 @@ type IstioIntegration struct {
 	CustomSidecars []corev1.Container `json:"customSidecars,omitempty"`
 }
 
-func (in *IstioIntegration) GetIstioProxyContainer() *IstioContainer {
-	if in == nil {
-		return nil
-	}
-	return in.IstioProxyContainer
-}
-
-func (in *IstioIntegration) GetCustomSidecars() []corev1.Container {
-	if in == nil {
-		return nil
-	}
-	return in.CustomSidecars
-}
 
 // IstioContainer configures the container running the istio-proxy.
 type IstioContainer struct {
@@ -557,54 +355,6 @@ type IstioContainer struct {
 	IstioMetaClusterId *string `json:"istioMetaClusterId,omitempty"`
 }
 
-func (in *IstioContainer) GetImage() *Image {
-	if in == nil {
-		return nil
-	}
-	return in.Image
-}
-
-func (in *IstioContainer) GetSecurityContext() *corev1.SecurityContext {
-	if in == nil {
-		return nil
-	}
-	return in.SecurityContext
-}
-
-func (in *IstioContainer) GetResources() *corev1.ResourceRequirements {
-	if in == nil {
-		return nil
-	}
-	return in.Resources
-}
-
-func (in *IstioContainer) GetLogLevel() *string {
-	if in == nil {
-		return nil
-	}
-	return in.LogLevel
-}
-
-func (in *IstioContainer) GetIstioDiscoveryAddress() *string {
-	if in == nil {
-		return nil
-	}
-	return in.IstioDiscoveryAddress
-}
-
-func (in *IstioContainer) GetIstioMetaMeshId() *string {
-	if in == nil {
-		return nil
-	}
-	return in.IstioMetaMeshId
-}
-
-func (in *IstioContainer) GetIstioMetaClusterId() *string {
-	if in == nil {
-		return nil
-	}
-	return in.IstioMetaClusterId
-}
 
 // Configuration for the stats server.
 type StatsConfig struct {
@@ -629,33 +379,6 @@ type StatsConfig struct {
 	StatsRoutePrefixRewrite *string `json:"statsRoutePrefixRewrite,omitempty"`
 }
 
-func (in *StatsConfig) GetEnabled() *bool {
-	if in == nil {
-		return nil
-	}
-	return in.Enabled
-}
-
-func (in *StatsConfig) GetRoutePrefixRewrite() *string {
-	if in == nil {
-		return nil
-	}
-	return in.RoutePrefixRewrite
-}
-
-func (in *StatsConfig) GetEnableStatsRoute() *bool {
-	if in == nil {
-		return nil
-	}
-	return in.EnableStatsRoute
-}
-
-func (in *StatsConfig) GetStatsRoutePrefixRewrite() *string {
-	if in == nil {
-		return nil
-	}
-	return in.StatsRoutePrefixRewrite
-}
 
 // Configuration for the AI extension.
 type AiExtension struct {
@@ -720,61 +443,6 @@ type AiExtension struct {
 	Tracing *AiExtensionTrace `json:"tracing,omitempty"`
 }
 
-func (in *AiExtension) GetEnabled() *bool {
-	if in == nil {
-		return nil
-	}
-	return in.Enabled
-}
-
-func (in *AiExtension) GetImage() *Image {
-	if in == nil {
-		return nil
-	}
-	return in.Image
-}
-
-func (in *AiExtension) GetSecurityContext() *corev1.SecurityContext {
-	if in == nil {
-		return nil
-	}
-	return in.SecurityContext
-}
-
-func (in *AiExtension) GetResources() *corev1.ResourceRequirements {
-	if in == nil {
-		return nil
-	}
-	return in.Resources
-}
-
-func (in *AiExtension) GetEnv() []corev1.EnvVar {
-	if in == nil {
-		return nil
-	}
-	return in.Env
-}
-
-func (in *AiExtension) GetPorts() []corev1.ContainerPort {
-	if in == nil {
-		return nil
-	}
-	return in.Ports
-}
-
-func (in *AiExtension) GetStats() *AiExtensionStats {
-	if in == nil {
-		return nil
-	}
-	return in.Stats
-}
-
-func (in *AiExtension) GetTracing() *AiExtensionTrace {
-	if in == nil {
-		return nil
-	}
-	return in.Tracing
-}
 
 type AiExtensionStats struct {
 	// Set of custom labels to be added to the request metrics.
@@ -783,12 +451,6 @@ type AiExtensionStats struct {
 	CustomLabels []CustomLabel `json:"customLabels,omitempty"`
 }
 
-func (in *AiExtensionStats) GetCustomLabels() []CustomLabel {
-	if in == nil {
-		return nil
-	}
-	return in.CustomLabels
-}
 
 type CustomLabel struct {
 	// Name of the label to use in the prometheus metrics
@@ -819,33 +481,6 @@ type CustomLabel struct {
 	KeyDelimiter *string `json:"keyDelimiter,omitempty"`
 }
 
-func (in *CustomLabel) GetName() string {
-	if in == nil {
-		return ""
-	}
-	return in.Name
-}
-
-func (in *CustomLabel) GetMetadataNamespace() *string {
-	if in == nil {
-		return nil
-	}
-	return in.MetadataNamespace
-}
-
-func (in *CustomLabel) GetMetdataKey() string {
-	if in == nil {
-		return ""
-	}
-	return in.MetdataKey
-}
-
-func (in *CustomLabel) GetKeyDelimiter() *string {
-	if in == nil {
-		return nil
-	}
-	return in.KeyDelimiter
-}
 
 // AiExtensionTrace defines the tracing configuration for the AI extension
 type AiExtensionTrace struct {
@@ -881,12 +516,6 @@ type AiExtensionTrace struct {
 	Protocol *OTLPTracesProtocolType `json:"protocol,omitempty"`
 }
 
-func (in *AiExtensionTrace) GetTimeout() *metav1.Duration {
-	if in == nil {
-		return nil
-	}
-	return in.Timeout
-}
 
 // OTelTracesSamplerType defines the available OpenTelemetry trace sampler types.
 // These samplers determine which traces are recorded and exported.
@@ -957,27 +586,6 @@ type OTelTracesSampler struct {
 	SamplerArg *string `json:"arg,omitempty"`
 }
 
-func (in *AiExtensionTrace) GetSampler() *OTelTracesSampler {
-	if in == nil {
-		return nil
-	}
-	return in.Sampler
-}
-
-func (in *AiExtensionTrace) GetSamplerType() *string {
-	if in == nil || in.Sampler == nil || in.Sampler.SamplerType == nil {
-		return nil
-	}
-	value := in.Sampler.SamplerType.String()
-	return &value
-}
-
-func (in *AiExtensionTrace) GetSamplerArg() *string {
-	if in == nil || in.Sampler == nil {
-		return nil
-	}
-	return in.GetSampler().SamplerArg
-}
 
 // OTLPTracesProtocolType defines the supported protocols for OTLP exporter.
 type OTLPTracesProtocolType string
@@ -994,13 +602,6 @@ const (
 	OTLPTracesProtocolTypeJson OTLPTracesProtocolType = "http/json"
 )
 
-func (in *AiExtensionTrace) GetOTLPProtocolType() *string {
-	if in == nil || in.Protocol == nil {
-		return nil
-	}
-	value := in.Protocol.String()
-	return &value
-}
 
 func (otelProtocolType OTLPTracesProtocolType) String() string {
 	switch otelProtocolType {
@@ -1103,51 +704,3 @@ type Agentgateway struct {
 	ExtraVolumeMounts []corev1.VolumeMount `json:"extraVolumeMounts,omitempty"`
 }
 
-func (in *Agentgateway) GetEnabled() *bool {
-	if in == nil {
-		return nil
-	}
-	return in.Enabled
-}
-
-func (in *Agentgateway) GetLogLevel() *string {
-	if in == nil {
-		return nil
-	}
-	return in.LogLevel
-}
-
-func (in *Agentgateway) GetImage() *Image {
-	if in == nil {
-		return nil
-	}
-	return in.Image
-}
-
-func (in *Agentgateway) GetSecurityContext() *corev1.SecurityContext {
-	if in == nil {
-		return nil
-	}
-	return in.SecurityContext
-}
-
-func (in *Agentgateway) GetResources() *corev1.ResourceRequirements {
-	if in == nil {
-		return nil
-	}
-	return in.Resources
-}
-
-func (in *Agentgateway) GetEnv() []corev1.EnvVar {
-	if in == nil {
-		return nil
-	}
-	return in.Env
-}
-
-func (in *Agentgateway) GetCustomConfigMapName() *string {
-	if in == nil {
-		return nil
-	}
-	return in.CustomConfigMapName
-}

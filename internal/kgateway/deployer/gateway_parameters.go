@@ -197,7 +197,7 @@ func (k *kGatewayParameters) getGatewayParametersForGateway(ctx context.Context,
 	}
 
 	mergedGwp := defaultGwp
-	if ptr.Deref(gwp.Spec.Kube.GetOmitDefaultSecurityContext(), false) {
+	if gwp.Spec.Kube != nil && ptr.Deref(gwp.Spec.Kube.OmitDefaultSecurityContext, false) {
 		// Need to regenerate defaults with OmitDefaultSecurityContext=true
 		gwc, err := getGatewayClassFromGateway(ctx, k.cli, gw)
 		if err != nil {
@@ -267,7 +267,7 @@ func (k *kGatewayParameters) getGatewayParametersForGatewayClass(ctx context.Con
 	// primarily done to ensure that the image registry and tag are
 	// correctly set when they aren't overridden by the GatewayParameters.
 	mergedGwp := defaultGwp
-	if ptr.Deref(gwp.Spec.Kube.GetOmitDefaultSecurityContext(), false) {
+	if gwp.Spec.Kube != nil && ptr.Deref(gwp.Spec.Kube.OmitDefaultSecurityContext, false) {
 		mergedGwp = deployer.GetInMemoryGatewayParameters(
 			gwc.GetName(),
 			k.inputs.ImageInfo,
@@ -348,74 +348,89 @@ func (k *kGatewayParameters) getValues(gw *api.Gateway, gwParam *v1alpha1.Gatewa
 	// need to be plumbed through here as well)
 
 	kubeProxyConfig := gwParam.Spec.Kube
-	deployConfig := kubeProxyConfig.GetDeployment()
-	podConfig := kubeProxyConfig.GetPodTemplate()
-	envoyContainerConfig := kubeProxyConfig.GetEnvoyContainer()
-	svcConfig := kubeProxyConfig.GetService()
-	svcAccountConfig := kubeProxyConfig.GetServiceAccount()
-	istioConfig := kubeProxyConfig.GetIstio()
+	deployConfig := kubeProxyConfig.Deployment
+	podConfig := kubeProxyConfig.PodTemplate
+	envoyContainerConfig := kubeProxyConfig.EnvoyContainer
+	svcConfig := kubeProxyConfig.Service
+	svcAccountConfig := kubeProxyConfig.ServiceAccount
+	istioConfig := kubeProxyConfig.Istio
 
-	sdsContainerConfig := kubeProxyConfig.GetSdsContainer()
-	statsConfig := kubeProxyConfig.GetStats()
-	istioContainerConfig := istioConfig.GetIstioProxyContainer()
-	aiExtensionConfig := kubeProxyConfig.GetAiExtension()
-	if aiExtensionConfig != nil && aiExtensionConfig.GetEnabled() != nil && *aiExtensionConfig.GetEnabled() {
+	sdsContainerConfig := kubeProxyConfig.SdsContainer
+	statsConfig := kubeProxyConfig.Stats
+	var istioContainerConfig *v1alpha1.IstioContainer
+	if istioConfig != nil {
+		istioContainerConfig = istioConfig.IstioProxyContainer
+	}
+	aiExtensionConfig := kubeProxyConfig.AiExtension
+	if aiExtensionConfig != nil && aiExtensionConfig.Enabled != nil && *aiExtensionConfig.Enabled {
 		slog.Warn("gatewayparameters spec.kube.aiExtension is deprecated in v2.1 and will be removed in v2.2. Use spec.kube.agentgateway instead.")
 	}
 
 	gateway := vals.Gateway
 
 	// deployment values
-	if deployConfig.GetReplicas() != nil {
-		gateway.ReplicaCount = ptr.To(uint32(*deployConfig.GetReplicas())) // nolint:gosec // G115: kubebuilder validation ensures safe for uint32
+	if deployConfig != nil && deployConfig.Replicas != nil {
+		gateway.ReplicaCount = ptr.To(uint32(*deployConfig.Replicas)) // nolint:gosec // G115: kubebuilder validation ensures safe for uint32
 	}
-	gateway.Strategy = deployConfig.GetStrategy()
+	if deployConfig != nil && deployConfig.Strategy != nil {
+		gateway.Strategy = deployConfig.Strategy
+	}
 
 	// service values
 	gateway.Service = deployer.GetServiceValues(svcConfig)
 	// serviceaccount values
 	gateway.ServiceAccount = deployer.GetServiceAccountValues(svcAccountConfig)
 	// pod template values
-	gateway.ExtraPodAnnotations = podConfig.GetExtraAnnotations()
-	gateway.ExtraPodLabels = podConfig.GetExtraLabels()
-	gateway.ImagePullSecrets = podConfig.GetImagePullSecrets()
-	gateway.PodSecurityContext = podConfig.GetSecurityContext()
-	gateway.NodeSelector = podConfig.GetNodeSelector()
-	gateway.Affinity = podConfig.GetAffinity()
-	gateway.Tolerations = podConfig.GetTolerations()
-	gateway.StartupProbe = podConfig.GetStartupProbe()
-	gateway.ReadinessProbe = podConfig.GetReadinessProbe()
-	gateway.LivenessProbe = podConfig.GetLivenessProbe()
-	gateway.GracefulShutdown = podConfig.GetGracefulShutdown()
-	gateway.TerminationGracePeriodSeconds = podConfig.GetTerminationGracePeriodSeconds()
-	gateway.TopologySpreadConstraints = podConfig.GetTopologySpreadConstraints()
-	gateway.ExtraVolumes = podConfig.GetExtraVolumes()
+	if podConfig != nil {
+		gateway.ExtraPodAnnotations = podConfig.ExtraAnnotations
+		gateway.ExtraPodLabels = podConfig.ExtraLabels
+		gateway.ImagePullSecrets = podConfig.ImagePullSecrets
+		gateway.PodSecurityContext = podConfig.SecurityContext
+		gateway.NodeSelector = podConfig.NodeSelector
+		gateway.Affinity = podConfig.Affinity
+		gateway.Tolerations = podConfig.Tolerations
+		gateway.StartupProbe = podConfig.StartupProbe
+		gateway.ReadinessProbe = podConfig.ReadinessProbe
+		gateway.LivenessProbe = podConfig.LivenessProbe
+		gateway.GracefulShutdown = podConfig.GracefulShutdown
+		gateway.TerminationGracePeriodSeconds = podConfig.TerminationGracePeriodSeconds
+		gateway.TopologySpreadConstraints = podConfig.TopologySpreadConstraints
+		gateway.ExtraVolumes = podConfig.ExtraVolumes
+	}
 
 	// data plane container
-	if agwConfig := kubeProxyConfig.GetAgentgateway(); ptr.Deref(agwConfig.GetEnabled(), false) {
+	if agwConfig := kubeProxyConfig.Agentgateway; agwConfig != nil && ptr.Deref(agwConfig.Enabled, false) {
 		gateway.DataPlaneType = deployer.DataPlaneAgentgateway
-		gateway.Resources = agwConfig.GetResources()
-		gateway.SecurityContext = agwConfig.GetSecurityContext()
-		gateway.Image = deployer.GetImageValues(agwConfig.GetImage())
-		gateway.Env = agwConfig.GetEnv()
+		gateway.Resources = agwConfig.Resources
+		gateway.SecurityContext = agwConfig.SecurityContext
+		gateway.Image = deployer.GetImageValues(agwConfig.Image)
+		gateway.Env = agwConfig.Env
 		gateway.ExtraVolumeMounts = agwConfig.ExtraVolumeMounts
-		gateway.LogLevel = agwConfig.GetLogLevel()
-		gateway.CustomConfigMapName = agwConfig.GetCustomConfigMapName()
+		gateway.LogLevel = agwConfig.LogLevel
+		gateway.CustomConfigMapName = agwConfig.CustomConfigMapName
 	} else {
 		gateway.DataPlaneType = deployer.DataPlaneEnvoy
-		logLevel := envoyContainerConfig.GetBootstrap().GetLogLevel()
+		var logLevel *string
+		if envoyContainerConfig != nil && envoyContainerConfig.Bootstrap != nil {
+			logLevel = envoyContainerConfig.Bootstrap.LogLevel
+		}
 		gateway.LogLevel = logLevel
-		compLogLevels := envoyContainerConfig.GetBootstrap().GetComponentLogLevels()
+		var compLogLevels map[string]string
+		if envoyContainerConfig != nil && envoyContainerConfig.Bootstrap != nil {
+			compLogLevels = envoyContainerConfig.Bootstrap.ComponentLogLevels
+		}
 		compLogLevelStr, err := deployer.ComponentLogLevelsToString(compLogLevels)
 		if err != nil {
 			return nil, err
 		}
 		gateway.ComponentLogLevel = &compLogLevelStr
-		gateway.Resources = envoyContainerConfig.GetResources()
-		gateway.SecurityContext = envoyContainerConfig.GetSecurityContext()
-		gateway.Image = deployer.GetImageValues(envoyContainerConfig.GetImage())
-		gateway.Env = envoyContainerConfig.GetEnv()
-		gateway.ExtraVolumeMounts = envoyContainerConfig.ExtraVolumeMounts
+		if envoyContainerConfig != nil {
+			gateway.Resources = envoyContainerConfig.Resources
+			gateway.SecurityContext = envoyContainerConfig.SecurityContext
+			gateway.Image = deployer.GetImageValues(envoyContainerConfig.Image)
+			gateway.Env = envoyContainerConfig.Env
+			gateway.ExtraVolumeMounts = envoyContainerConfig.ExtraVolumeMounts
+		}
 	}
 
 	// istio values
