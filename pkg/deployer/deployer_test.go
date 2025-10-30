@@ -2849,7 +2849,7 @@ func generateStartupProbe() *corev1.Probe {
 		InitialDelaySeconds: 0,
 		PeriodSeconds:       1,
 		TimeoutSeconds:      2,
-		FailureThreshold:    60,
+		FailureThreshold:    30,
 		SuccessThreshold:    1,
 	}
 }
@@ -2862,8 +2862,10 @@ func generateReadinessProbe() *corev1.Probe {
 				Port: intstr.FromInt(8082),
 			},
 		},
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       10,
+		InitialDelaySeconds: 0,
+		PeriodSeconds:       5,
+		TimeoutSeconds:      1,
+		FailureThreshold:    3,
 	}
 }
 

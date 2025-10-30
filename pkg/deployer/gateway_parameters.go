@@ -177,7 +177,9 @@ func defaultGatewayParameters(imageInfo *ImageInfo, omitDefaultSecurityContext b
 							},
 						},
 						InitialDelaySeconds: 0,
-						PeriodSeconds:       10,
+						PeriodSeconds:       5,
+						TimeoutSeconds:      1,
+						FailureThreshold:    3,
 					},
 					StartupProbe: &corev1.Probe{
 						ProbeHandler: corev1.ProbeHandler{
@@ -189,7 +191,7 @@ func defaultGatewayParameters(imageInfo *ImageInfo, omitDefaultSecurityContext b
 						InitialDelaySeconds: 0,
 						PeriodSeconds:       1,
 						TimeoutSeconds:      2,
-						FailureThreshold:    60,
+						FailureThreshold:    30,
 						SuccessThreshold:    1,
 					},
 				},
