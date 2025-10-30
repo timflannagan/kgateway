@@ -1,4 +1,4 @@
-name: Unit Tests
+name: Unit
 
 on:
   pull_request:
@@ -16,25 +16,62 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Runs the unit tests for Go packages
-  go:
-    name: Go Unit Tests
+  unit-tests:
+    name: unit-tests (${{ matrix.shard.name }})
     runs-on: ubuntu-22.04
-    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: fast
+            # packages are everything except the heavy hitters. calculated in the job step.
+          - name: translator
+            packages: "./internal/kgateway/translator/gateway"
+          - name: setup
+            packages: "./internal/kgateway/setup"
+          - name: controller
+            packages: "./internal/kgateway/controller"
+          - name: agw
+            packages: "./internal/kgateway/agentgatewaysyncer"
+          - name: sds
+            packages: "./internal/sds/pkg/run"
     steps:
-    - uses: actions/checkout@v4
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
-    - name: Install dependencies
-      run: make mod-download
-    - name: Run Tests
-      shell: bash
-      run: make unit-with-coverage
-    - name: Validate Test Coverage
-      shell: bash
-      # The make will error if test coverage drops below a certain threshold
-      # We intentionally ignore the errors while we build out our test coverage, to establish a good baseline
-      # However, we should strive to establish a baseline, and then make it required on PRs
-      run: make --always-make --ignore-errors validate-test-coverage
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Download deps
+        run: make mod-download
+      - name: Run unit tests (${{ matrix.shard.name }})
+        run: |
+          if [ "${{ matrix.shard.name }}" = "fast" ]; then
+            PACKAGES=$(go list ./... | grep -v -e 'internal/kgateway/translator/gateway$' -e 'internal/kgateway/controller$' -e 'internal/kgateway/agentgatewaysyncer$' -e 'internal/sds/pkg/run$' -e 'internal/kgateway/setup$' | tr '\n' ' ')
+            make unit-with-coverage TEST_PKG="$PACKAGES" GO_TEST_ARGS="-timeout=15m"
+          else
+            make unit-with-coverage TEST_PKG="${{ matrix.shard.packages }}" GO_TEST_ARGS="-timeout=15m"
+          fi
+      - name: Validate Test Coverage
+        shell: bash
+        run: make validate-test-coverage || true
+      - name: Upload coverage
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.shard.name }}
+          path: cover.out
+          if-no-files-found: ignore
+
+  aggregate:
+    name: unit
+    runs-on: ubuntu-22.04
+    needs:
+      - unit-tests
+    steps:
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./coverage
+      - name: Done
+        run: echo "All unit tests passed"
