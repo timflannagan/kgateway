@@ -28,12 +28,13 @@ help: ## Output the self-documenting make targets
 ROOTDIR := $(shell pwd)
 OUTPUT_DIR ?= $(ROOTDIR)/_output
 
-export IMAGE_REGISTRY ?= ghcr.io/kgateway-dev
+# Image registry for container images. Defaults to localhost:5001 for local development with kind
+# Override via environment variable for releases (e.g., IMAGE_REGISTRY=ghcr.io/kgateway-dev)
+IMAGE_REGISTRY ?= localhost:5001
+export IMAGE_REGISTRY
 
 # Kind of a hack to make sure _output exists
 z := $(shell mkdir -p $(OUTPUT_DIR))
-
-BUILDX_BUILD ?= docker buildx build -q
 
 # A semver resembling 1.0.1-dev. Most calling GHA jobs customize this. Exported for use in goreleaser.yaml.
 VERSION ?= 1.0.1-dev
@@ -62,7 +63,9 @@ else
 	endif
 endif
 
-PLATFORM := --platform=linux/$(GOARCH)
+BUILDX_BUILDER_NAME ?= kind-builder
+BUILDX_BUILD ?= docker buildx build -q
+BUILDX_BUILD_ARGS ?= --push --builder $(BUILDX_BUILDER_NAME) --platform=linux/$(GOARCH)
 
 GOOS ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
 
@@ -417,8 +420,9 @@ kgateway: $(CONTROLLER_OUTPUT_DIR)/kgateway-linux-$(GOARCH)
 $(CONTROLLER_OUTPUT_DIR)/Dockerfile: cmd/kgateway/Dockerfile
 	cp $< $@
 
+.PHONY: $(CONTROLLER_OUTPUT_DIR)/.docker-stamp-$(VERSION)-$(GOARCH)
 $(CONTROLLER_OUTPUT_DIR)/.docker-stamp-$(VERSION)-$(GOARCH): $(CONTROLLER_OUTPUT_DIR)/kgateway-linux-$(GOARCH) $(CONTROLLER_OUTPUT_DIR)/Dockerfile
-	$(BUILDX_BUILD) --load $(PLATFORM) $(CONTROLLER_OUTPUT_DIR) -f $(CONTROLLER_OUTPUT_DIR)/Dockerfile \
+	$(BUILDX_BUILD) $(BUILDX_BUILD_ARGS) $(CONTROLLER_OUTPUT_DIR) -f $(CONTROLLER_OUTPUT_DIR)/Dockerfile \
 		--build-arg GOARCH=$(GOARCH) \
 		--build-arg ENVOY_IMAGE=$(ENVOY_IMAGE) \
 		-t $(IMAGE_REGISTRY)/$(CONTROLLER_IMAGE_REPO):$(VERSION)
@@ -445,8 +449,9 @@ sds: $(SDS_OUTPUT_DIR)/sds-linux-$(GOARCH)
 $(SDS_OUTPUT_DIR)/Dockerfile.sds: cmd/sds/Dockerfile
 	cp $< $@
 
+.PHONY: $(SDS_OUTPUT_DIR)/.docker-stamp-$(VERSION)-$(GOARCH)
 $(SDS_OUTPUT_DIR)/.docker-stamp-$(VERSION)-$(GOARCH): $(SDS_OUTPUT_DIR)/sds-linux-$(GOARCH) $(SDS_OUTPUT_DIR)/Dockerfile.sds
-	$(BUILDX_BUILD) --load $(PLATFORM) $(SDS_OUTPUT_DIR) -f $(SDS_OUTPUT_DIR)/Dockerfile.sds \
+	$(BUILDX_BUILD) $(BUILDX_BUILD_ARGS) $(SDS_OUTPUT_DIR) -f $(SDS_OUTPUT_DIR)/Dockerfile.sds \
 		--build-arg GOARCH=$(GOARCH) \
 		--build-arg BASE_IMAGE=$(ALPINE_BASE_IMAGE) \
 		-t $(IMAGE_REGISTRY)/$(SDS_IMAGE_REPO):$(VERSION)
@@ -486,8 +491,9 @@ $(ENVOYINIT_OUTPUT_DIR)/Dockerfile.envoyinit: $(ENVOYINIT_DOCKERFILE) $(RUSTFORM
 $(ENVOYINIT_OUTPUT_DIR)/docker-entrypoint.sh: cmd/envoyinit/docker-entrypoint.sh
 	cp $< $@
 
+.PHONY: $(ENVOYINIT_OUTPUT_DIR)/.docker-stamp-$(VERSION)-$(GOARCH)
 $(ENVOYINIT_OUTPUT_DIR)/.docker-stamp-$(VERSION)-$(GOARCH): $(ENVOYINIT_OUTPUT_DIR)/envoyinit-linux-$(GOARCH) $(ENVOYINIT_OUTPUT_DIR)/Dockerfile.envoyinit $(ENVOYINIT_OUTPUT_DIR)/docker-entrypoint.sh
-	$(BUILDX_BUILD) --load $(PLATFORM) $(ENVOYINIT_OUTPUT_DIR) -f $(ENVOYINIT_OUTPUT_DIR)/Dockerfile.envoyinit \
+	$(BUILDX_BUILD) $(BUILDX_BUILD_ARGS) $(ENVOYINIT_OUTPUT_DIR) -f $(ENVOYINIT_OUTPUT_DIR)/Dockerfile.envoyinit \
 		--build-arg GOARCH=$(GOARCH) \
 		--build-arg ENVOY_IMAGE=$(ENVOY_IMAGE) \
 		--build-arg RUST_BUILD_ARCH=$(RUST_BUILD_ARCH) \
@@ -561,6 +567,8 @@ GORELEASER_ARGS ?= --snapshot --clean
 GORELEASER_TIMEOUT ?= 60m
 GORELEASER_CURRENT_TAG ?= $(VERSION)
 
+# When running locally, we need to set the IMAGE_REGISTRY to override the default
+# localhost:5001 local registry.
 .PHONY: release
 release: ## Create a release using goreleaser
 	GORELEASER_CURRENT_TAG=$(GORELEASER_CURRENT_TAG) $(GORELEASER) release $(GORELEASER_ARGS) --timeout $(GORELEASER_TIMEOUT)
@@ -577,9 +585,15 @@ INSTALL_NAMESPACE ?= kgateway-system
 # This version should stay in sync with `hack/kind/setup-kind.sh`.
 CLUSTER_NODE_VERSION ?= v1.34.0@sha256:7416a61b42b1662ca6ca89f02028ac133a309a2a30ba309614e8ec94d976dc5a
 
+.PHONY: kind-create-builder
+kind-create-builder: ## Create a buildx builder for pushing to local registry
+	@if ! docker buildx ls | grep -q $(BUILDX_BUILDER_NAME); then \
+		docker buildx create --name $(BUILDX_BUILDER_NAME) --driver docker-container --driver-opt network=host --bootstrap --use; \
+	fi
+
 .PHONY: kind-create
-kind-create: ## Create a KinD cluster
-	$(KIND) get clusters | grep $(CLUSTER_NAME) || $(KIND) create cluster --name $(CLUSTER_NAME) --image kindest/node:$(CLUSTER_NODE_VERSION)
+kind-create: ## Create a KinD cluster with a local registry
+	KIND_CLUSTER_NAME=$(CLUSTER_NAME) KIND_IMAGE_VERSION=$(CLUSTER_NODE_VERSION) ./hack/kind/setup-local-registry.sh
 
 CONFORMANCE_CHANNEL ?= experimental
 CONFORMANCE_VERSION ?= v1.4.0
@@ -606,10 +620,10 @@ deploy-kgateway: package-kgateway-charts deploy-kgateway-crd-chart deploy-kgatew
 setup-base: kind-create gw-api-crds gie-crds metallb ## Setup the base infrastructure (kind cluster, CRDs, and MetalLB)
 
 .PHONY: setup
-setup: setup-base kind-build-and-load package-kgateway-charts ## Setup the complete infrastructure (base setup plus images and charts)
+setup: setup-base docker-build package-kgateway-charts ## Setup the complete infrastructure
 
 .PHONY: run
-run: setup deploy-kgateway  ## Set up complete development environment
+run: setup deploy-kgateway ## Set up complete development environment
 
 .PHONY: undeploy
 undeploy: undeploy-kgateway undeploy-kgateway-crds ## Undeploy the application from the cluster
@@ -622,20 +636,18 @@ undeploy-kgateway: ## Undeploy the core chart from the cluster
 undeploy-kgateway-crds: ## Undeploy the CRD chart from the cluster
 	$(HELM) uninstall kgateway-crds --namespace $(INSTALL_NAMESPACE) || true
 
+.PHONY: docker-build ## Build and push all docker images to local registry
+docker-build: kind-create-builder
+docker-build: kgateway-docker
+docker-build: envoy-wrapper-docker
+docker-build: sds-docker
+
 #----------------------------------------------------------------------------------
 # Build assets for kubernetes e2e tests
 #----------------------------------------------------------------------------------
 
 kind-setup: ## Set up the KinD cluster. Deprecated: use kind-create instead.
 	VERSION=${VERSION} CLUSTER_NAME=${CLUSTER_NAME} ./hack/kind/setup-kind.sh
-
-kind-load-%:
-	$(KIND) load docker-image $(IMAGE_REGISTRY)/$*:$(VERSION) --name $(CLUSTER_NAME)
-
-# Build an image and load it into the KinD cluster
-# Depends on: IMAGE_REGISTRY, VERSION, CLUSTER_NAME
-# Envoy image may be specified via ENVOY_IMAGE on the command line or at the top of this file
-kind-build-and-load-%: %-docker kind-load-% ; ## Use to build specified image and load it into kind
 
 # Update the docker image used by a deployment
 # This works for most of our deployments because the deployment name and container name both match
@@ -648,24 +660,6 @@ kind-set-image-%:
 	kubectl set image deployment/$* $*=$(IMAGE_REGISTRY)/$*:$(VERSION) -n $(INSTALL_NAMESPACE)
 	kubectl patch deployment $* -n $(INSTALL_NAMESPACE) -p '{"spec": {"template":{"metadata":{"annotations":{"kgateway-kind-last-update":"$(shell date)"}}}} }'
 	kubectl rollout resume deployment $* -n $(INSTALL_NAMESPACE)
-
-# Reload an image in KinD
-# This is useful to developers when changing a single component
-# You can reload an image, which means it will be rebuilt and reloaded into the kind cluster, and the deployment
-# will be updated to reference it
-# Depends on: IMAGE_REGISTRY, VERSION, INSTALL_NAMESPACE , CLUSTER_NAME
-# Envoy image may be specified via ENVOY_IMAGE on the command line or at the top of this file
-kind-reload-%: kind-build-and-load-% kind-set-image-% ; ## Use to build specified image, load it into kind, and restart its deployment
-
-.PHONY: kind-build-and-load ## Use to build all images and load them into kind
-kind-build-and-load: kind-build-and-load-kgateway
-kind-build-and-load: kind-build-and-load-envoy-wrapper
-kind-build-and-load: kind-build-and-load-sds
-
-.PHONY: kind-load ## Use to load all images into kind
-kind-load: kind-load-kgateway
-kind-load: kind-load-envoy-wrapper
-kind-load: kind-load-sds
 
 #----------------------------------------------------------------------------------
 # Load Testing

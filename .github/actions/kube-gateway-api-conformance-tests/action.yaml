@@ -40,12 +40,8 @@ runs:
     shell: bash
     run: |
       if [[ -z "${{ matrix.version }}" ]]; then
-        # If matrix.version is empty, use the local chart path specified in the Makefile.
-          helm upgrade -i -n kgateway-system kgateway-crds ./install/helm/kgateway-crds/ \
-          --create-namespace
-        helm upgrade -i -n kgateway-system kgateway ./install/helm/kgateway/ \
-          --create-namespace \
-          --set image.tag=${VERSION} --set image.registry=ghcr.io/kgateway-dev
+        # If matrix.version is empty, use the local chart path via Makefile target
+        make deploy-kgateway
       else
         # TODO(tim): this will require changes once the new helm chart is integrated
         # and published with the release pipeline.

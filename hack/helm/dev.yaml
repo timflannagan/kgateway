@@ -8,3 +8,5 @@ controller:
     # rollingUpdate:
     #   maxSurge: 100%
     #   maxUnavailable: 100%
+image:
+  registry: localhost:5001

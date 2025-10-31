@@ -42,11 +42,8 @@ function create_kind_cluster_or_skip() {
     return
   fi
 
-  echo "creating cluster ${CLUSTER_NAME}"
-  $KIND create cluster \
-    --name "$CLUSTER_NAME" \
-    --image "kindest/node:$CLUSTER_NODE_VERSION" \
-    --config="$SCRIPT_DIR/cluster.yaml"
+  echo "creating cluster ${CLUSTER_NAME} with local registry"
+  KIND_CLUSTER_NAME=$CLUSTER_NAME KIND_IMAGE_VERSION=$CLUSTER_NODE_VERSION $SCRIPT_DIR/setup-local-registry.sh
   echo "Finished setting up cluster $CLUSTER_NAME"
 
   # so that you can just build the kind image alone if needed
@@ -56,18 +53,15 @@ function create_kind_cluster_or_skip() {
   fi
 }
 
-# 1. Create a kind cluster (or skip creation if a cluster with name=CLUSTER_NAME already exists)
+# 1. Create a kind cluster with local registry (or skip creation if a cluster with name=CLUSTER_NAME already exists)
 # This config is roughly based on: https://kind.sigs.k8s.io/docs/user/ingress/
 create_kind_cluster_or_skip
 
 if [[ $SKIP_DOCKER == 'true' ]]; then
-  # TODO(tim): refactor the Makefile & CI scripts so we're loading local
-  # charts to real helm repos, and then we can remove this block.
   echo "SKIP_DOCKER=true, not building images or chart"
 else
-  # 2. Make all the docker images and load them to the kind cluster
-  VERSION=$VERSION CLUSTER_NAME=$CLUSTER_NAME make kind-build-and-load
-
+  # 2. Create buildx builder and build all docker images, pushing to local registry
+  VERSION=$VERSION make docker-build
   # 3. Build the test helm chart, ensuring we have a chart in the `_test` folder
   VERSION=$VERSION make package-kgateway-charts
 

@@ -39,21 +39,9 @@ runs:
   - name: Install kgateway via helm
     shell: bash
     run: |
-      # Check if additional Helm values file is provided
-      ADDITIONAL_VALUES=""
-      if [[ -n "${HELM_ADDITIONAL_VALUES}" && -f "${HELM_ADDITIONAL_VALUES}" ]]; then
-        ADDITIONAL_VALUES="-f ${HELM_ADDITIONAL_VALUES}"
-        echo "Using additional Helm values from: ${HELM_ADDITIONAL_VALUES}"
-      fi
-      
       if [[ -z "${{ matrix.version }}" ]]; then
-        # If matrix.version is empty, use the local chart path specified in the Makefile.
-          helm upgrade -i -n kgateway-system kgateway-crds ./install/helm/kgateway-crds/ \
-          --create-namespace
-        helm upgrade -i -n kgateway-system kgateway ./install/helm/kgateway/ \
-          --create-namespace \
-          --set image.tag=${VERSION} --set image.registry=ghcr.io/kgateway-dev \
-          ${ADDITIONAL_VALUES}
+        # If matrix.version is empty, use the local chart path via Makefile target
+        make deploy-kgateway
       else
         # TODO(tim): this will require changes once the new helm chart is integrated
         # and published with the release pipeline.
