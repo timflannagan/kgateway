@@ -70,7 +70,7 @@ func (d *backendTlsPolicy) Equals(in any) bool {
 }
 
 func registerTypes() {
-	kubeclient.Register[*gwv1.BackendTLSPolicy](
+	kubeclient.Register(
 		backendTlsPolicyGvr,
 		backendTlsPolicyGroupKind,
 		func(c kubeclient.ClientGetter, namespace string, o metav1.ListOptions) (runtime.Object, error) {

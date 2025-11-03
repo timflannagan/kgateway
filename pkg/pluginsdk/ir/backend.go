@@ -142,10 +142,10 @@ type BackendObjectIR struct {
 
 	// Errors is a list of errors, if any, encountered while constructing this BackendObject
 	// Not added to Equals() as it is derived from the inner ObjIr, which is already evaluated
-	// +krtEqualsTodo decide whether construction errors should impact equality
+	// +noKrtEquals
 	Errors []error
 
-	// Name is the pre-calculated resource name. used as the krt resource name.
+	// resourceName is the pre-calculated resource name. used as the krt resource name.
 	resourceName string
 
 	// TrafficDistribution is the desired traffic distribution for the backend.
@@ -167,10 +167,6 @@ func NewBackendObjectIR(objSource ObjectSource, port int32, extraKey string) Bac
 	}
 }
 
-func (c BackendObjectIR) ResourceName() string {
-	return c.resourceName
-}
-
 func BackendResourceName(objSource ObjectSource, port int32, extraKey string) string {
 	var sb strings.Builder
 	sb.WriteString(objSource.ResourceName())
@@ -183,22 +179,32 @@ func BackendResourceName(objSource ObjectSource, port int32, extraKey string) st
 	return sb.String()
 }
 
+// ResourceName returns the pre-calculated resource name for this backend.
+// This method is required to implement the krt.Named interface.
+func (c BackendObjectIR) ResourceName() string {
+	return c.resourceName
+}
+
 func (c BackendObjectIR) Equals(in BackendObjectIR) bool {
-	objEq := c.ObjectSource.Equals(in.ObjectSource)
-	objVersionEq := versionEquals(c.Obj, in.Obj)
-	polEq := c.AttachedPolicies.Equals(in.AttachedPolicies)
-	nameEq := c.resourceName == in.resourceName
-	disableIstioAutoMTLSEq := c.DisableIstioAutoMTLS == in.DisableIstioAutoMTLS
-
-	// objIr may currently be nil in the case of k8s Services
-	// TODO: add an IR for Services to avoid the need for this
-	// see: internal/kgateway/extensions2/plugins/kubernetes/k8s.go
-	objIrEq := true
-	if c.ObjIr != nil {
-		objIrEq = c.ObjIr.Equals(in.ObjIr)
+	if !c.ObjectSource.Equals(in.ObjectSource) {
+		return false
 	}
-
-	return objEq && objVersionEq && objIrEq && polEq && nameEq && disableIstioAutoMTLSEq
+	if !versionEquals(c.Obj, in.Obj) {
+		return false
+	}
+	if c.ObjIr != nil && !c.ObjIr.Equals(in.ObjIr) {
+		return false
+	}
+	if !c.AttachedPolicies.Equals(in.AttachedPolicies) {
+		return false
+	}
+	if c.resourceName != in.resourceName {
+		return false
+	}
+	if c.DisableIstioAutoMTLS != in.DisableIstioAutoMTLS {
+		return false
+	}
+	return true
 }
 
 func (c BackendObjectIR) ClusterName() string {
@@ -349,20 +355,28 @@ func (c Gateway) Equals(in Gateway) bool {
 		c.DeniedListenerSets.Equals(in.DeniedListenerSets)
 }
 
+type BackendRefIR struct {
+	// TODO: remove cluster name from here, it's redundant.
+	ClusterName string
+	Weight      uint32
+
+	// backend could be nil if not found or no ref grant
+	BackendObject *BackendObjectIR
+	// if nil, error might say why
+	Err error
+}
+
 // Equals returns true if the two BackendRefIR instances are equal in cluster name, weight, backend object equality, and error.
 func (a BackendRefIR) Equals(b BackendRefIR) bool {
 	if a.ClusterName != b.ClusterName || a.Weight != b.Weight {
 		return false
 	}
-
 	if !backendObjectEqual(a.BackendObject, b.BackendObject) {
 		return false
 	}
-
 	if !errorsEqual(a.Err, b.Err) {
 		return false
 	}
-
 	return true
 }
 

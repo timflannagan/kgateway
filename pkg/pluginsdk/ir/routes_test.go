@@ -10,6 +10,7 @@ import (
 	gwv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -235,6 +236,18 @@ func TestHTTPRouteIREquals(t *testing.T) {
 		}
 	}
 
+	// Helper to create backend with specific BackendObject (for testing AppProtocol)
+	makeHttpBackendWithBackendObject := func(cluster string, weight uint32, backendObj *BackendObjectIR) HttpBackendOrDelegate {
+		return HttpBackendOrDelegate{
+			Backend: &BackendRefIR{
+				ClusterName:   cluster,
+				Weight:        weight,
+				BackendObject: backendObj,
+			},
+			AttachedPolicies: AttachedPolicies{},
+		}
+	}
+
 	// Test data
 	base := makeHTTPRoute("route1", "test-ns", "1", 1, types.UID("uid1"))
 	differentName := makeHTTPRoute("route2", "test-ns", "1", 1, types.UID("uid1"))
@@ -290,6 +303,36 @@ func TestHTTPRouteIREquals(t *testing.T) {
 		ExtensionRefs:    emptyPolicies,
 		AttachedPolicies: emptyPolicies,
 		Backends:         []HttpBackendOrDelegate{makeHttpBackendOrDelegateWithPolicies("clusterA", 5, nonEmptyPolicies)},
+		Name:             "ruleA",
+	}}
+
+	// Test data for testing backing destination object comparison
+	httpBackendObj := BackendObjectIR{
+		ObjectSource:     ObjectSource{Group: "", Kind: "Service", Namespace: "ns", Name: "svc"},
+		Port:             80,
+		Obj:              base,
+		resourceName:     "/Service/ns/svc:80",
+		AppProtocol:      DefaultAppProtocol,
+		AttachedPolicies: AttachedPolicies{},
+	}
+	wsBackendObj := BackendObjectIR{
+		ObjectSource:     ObjectSource{Group: "", Kind: "Service", Namespace: "ns", Name: "svc"},
+		Port:             80,
+		Obj:              base,
+		resourceName:     "/Service/ns/svc:80",
+		AppProtocol:      WebSocketAppProtocol,
+		AttachedPolicies: AttachedPolicies{},
+	}
+	ruleWithHttpBackend := []HttpRouteRuleIR{{
+		ExtensionRefs:    emptyPolicies,
+		AttachedPolicies: emptyPolicies,
+		Backends:         []HttpBackendOrDelegate{makeHttpBackendWithBackendObject("clusterA", 5, &httpBackendObj)},
+		Name:             "ruleA",
+	}}
+	ruleWithWsBackend := []HttpRouteRuleIR{{
+		ExtensionRefs:    emptyPolicies,
+		AttachedPolicies: emptyPolicies,
+		Backends:         []HttpBackendOrDelegate{makeHttpBackendWithBackendObject("clusterA", 5, &wsBackendObj)},
 		Name:             "ruleA",
 	}}
 
@@ -678,6 +721,26 @@ func TestHTTPRouteIREquals(t *testing.T) {
 			},
 			want: true,
 		},
+		{
+			name: "diff_rules_backend_object_app_protocol",
+			a: HttpRouteIR{
+				ObjectSource:                   ObjectSource{Namespace: "test-ns", Name: "route1"},
+				SourceObject:                   base,
+				AttachedPolicies:               emptyPolicies,
+				Rules:                          ruleWithHttpBackend,
+				PrecedenceWeight:               0,
+				DelegationInheritParentMatcher: false,
+			},
+			b: HttpRouteIR{
+				ObjectSource:                   ObjectSource{Namespace: "test-ns", Name: "route1"},
+				SourceObject:                   base,
+				AttachedPolicies:               emptyPolicies,
+				Rules:                          ruleWithWsBackend,
+				PrecedenceWeight:               0,
+				DelegationInheritParentMatcher: false,
+			},
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -685,7 +748,7 @@ func TestHTTPRouteIREquals(t *testing.T) {
 			a := assert.New(t)
 
 			got := tt.a.Equals(tt.b)
-			a.Equal(tt.want, got, cmp.Diff(tt.a, tt.b))
+			a.Equal(tt.want, got, cmp.Diff(tt.a, tt.b, cmpopts.IgnoreUnexported(BackendObjectIR{})))
 		})
 	}
 }
